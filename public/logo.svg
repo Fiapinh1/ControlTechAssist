@@ -1,0 +1,18 @@
+<svg width="920" height="260" viewBox="0 0 920 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="920" height="260" rx="28" fill="white"/>
+  <g transform="translate(54 38)">
+    <rect x="0" y="24" width="105" height="128" rx="18" stroke="#0F172A" stroke-width="11"/>
+    <rect x="30" y="0" width="45" height="36" rx="10" fill="#0F172A"/>
+    <path d="M25 65H55M25 101H45M25 133H58" stroke="#0F172A" stroke-width="10" stroke-linecap="round"/>
+    <path d="M40 104L58 122L93 78" stroke="#22C55E" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M96 59C106 51 118 47 131 47C161 47 185 71 185 101C185 131 161 155 131 155C118 155 106 151 96 143" stroke="#0F172A" stroke-width="16" stroke-linecap="round"/>
+    <path d="M131 26V47M131 155V176M76 101H55M207 101H186M170 62L185 47M185 155L170 140" stroke="#0F172A" stroke-width="12" stroke-linecap="round"/>
+    <path d="M141 23C161 27 177 43 181 63" stroke="#22C55E" stroke-width="10" stroke-linecap="round"/>
+    <path d="M147 0C181 7 207 33 214 67" stroke="#22C55E" stroke-width="10" stroke-linecap="round"/>
+  </g>
+  <text x="300" y="108" font-family="Inter, Poppins, Arial, sans-serif" font-size="68" font-weight="800" fill="#0F172A">Control<tspan fill="#22C55E">Tech</tspan></text>
+  <text x="300" y="178" font-family="Inter, Poppins, Arial, sans-serif" font-size="70" font-weight="800" fill="#22C55E">Assist</text>
+  <line x1="300" y1="216" x2="360" y2="216" stroke="#22C55E" stroke-width="4" stroke-linecap="round"/>
+  <text x="382" y="224" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" letter-spacing="6" fill="#0F172A">SEU ASSISTENTE TÉCNICO DE CAMPO</text>
+  <line x1="796" y1="216" x2="856" y2="216" stroke="#22C55E" stroke-width="4" stroke-linecap="round"/>
+</svg>
