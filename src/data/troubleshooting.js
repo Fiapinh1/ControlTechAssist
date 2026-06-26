@@ -1,202 +1,87 @@
 export const troubleshootingFlows = [
   {
-    id: 'sem-internet',
-    title: 'Sem internet',
-    icon: 'wifi',
-    severity: 'Alta frequência',
-    symptom: 'Equipamento ou rede não navega, não sincroniza ou não conecta ao servidor.',
+    id: 'base-luzes',
+    equipment: 'Base / Gateway',
+    title: 'Diagnóstico de luzes',
+    icon: 'gateway',
+    severity: 'Manual obrigatório',
+    symptom: 'A base apresenta uma luz/padrão de LED e você precisa saber o próximo passo seguro.',
+    manualStatus: 'Tabela oficial de LEDs ainda não cadastrada. Use este fluxo para registrar evidência e evitar diagnóstico inventado.',
     checks: [
-      {
-        question: 'O roteador/modem está ligado e com sinal?',
-        why: 'Sem alimentação ou sem link, nenhum equipamento da rede vai comunicar.',
-        action: 'Conferir energia, LEDs do equipamento e cabo de alimentação.'
-      },
-      {
-        question: 'Outro celular ou notebook navega na mesma rede?',
-        why: 'Isso separa problema da internet geral de problema do equipamento específico.',
-        action: 'Testar navegação em outro dispositivo conectado à mesma rede.'
-      },
-      {
-        question: 'O gateway recebeu IP?',
-        why: 'Sem IP, ele não entrou corretamente na rede local.',
-        action: 'Verificar DHCP ou configuração de IP fixo.'
-      },
-      {
-        question: 'O cabo ou porta de rede foi testado?',
-        why: 'Cabo ruim e porta errada são causas simples e muito comuns.',
-        action: 'Trocar cabo, testar outra porta e observar LEDs da porta LAN.'
-      },
-      {
-        question: 'DNS e gateway padrão estão corretos?',
-        why: 'Com IP errado, máscara errada ou DNS ruim, a rede pode parecer conectada mas não acessar serviços.',
-        action: 'Conferir IP, máscara, gateway e DNS antes de acionar suporte.'
-      }
+      { question: 'A base está apagada ou existe alguma luz acesa?', why: 'A primeira separação é energia/fonte versus comportamento operacional.', action: 'Registrar: apagada, ligada com luz fixa, piscando ou alternando.' },
+      { question: 'Qual é a cor da luz?', why: 'A cor normalmente indica estado do equipamento, mas precisa ser interpretada pela tabela oficial.', action: 'Anotar cor exata e tirar foto/vídeo curto.' },
+      { question: 'A luz está fixa ou piscando?', why: 'O mesmo LED pode ter significado diferente conforme o padrão.', action: 'Anotar se pisca lento, rápido, alterna cores ou fica fixa.' },
+      { question: 'Rede e energia estão conferidas?', why: 'Muitos alertas de LED podem ser consequência de fonte, cabo, roteador ou internet.', action: 'Conferir fonte, tomada, cabo de rede e internet antes de escalar.' },
+      { question: 'A base aparece no Nedap Now/sistema?', why: 'O LED deve ser comparado com o status real do equipamento no sistema.', action: 'Registrar status online/offline, horário e fazenda vinculada.' }
     ],
-    result: 'Se energia, cabo, IP, gateway e DNS estiverem corretos, registre as evidências e acione o suporte com prints/fotos dos testes.'
+    result: 'Sem a tabela oficial cadastrada, não interpretar a luz como defeito definitivo. Registrar evidências e comparar com manual/suporte.'
   },
   {
-    id: 'gateway-offline',
-    title: 'Gateway offline',
+    id: 'base-instalada-nao-aparece',
+    equipment: 'Base / Gateway',
+    title: 'Base instalada não aparece no sistema',
     icon: 'gateway',
     severity: 'Crítico',
-    symptom: 'Base/gateway aparece offline no sistema ou não envia dados.',
+    symptom: 'A base foi instalada, mas não aparece ou não fica online no Nedap Now/sistema.',
+    manualStatus: 'Fluxo estrutural. Complementar com telas oficiais do Nedap Now e manual de instalação.',
     checks: [
-      {
-        question: 'A base está energizada?',
-        why: 'Sem energia, não há comunicação, mesmo que a instalação física esteja correta.',
-        action: 'Conferir fonte, tomada, nobreak e LEDs.'
-      },
-      {
-        question: 'A base está conectada à internet?',
-        why: 'Gateway offline muitas vezes é falha de rede, não falha do equipamento.',
-        action: 'Executar checklist de Rede e Internet.'
-      },
-      {
-        question: 'A identificação da base está correta no sistema?',
-        why: 'Base instalada com ID incorreto pode parecer ausente no painel esperado.',
-        action: 'Conferir serial, ID, cadastro e fazenda vinculada.'
-      },
-      {
-        question: 'A antena está conectada corretamente?',
-        why: 'Sem antena ou com cabo ruim, a cobertura pode cair muito.',
-        action: 'Conferir conector, cabo, posição e integridade visual.'
-      },
-      {
-        question: 'Há bloqueio de rede do cliente?',
-        why: 'Algumas redes corporativas ou rurais bloqueiam portas e serviços.',
-        action: 'Anotar rede usada e pedir liberação/validação ao responsável de TI ou suporte.'
-      }
+      { question: 'O serial/ID da base está correto?', why: 'Cadastro errado faz o equipamento aparecer ausente ou em fazenda errada.', action: 'Conferir etiqueta/serial físico com o cadastro.' },
+      { question: 'A base está energizada e com LED ativo?', why: 'Sem energia não existe comunicação.', action: 'Conferir fonte, tomada, nobreak e padrão de luz.' },
+      { question: 'A rede local está funcionando?', why: 'Base offline quase sempre precisa separar problema de rede e problema do equipamento.', action: 'Rodar checklist de Rede e Internet no campo.' },
+      { question: 'O equipamento recebeu IP?', why: 'Sem IP válido ele não entra na rede.', action: 'Verificar DHCP, IP fixo, máscara, gateway e DNS.' },
+      { question: 'O cadastro está vinculado à fazenda correta?', why: 'O técnico pode procurar no local errado dentro do sistema.', action: 'Conferir fazenda, local e nome do equipamento.' }
     ],
-    result: 'Registre energia, IP, rede, ID da base, foto da instalação e horário do teste antes de encerrar ou escalar.'
+    result: 'Registrar serial, fazenda, IP, status no sistema, padrão de luzes e foto da instalação antes de acionar suporte.'
   },
   {
-    id: 'ip-nao-responde',
-    title: 'IP não responde',
-    icon: 'terminal',
-    severity: 'Rede',
-    symptom: 'Ping não responde ou equipamento não abre pelo endereço IP.',
-    checks: [
-      {
-        question: 'Você está na mesma rede do equipamento?',
-        why: 'Dispositivos em redes diferentes podem não se enxergar.',
-        action: 'Comparar o IP do seu notebook/celular com o IP do equipamento.'
-      },
-      {
-        question: 'A máscara de rede está correta?',
-        why: 'Máscara errada pode separar equipamentos que deveriam estar na mesma rede.',
-        action: 'Conferir se IP e máscara pertencem à mesma faixa.'
-      },
-      {
-        question: 'O IP pode ter mudado?',
-        why: 'Quando usa DHCP, o roteador pode entregar outro IP após reinício.',
-        action: 'Consultar a lista de clientes conectados no roteador ou scanner de rede autorizado.'
-      },
-      {
-        question: 'O equipamento bloqueia ping?',
-        why: 'Alguns equipamentos não respondem ping, mas funcionam em outra porta ou sistema.',
-        action: 'Testar o acesso pelo serviço correto, conforme orientação técnica.'
-      },
-      {
-        question: 'Há conflito de IP?',
-        why: 'Dois dispositivos com o mesmo IP causam falhas intermitentes.',
-        action: 'Desconectar um por vez ou revisar reserva DHCP/IP fixo.'
-      }
-    ],
-    result: 'Ao registrar o problema, salve IP do equipamento, IP do seu dispositivo, máscara, gateway e resultado do teste.'
-  },
-  {
-    id: 'coleira-sem-comunicacao',
-    title: 'Coleira sem comunicação',
+    id: 'vp-nao-comunica',
+    equipment: 'VP / Coleira',
+    title: 'VP/Coleira sem comunicação',
     icon: 'cow',
     severity: 'Campo',
-    symptom: 'Coleira instalada, mas sem aparecer, sem atualizar ou com dados ausentes.',
+    symptom: 'A VP/coleira foi instalada, mas não aparece, não atualiza ou não envia dados.',
+    manualStatus: 'Fluxo aguardando manual de VP/coleira para validação de posição, janela de sincronização e comportamento esperado.',
     checks: [
-      {
-        question: 'A coleira está cadastrada e vinculada ao animal correto?',
-        why: 'Erro de cadastro pode parecer falha de comunicação.',
-        action: 'Conferir ID da coleira, ID do animal e fazenda/lote no sistema.'
-      },
-      {
-        question: 'A base/gateway está online?',
-        why: 'Se a base está offline, as coleiras podem não transmitir dados ao sistema.',
-        action: 'Executar fluxo Gateway offline.'
-      },
-      {
-        question: 'O animal está em área de cobertura?',
-        why: 'Distância, relevo e barreiras podem gerar sombra de sinal.',
-        action: 'Comparar posição do lote com a posição da antena/base.'
-      },
-      {
-        question: 'A coleira foi instalada corretamente?',
-        why: 'Posicionamento inadequado pode prejudicar leitura ou funcionamento.',
-        action: 'Conferir ajuste e posição conforme procedimento do fabricante.'
-      },
-      {
-        question: 'Existe atraso normal de sincronização?',
-        why: 'Alguns sistemas não atualizam imediatamente após a instalação.',
-        action: 'Aguardar janela mínima recomendada e registrar horário da instalação.'
-      }
+      { question: 'O código da VP foi conferido antes de instalar?', why: 'Erro de identificação parece falha de comunicação.', action: 'Comparar código físico com cadastro no sistema.' },
+      { question: 'A VP está vinculada ao animal correto?', why: 'Vínculo incorreto gera dado ausente ou dado em animal errado.', action: 'Conferir animal, lote e fazenda.' },
+      { question: 'A base/gateway está online?', why: 'Se a base está offline, a VP pode estar correta e mesmo assim não aparecer.', action: 'Rodar diagnóstico da base.' },
+      { question: 'O animal está em área de cobertura?', why: 'Distância e barreiras podem impedir leitura.', action: 'Comparar posição do lote com base/antena.' },
+      { question: 'Existe tempo mínimo de sincronização?', why: 'Alguns sistemas não atualizam imediatamente.', action: 'Registrar horário da instalação e aguardar a janela oficial quando estiver cadastrada.' }
     ],
-    result: 'Evite trocar equipamento sem antes validar cadastro, gateway, cobertura e tempo de sincronização.'
+    result: 'Não trocar VP antes de validar cadastro, animal, base online, cobertura e tempo de sincronização.'
   },
   {
-    id: 'sinal-fraco',
-    title: 'Sinal fraco',
-    icon: 'antenna',
-    severity: 'Cobertura',
-    symptom: 'Comunicação instável, perda de dados ou falha em regiões específicas.',
+    id: 'nedap-validacao',
+    equipment: 'Nedap Now',
+    title: 'Validação no Nedap Now',
+    icon: 'book',
+    severity: 'Sistema',
+    symptom: 'Você precisa conferir se a instalação ficou certa dentro do Nedap Now.',
+    manualStatus: 'Aguardando manual/prints do Nedap Now para guiar tela por tela.',
     checks: [
-      {
-        question: 'A antena está em local alto e livre?',
-        why: 'Obstáculos físicos prejudicam sinal.',
-        action: 'Avaliar reposicionamento com segurança e autorização.'
-      },
-      {
-        question: 'Cabos e conectores estão íntegros?',
-        why: 'Cabo danificado ou conector frouxo reduz muito o desempenho.',
-        action: 'Conferir visualmente sem forçar conectores.'
-      },
-      {
-        question: 'A falha acontece em uma área específica?',
-        why: 'Isso indica sombra de sinal, distância ou barreira localizada.',
-        action: 'Mapear área com problema e anotar distância aproximada.'
-      },
-      {
-        question: 'Há barreiras como galpões, morros ou estruturas metálicas?',
-        why: 'Ambiente rural também pode ter bloqueios importantes.',
-        action: 'Registrar obstáculos e testar melhor posição se possível.'
-      }
+      { question: 'Você está na fazenda correta?', why: 'Em sistemas com várias fazendas, é comum validar no ambiente errado.', action: 'Conferir nome da fazenda e cliente.' },
+      { question: 'O equipamento aparece com identificação correta?', why: 'Serial/código errado compromete o histórico.', action: 'Comparar código físico com o que aparece no sistema.' },
+      { question: 'O status aparece online, ativo ou equivalente?', why: 'A validação final depende do status mostrado pelo sistema.', action: 'Registrar print/status e horário.' },
+      { question: 'Há alertas ou pendências visíveis?', why: 'Uma instalação pode aparecer, mas ainda com aviso.', action: 'Anotar o alerta exatamente como aparece.' },
+      { question: 'O registro de campo foi salvo?', why: 'Sem registro, você perde evidência do que foi feito.', action: 'Salvar fazenda, local, equipamento, status e observação.' }
     ],
-    result: 'Salve fotos do ponto da antena, posição da base e região sem sinal para facilitar análise técnica.'
+    result: 'Validação boa é a que deixa evidência: equipamento certo, fazenda certa, status registrado e pendência clara.'
   },
   {
-    id: 'cliente-sem-acesso',
-    title: 'Cliente sem acesso',
-    icon: 'user',
-    severity: 'Suporte',
-    symptom: 'Cliente não consegue acessar o sistema, painel ou aplicativo.',
+    id: 'rede-internet',
+    equipment: 'Rede / Internet',
+    title: 'Sem internet / IP não responde',
+    icon: 'wifi',
+    severity: 'Muito comum',
+    symptom: 'Base, notebook ou equipamento não conecta, não sincroniza ou não responde IP.',
+    manualStatus: 'Fluxo geral de rede. Complementar depois com portas/URLs oficiais se existirem no manual.',
     checks: [
-      {
-        question: 'O usuário, e-mail ou telefone está correto?',
-        why: 'Erro simples de cadastro impede login.',
-        action: 'Conferir dados com o cliente antes de alterar qualquer coisa.'
-      },
-      {
-        question: 'O cliente tem internet no celular/computador?',
-        why: 'Problema local de internet pode parecer falha do sistema.',
-        action: 'Testar navegação em outro site ou rede.'
-      },
-      {
-        question: 'A senha foi digitada corretamente?',
-        why: 'Caps Lock, teclado e caracteres especiais causam erro comum.',
-        action: 'Orientar recuperação de senha pelo canal oficial.'
-      },
-      {
-        question: 'O perfil do cliente tem permissão para acessar a fazenda?',
-        why: 'Usuário sem vínculo com fazenda não visualiza dados.',
-        action: 'Conferir permissões no painel administrativo ou com suporte.'
-      }
+      { question: 'Outro dispositivo navega na mesma rede?', why: 'Se nada navega, o problema é internet geral, não só a base.', action: 'Testar celular/notebook na mesma rede.' },
+      { question: 'O cabo/porta foi testado?', why: 'Cabo ruim e porta errada são causas muito comuns.', action: 'Trocar cabo e testar outra porta LAN.' },
+      { question: 'O equipamento recebeu IP?', why: 'Sem IP não há comunicação local.', action: 'Verificar DHCP ou configuração manual.' },
+      { question: 'IP, máscara, gateway e DNS estão coerentes?', why: 'Configuração errada pode parecer equipamento defeituoso.', action: 'Anotar valores e comparar com a rede local.' },
+      { question: 'Existe bloqueio da rede do cliente?', why: 'Redes corporativas podem bloquear serviços.', action: 'Registrar evidências e solicitar liberação ao responsável/suporte.' }
     ],
-    result: 'Nunca peça senha do cliente. Oriente recuperação pelos canais oficiais e registre o erro apresentado.'
+    result: 'Antes de escalar, registrar IP do equipamento, IP do seu dispositivo, gateway, DNS, teste de cabo e status da internet.'
   }
 ];

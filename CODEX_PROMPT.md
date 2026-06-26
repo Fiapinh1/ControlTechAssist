@@ -1,52 +1,38 @@
-# Prompt para continuar o ControlTech Assist V1.1
+# Prompt para continuar o ControlTech Assist V1.5
 
-Você é um desenvolvedor frontend sênior. Continue o projeto ControlTech Assist, um PWA em React + Vite para técnico de campo.
+Você está trabalhando no projeto ControlTech Assist, um PWA em React + Vite para técnicos de campo em instalações Nedap/CowControl.
 
-## Contexto
+## Objetivo do app
 
-O sistema ajuda técnicos em fazendas na instalação e suporte de VPs/coleiras, gateways, bases, antenas, redes e internet.
+O app tem dois pilares:
 
-## Versão atual
+1. Controle de visitas/fazendas.
+2. Diagnóstico e instalação guiada baseados em manuais oficiais.
 
-A V1.1 possui:
+## Stack
 
 - React + Vite
-- Supabase Auth
-- Supabase Database com RLS
-- Cadastro de fazendas
-- Cadastro de locais por fazenda
-- Cadastro de equipamentos/VPs com GPS
-- Mapa por fazenda com Leaflet + OpenStreetMap
-- Checklists em telas próprias
-- Diagnóstico guiado em telas próprias
-- Guia técnico
-- Registros de campo
-- Exportação TSV
-- Backup JSON
-- PWA básico
+- Supabase Auth + Postgres + RLS
+- Leaflet / React Leaflet
+- Lucide React
+- LocalStorage fallback
 
-## Identidade visual
+## Regras importantes
 
-Nome: ControlTech Assist
-Slogan: Seu assistente técnico de campo
-Cores:
-- Azul escuro: #0F172A
-- Verde técnico: #22C55E
-- Branco: #FFFFFF
-- Fundo claro: #F8FAFC
-- Texto secundário: #475569
-
-Fontes:
-- Inter para interface
-- Poppins para títulos
+- Fazenda é o centro do sistema.
+- Não existe módulo separado de locais. Local é campo do equipamento.
+- Equipamentos principais: VP8002 e VP4102.
+- Roteador não é equipamento vendido; aparece em checklist/rede.
+- Todo diagnóstico técnico deve ter base em manual ou observação prática claramente marcada.
+- Não inventar significado de LED/código.
+- Conteúdo do app deve estar em português.
 
 ## Próximas melhorias sugeridas
 
-1. Edição de fazendas, locais e equipamentos.
-2. Exportação PDF por fazenda.
-3. Upload de fotos dos pontos/equipamentos.
-4. Checklist realizado vinculado à fazenda/equipamento.
-5. Relatório de visita em PDF.
-6. Modo offline com fila de sincronização Supabase.
-7. Painel de pendências por fazenda.
-8. Assistente IA no futuro.
+- Gerar PDF de relatório com logo.
+- Adicionar fotos/anexos em visitas.
+- Permitir assinatura do cliente.
+- Criar cadastro detalhado de colares/tags por lote.
+- Criar importação/exportação CSV para animais/tags.
+- Criar modo offline mais robusto com sincronização posterior.
+- Criar assistente IA futuramente, mas mantendo diagnóstico manual como fonte confiável.

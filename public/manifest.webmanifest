@@ -1,17 +1,10 @@
 {
   "name": "ControlTech Assist",
   "short_name": "ControlTech",
-  "description": "Seu assistente técnico de campo para checklists, diagnósticos e registros.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F8FAFC",
-  "theme_color": "#0F172A",
-  "icons": [
-    {
-      "src": "/app-icon.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
-  ]
+  "background_color": "#f8fafc",
+  "theme_color": "#0f172a",
+  "description": "Controle de visitas, fazendas, equipamentos e diagnósticos técnicos de campo.",
+  "icons": []
 }

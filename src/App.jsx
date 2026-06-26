@@ -8,12 +8,12 @@ import { makeId, nowIso, readLocal, writeLocal } from './lib/localStore.js';
 import { downloadFile, exportEquipmentsTSV, exportRecordsTSV } from './lib/exporters.js';
 
 const STORAGE = {
-  farms: 'controltech_farms_v11',
-  locations: 'controltech_locations_v11',
-  equipments: 'controltech_equipments_v11',
-  records: 'controltech_records_v11',
-  checklist: 'controltech_checklist_progress_v11',
-  operation: 'controltech_operation_v11'
+  farms: 'controltech_farms_v12',
+  locations: 'controltech_locations_v12',
+  equipments: 'controltech_equipments_v12',
+  records: 'controltech_records_v12',
+  checklist: 'controltech_checklist_progress_v12',
+  operation: 'controltech_operation_v12'
 };
 
 const navItems = [
@@ -138,7 +138,7 @@ function AuthScreen() {
       <section className="auth-card">
         <Logo />
         <div className="auth-copy">
-          <Badge tone="green">V1.1 com Supabase</Badge>
+          <Badge tone="green">V1.2 com Supabase</Badge>
           <h1>Entre para sincronizar suas fazendas, pontos e equipamentos.</h1>
           <p>Use e-mail e senha. Com RLS ativo, cada técnico vê somente os próprios dados.</p>
         </div>
@@ -443,18 +443,19 @@ function HomePage({ setActiveTab, farms, locations, equipments, records }) {
     <div className="page-stack">
       <section className="hero-card">
         <div>
-          <Badge tone="green">ControlTech Assist V1.1</Badge>
-          <h1>O que você vai fazer hoje?</h1>
-          <p>Escolha uma ação e vá direto para a tela certa. No celular, nada fica escondido no fim da página.</p>
+          <Badge tone="green">ControlTech Assist V1.2</Badge>
+          <h1>Seu guia de campo, baseado nos manuais.</h1>
+          <p>Agora o app está organizado para instalar base, validar Nedap Now, diagnosticar luzes, registrar VPs e consultar procedimentos. Onde faltar manual, o sistema avisa para não inventar diagnóstico.</p>
           <div className="quick-actions">
-            <button onClick={() => setActiveTab('fazendas')}><Icon name="farm" />Nova / abrir fazenda</button>
-            <button onClick={() => setActiveTab('checklists')}><Icon name="checklist" />Fazer checklist</button>
-            <button onClick={() => setActiveTab('diagnostico')}><Icon name="wrench" />Resolver problema</button>
-            <button onClick={() => setActiveTab('registros')}><Icon name="records" />Registrar atendimento</button>
+            <button onClick={() => setActiveTab('checklists')}><Icon name="gateway" />Instalar nova base</button>
+            <button onClick={() => setActiveTab('diagnostico')}><Icon name="wrench" />Diagnosticar equipamento</button>
+            <button onClick={() => setActiveTab('guia')}><Icon name="book" />Guia Nedap Now</button>
+            <button onClick={() => setActiveTab('fazendas')}><Icon name="farm" />Fazendas e VPs</button>
           </div>
         </div>
-        <div className="hero-logo"><img src="/logo-symbol.svg" alt="" /><strong>Menos erro em campo.</strong><span>Mais controle na instalação.</span></div>
+        <div className="hero-logo"><img src="/logo-symbol.svg" alt="" /><strong>Manual vira ação.</strong><span>Procedimento seguro, registro rápido e menos dúvida no campo.</span></div>
       </section>
+      <section className="panel manual-warning"><Icon name="shield" /><div><strong>Regra da V1.2</strong><p>Diagnóstico crítico como padrão de luzes, sequência oficial e validação no Nedap Now deve ser preenchido com manual/print oficial. O app já está preparado para receber esse conteúdo.</p></div></section>
       <section className="stats-grid"><article><Icon name="farm" /><span>Fazendas</span><strong>{farms.length}</strong></article><article><Icon name="pin" /><span>Locais</span><strong>{locations.length}</strong></article><article><Icon name="cow" /><span>Equipamentos</span><strong>{equipments.length}</strong></article><article><Icon name="wrench" /><span>Pendências</span><strong>{issueCount}</strong></article></section>
       <section className="panel"><div className="section-heading"><div><h2>Últimos registros</h2><p>Resumo rápido do que já foi anotado.</p></div><button className="ghost-button" onClick={() => setActiveTab('registros')}>Ver todos</button></div>{records.slice(0, 3).length ? <div className="timeline">{records.slice(0, 3).map((record) => <article key={record.id}><Badge>{record.tipo}</Badge><h3>{record.titulo}</h3><p>{record.descricao || record.solucao || record.observacoes}</p></article>)}</div> : <EmptyState title="Nenhum registro ainda" text="Quando finalizar uma instalação ou diagnóstico, registre aqui para não depender da memória." />}</section>
     </div>
@@ -477,22 +478,31 @@ function ChecklistsPage() {
   }
   if (selected) {
     const metrics = totalDone(selected);
-    return <div className="page-stack"><section className="panel"><button className="ghost-button small" onClick={() => setSelectedId(null)}>← Voltar</button><div className="section-heading"><div><Badge tone="green">{metrics.percent}% concluído</Badge><h1>{selected.title}</h1><p>{selected.subtitle}</p></div></div><div className="progress-shell"><div style={{ width: `${metrics.percent}%` }} /></div></section>{selected.sections.map((section, sIndex) => <section className="panel checklist-section" key={section.title}><h2>{section.title}</h2>{section.items.map((item, iIndex) => { const key = `${selected.id}_${sIndex}_${iIndex}`; return <label className="check-row" key={item}><input type="checkbox" checked={Boolean(progress[key])} onChange={() => toggle(key)} /><span>{item}</span></label>; })}</section>)}</div>;
+    return <div className="page-stack"><section className="panel"><button className="ghost-button small" onClick={() => setSelectedId(null)}>← Voltar</button><div className="section-heading"><div><Badge tone="green">{metrics.percent}% concluído</Badge><h1>{selected.title}</h1><p>{selected.subtitle}</p></div><Badge tone="amber">{selected.priority}</Badge></div><div className="progress-shell"><div style={{ width: `${metrics.percent}%` }} /></div>{selected.sourceStatus && <div className="source-box"><strong>Base do conteúdo</strong><p>{selected.sourceStatus}</p></div>}</section>{selected.sections.map((section, sIndex) => <section className="panel checklist-section" key={section.title}><h2>{section.title}</h2>{section.items.map((item, iIndex) => { const key = `${selected.id}_${sIndex}_${iIndex}`; return <label className="check-row" key={item}><input type="checkbox" checked={Boolean(progress[key])} onChange={() => toggle(key)} /><span>{item}</span></label>; })}</section>)}</div>;
   }
-  return <div className="page-stack"><section className="hero-compact panel"><div><Badge tone="green">Passo a passo seguro</Badge><h1>Checklists</h1><p>Cada checklist agora abre como uma tela própria para não se perder no celular.</p></div></section><div className="module-grid">{checklistTemplates.map((template) => { const metrics = totalDone(template); return <button className="module-card" key={template.id} onClick={() => setSelectedId(template.id)}><Icon name={template.icon || 'checklist'} /><h3>{template.title}</h3><p>{template.subtitle}</p><Badge tone="green">{metrics.done}/{metrics.total} itens</Badge></button>; })}</div></div>;
+  return <div className="page-stack"><section className="hero-compact panel"><div><Badge tone="green">Instalação guiada</Badge><h1>Procedimentos de campo</h1><p>Escolha o que vai executar. Cada fluxo abre em tela própria, com campo de fonte/manual para preencher com o material oficial.</p></div></section><div className="module-grid">{checklistTemplates.map((template) => { const metrics = totalDone(template); return <button className="module-card" key={template.id} onClick={() => setSelectedId(template.id)}><Icon name={template.icon || 'checklist'} /><h3>{template.title}</h3><p>{template.subtitle}</p><div className="card-badges"><Badge tone="green">{metrics.done}/{metrics.total} itens</Badge><Badge tone={template.sourceStatus?.includes('Aguardando') ? 'amber' : 'slate'}>{template.priority}</Badge></div></button>; })}</div></div>;
 }
 
 function DiagnosticPage() {
   const [selectedId, setSelectedId] = useState(null);
+  const [equipmentFilter, setEquipmentFilter] = useState('Todos');
   const selected = troubleshootingFlows.find((item) => item.id === selectedId);
-  if (selected) return <div className="page-stack"><section className="panel"><button className="ghost-button small" onClick={() => setSelectedId(null)}>← Voltar</button><div className="section-heading"><div><Badge tone="amber">{selected.severity}</Badge><h1>{selected.title}</h1><p>{selected.symptom}</p></div></div></section><section className="panel diagnostic-flow">{selected.checks.map((check, index) => <article key={check.question}><span>{index + 1}</span><div><h3>{check.question}</h3><p><strong>Por quê:</strong> {check.why}</p><p><strong>Ação:</strong> {check.action}</p></div></article>)}<div className="result-box"><strong>Conclusão segura</strong><p>{selected.result}</p></div></section></div>;
-  return <div className="page-stack"><section className="hero-compact panel"><div><Badge tone="amber">Sem IA por enquanto</Badge><h1>Diagnóstico guiado</h1><p>Escolha o sintoma. O sistema abre uma sequência de perguntas e ações objetivas.</p></div></section><div className="module-grid">{troubleshootingFlows.map((flow) => <button className="module-card" key={flow.id} onClick={() => setSelectedId(flow.id)}><Icon name={flow.icon || 'wrench'} /><h3>{flow.title}</h3><p>{flow.symptom}</p><Badge>{flow.severity}</Badge></button>)}</div></div>;
+  const equipments = ['Todos', ...Array.from(new Set(troubleshootingFlows.map((item) => item.equipment)))];
+  const filtered = equipmentFilter === 'Todos' ? troubleshootingFlows : troubleshootingFlows.filter((item) => item.equipment === equipmentFilter);
+  if (selected) return <div className="page-stack"><section className="panel"><button className="ghost-button small" onClick={() => setSelectedId(null)}>← Voltar</button><div className="section-heading"><div><Badge tone="amber">{selected.equipment}</Badge><h1>{selected.title}</h1><p>{selected.symptom}</p></div><Badge>{selected.severity}</Badge></div>{selected.manualStatus && <div className="source-box"><strong>Status do manual</strong><p>{selected.manualStatus}</p></div>}</section><section className="panel diagnostic-flow">{selected.checks.map((check, index) => <article key={check.question}><span>{index + 1}</span><div><h3>{check.question}</h3><p><strong>Por quê:</strong> {check.why}</p><p><strong>Ação:</strong> {check.action}</p></div></article>)}<div className="result-box"><strong>Conclusão segura</strong><p>{selected.result}</p></div></section></div>;
+  return <div className="page-stack"><section className="hero-compact panel"><div><Badge tone="amber">Diagnóstico por manual</Badge><h1>Diagnóstico guiado</h1><p>Escolha o equipamento ou sistema. A V1.2 evita respostas inventadas e deixa claro onde falta manual oficial.</p></div></section><section className="panel"><div className="tabs-row">{equipments.map((item) => <button key={item} className={equipmentFilter === item ? 'active' : ''} onClick={() => setEquipmentFilter(item)}>{item}</button>)}</div></section><div className="module-grid">{filtered.map((flow) => <button className="module-card" key={flow.id} onClick={() => setSelectedId(flow.id)}><Icon name={flow.icon || 'wrench'} /><h3>{flow.title}</h3><p>{flow.symptom}</p><div className="card-badges"><Badge>{flow.equipment}</Badge><Badge tone="amber">{flow.severity}</Badge></div></button>)}</div></div>;
 }
 
 function GuidePage() {
   const [query, setQuery] = useState('');
-  const filtered = knowledgeBase.filter((item) => `${item.title} ${item.summary} ${item.content}`.toLowerCase().includes(query.toLowerCase()));
-  return <div className="page-stack"><section className="hero-compact panel"><div><Badge tone="green">Base de conhecimento</Badge><h1>Guia técnico rápido</h1><p>Explicações simples para consultar no campo.</p></div><div className="search-box"><Icon name="search" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar IP, DNS, LoRa..." /></div></section><div className="guide-grid">{filtered.map((item) => <article className="guide-card" key={item.id}><Icon name={item.icon || 'book'} /><h3>{item.title}</h3><p>{item.summary}</p><small>{item.content}</small></article>)}</div></div>;
+  const [category, setCategory] = useState('Todos');
+  const categories = ['Todos', ...Array.from(new Set(knowledgeBase.map((item) => item.category || 'Geral')))];
+  const filtered = knowledgeBase.filter((item) => {
+    const matchesQuery = `${item.title} ${item.summary} ${item.content} ${item.source || ''}`.toLowerCase().includes(query.toLowerCase());
+    const matchesCategory = category === 'Todos' || item.category === category;
+    return matchesQuery && matchesCategory;
+  });
+  return <div className="page-stack"><section className="hero-compact panel"><div><Badge tone="green">Guia operacional</Badge><h1>Guia Nedap Now e base técnica</h1><p>Conteúdo curto para consultar no campo. Os itens oficiais serão preenchidos com base nos manuais, prints e checklists que você enviar.</p></div><div className="search-box"><Icon name="search" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Buscar base, VP, IP, Nedap..." /></div></section><section className="panel"><div className="tabs-row">{categories.map((item) => <button key={item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{item}</button>)}</div></section><div className="guide-grid">{filtered.map((item) => <article className="guide-card" key={item.id}><Icon name={item.icon || 'book'} /><Badge>{item.category || 'Geral'}</Badge><h3>{item.title}</h3><p>{item.summary}</p><small>{item.content}</small>{item.source && <div className="mini-source">Fonte: {item.source}</div>}</article>)}</div></div>;
 }
 
 function RecordsPage({ farms, records, onAddRecord, onExportRecords }) {

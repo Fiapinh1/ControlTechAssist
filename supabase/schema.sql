@@ -1,117 +1,127 @@
--- ControlTech Assist V1.1
--- Execute este arquivo no SQL Editor do Supabase.
--- Ele cria as tabelas principais com RLS para cada usuário ver apenas seus próprios dados.
-
 create extension if not exists pgcrypto;
 
 create table if not exists public.fazendas (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,
   nome text not null,
   responsavel text,
   telefone text,
   cidade text,
   endereco text,
+  qtd_colares_prevista integer default 0,
+  qtd_colares_instalada integer default 0,
+  status text default 'Não iniciada',
   observacoes text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 
-create table if not exists public.locais_fazenda (
+create table if not exists public.equipamentos (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  fazenda_id uuid not null references public.fazendas(id) on delete cascade,
-  nome text not null,
-  descricao text,
-  latitude numeric(10, 6),
-  longitude numeric(10, 6),
+  user_id uuid references auth.users(id) on delete cascade,
+  fazenda_id uuid references public.fazendas(id) on delete cascade,
+  tipo text,
+  codigo_original text,
+  apelido text,
+  local_nome text,
+  latitude numeric,
+  longitude numeric,
+  status text default 'Planejado',
+  instalado_em date,
   observacoes text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 
-create table if not exists public.equipamentos_instalados (
+create table if not exists public.visitas (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  fazenda_id uuid not null references public.fazendas(id) on delete cascade,
-  local_id uuid references public.locais_fazenda(id) on delete set null,
-  codigo text not null,
-  tipo text not null default 'VP',
-  status text not null default 'Instalado',
-  latitude numeric(10, 6),
-  longitude numeric(10, 6),
-  observacoes text,
-  instalado_em date default current_date,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create table if not exists public.registros_campo (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  fazenda_id uuid references public.fazendas(id) on delete set null,
-  titulo text not null,
-  tipo text not null default 'Instalação',
-  descricao text,
+  user_id uuid references auth.users(id) on delete cascade,
+  fazenda_id uuid references public.fazendas(id) on delete cascade,
+  tipo text,
+  data_visita date default current_date,
+  resumo text,
+  problemas text,
   solucao text,
-  observacoes text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  pendencias text,
+  proxima_acao text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 
-create or replace function public.set_updated_at()
-returns trigger as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$ language plpgsql;
+create table if not exists public.checklists_fazenda (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  fazenda_id uuid references public.fazendas(id) on delete cascade,
+  tipo text,
+  titulo text,
+  itens_json jsonb default '[]'::jsonb,
+  status text,
+  observacoes text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
 
-drop trigger if exists set_fazendas_updated_at on public.fazendas;
-create trigger set_fazendas_updated_at before update on public.fazendas for each row execute function public.set_updated_at();
-
-drop trigger if exists set_locais_fazenda_updated_at on public.locais_fazenda;
-create trigger set_locais_fazenda_updated_at before update on public.locais_fazenda for each row execute function public.set_updated_at();
-
-drop trigger if exists set_equipamentos_instalados_updated_at on public.equipamentos_instalados;
-create trigger set_equipamentos_instalados_updated_at before update on public.equipamentos_instalados for each row execute function public.set_updated_at();
-
-drop trigger if exists set_registros_campo_updated_at on public.registros_campo;
-create trigger set_registros_campo_updated_at before update on public.registros_campo for each row execute function public.set_updated_at();
+create table if not exists public.diagnosticos_realizados (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete cascade,
+  fazenda_id uuid references public.fazendas(id) on delete set null,
+  equipamento_id uuid references public.equipamentos(id) on delete set null,
+  categoria text,
+  sintoma text,
+  resultado text,
+  acoes_realizadas text,
+  observacoes text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
 
 alter table public.fazendas enable row level security;
-alter table public.locais_fazenda enable row level security;
-alter table public.equipamentos_instalados enable row level security;
-alter table public.registros_campo enable row level security;
+alter table public.equipamentos enable row level security;
+alter table public.visitas enable row level security;
+alter table public.checklists_fazenda enable row level security;
+alter table public.diagnosticos_realizados enable row level security;
 
--- Fazendas
+drop policy if exists "fazendas_select_own" on public.fazendas;
+drop policy if exists "fazendas_insert_own" on public.fazendas;
+drop policy if exists "fazendas_update_own" on public.fazendas;
+drop policy if exists "fazendas_delete_own" on public.fazendas;
 create policy "fazendas_select_own" on public.fazendas for select using (auth.uid() = user_id);
 create policy "fazendas_insert_own" on public.fazendas for insert with check (auth.uid() = user_id);
 create policy "fazendas_update_own" on public.fazendas for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "fazendas_delete_own" on public.fazendas for delete using (auth.uid() = user_id);
 
--- Locais
-create policy "locais_select_own" on public.locais_fazenda for select using (auth.uid() = user_id);
-create policy "locais_insert_own" on public.locais_fazenda for insert with check (auth.uid() = user_id);
-create policy "locais_update_own" on public.locais_fazenda for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy "locais_delete_own" on public.locais_fazenda for delete using (auth.uid() = user_id);
+drop policy if exists "equipamentos_select_own" on public.equipamentos;
+drop policy if exists "equipamentos_insert_own" on public.equipamentos;
+drop policy if exists "equipamentos_update_own" on public.equipamentos;
+drop policy if exists "equipamentos_delete_own" on public.equipamentos;
+create policy "equipamentos_select_own" on public.equipamentos for select using (auth.uid() = user_id);
+create policy "equipamentos_insert_own" on public.equipamentos for insert with check (auth.uid() = user_id);
+create policy "equipamentos_update_own" on public.equipamentos for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "equipamentos_delete_own" on public.equipamentos for delete using (auth.uid() = user_id);
 
--- Equipamentos
-create policy "equipamentos_select_own" on public.equipamentos_instalados for select using (auth.uid() = user_id);
-create policy "equipamentos_insert_own" on public.equipamentos_instalados for insert with check (auth.uid() = user_id);
-create policy "equipamentos_update_own" on public.equipamentos_instalados for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy "equipamentos_delete_own" on public.equipamentos_instalados for delete using (auth.uid() = user_id);
+drop policy if exists "visitas_select_own" on public.visitas;
+drop policy if exists "visitas_insert_own" on public.visitas;
+drop policy if exists "visitas_update_own" on public.visitas;
+drop policy if exists "visitas_delete_own" on public.visitas;
+create policy "visitas_select_own" on public.visitas for select using (auth.uid() = user_id);
+create policy "visitas_insert_own" on public.visitas for insert with check (auth.uid() = user_id);
+create policy "visitas_update_own" on public.visitas for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "visitas_delete_own" on public.visitas for delete using (auth.uid() = user_id);
 
--- Registros
-create policy "registros_select_own" on public.registros_campo for select using (auth.uid() = user_id);
-create policy "registros_insert_own" on public.registros_campo for insert with check (auth.uid() = user_id);
-create policy "registros_update_own" on public.registros_campo for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy "registros_delete_own" on public.registros_campo for delete using (auth.uid() = user_id);
+drop policy if exists "checklists_select_own" on public.checklists_fazenda;
+drop policy if exists "checklists_insert_own" on public.checklists_fazenda;
+drop policy if exists "checklists_update_own" on public.checklists_fazenda;
+drop policy if exists "checklists_delete_own" on public.checklists_fazenda;
+create policy "checklists_select_own" on public.checklists_fazenda for select using (auth.uid() = user_id);
+create policy "checklists_insert_own" on public.checklists_fazenda for insert with check (auth.uid() = user_id);
+create policy "checklists_update_own" on public.checklists_fazenda for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "checklists_delete_own" on public.checklists_fazenda for delete using (auth.uid() = user_id);
 
-create index if not exists idx_fazendas_user_id on public.fazendas(user_id);
-create index if not exists idx_locais_fazenda_user_id on public.locais_fazenda(user_id);
-create index if not exists idx_locais_fazenda_fazenda_id on public.locais_fazenda(fazenda_id);
-create index if not exists idx_equipamentos_user_id on public.equipamentos_instalados(user_id);
-create index if not exists idx_equipamentos_fazenda_id on public.equipamentos_instalados(fazenda_id);
-create index if not exists idx_registros_user_id on public.registros_campo(user_id);
-create index if not exists idx_registros_fazenda_id on public.registros_campo(fazenda_id);
+drop policy if exists "diagnosticos_select_own" on public.diagnosticos_realizados;
+drop policy if exists "diagnosticos_insert_own" on public.diagnosticos_realizados;
+drop policy if exists "diagnosticos_update_own" on public.diagnosticos_realizados;
+drop policy if exists "diagnosticos_delete_own" on public.diagnosticos_realizados;
+create policy "diagnosticos_select_own" on public.diagnosticos_realizados for select using (auth.uid() = user_id);
+create policy "diagnosticos_insert_own" on public.diagnosticos_realizados for insert with check (auth.uid() = user_id);
+create policy "diagnosticos_update_own" on public.diagnosticos_realizados for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "diagnosticos_delete_own" on public.diagnosticos_realizados for delete using (auth.uid() = user_id);

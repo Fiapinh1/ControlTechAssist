@@ -1,74 +1,62 @@
-# ControlTech Assist — V1.1
+# ControlTech Assist V1.5 — Operação de Campo
 
-Sistema facilitador para técnico de campo com foco em fazendas, instalação de VPs/coleiras, gateways, redes, checklists, diagnóstico guiado e registros.
+Versão focada em transformar o app em um facilitador real de instalação, diagnóstico e controle de visitas.
 
-## O que mudou na V1.1
+## Principais recursos
 
-- Navegação mobile corrigida com barra inferior fixa.
-- Cada módulo virou uma tela real: Fazendas, Checklists, Diagnóstico, Guia e Registros.
-- Cadastro de fazendas com apenas nome obrigatório.
-- Cadastro de locais por fazenda.
-- Cadastro de equipamentos/VPs por fazenda e local.
-- Captura de coordenadas pelo GPS do celular.
-- Mapa por fazenda usando Leaflet + OpenStreetMap.
-- Integração com Supabase.
-- RLS preparado para cada usuário ver apenas os próprios dados.
-- Fontes Inter + Poppins e visual mais profissional.
-- Área futura de IA mantida como “Em breve”.
+- Fazendas como centro do sistema
+- Cadastro/edição de fazendas com quantidade de colares prevista e instalada
+- Dossiê técnico por fazenda
+- Equipamentos VP8002, VP4102 e outros
+- GPS ou marcação manual no mapa
+- Mapa satélite com raio visual de cobertura para VP4102
+- Visitas/registros por fazenda
+- Checklists por fazenda
+- Relatório geral e individual em TSV
+- Instalação guiada baseada nos manuais oficiais
+- Diagnóstico por sintomas
+- Diagnóstico de LEDs VP8002
+- Diagnóstico de códigos CAN bus
+- Checklist “Antes de chamar suporte”
+- Guia técnico offline em português
+- Módulo operacional de colares/SmartTags
+- Supabase com RLS e fallback LocalStorage
 
-## Tecnologias
+## Manuais usados como base
 
-- React
-- Vite
-- Supabase
-- Leaflet / OpenStreetMap
-- CSS puro
-- PWA básico
+- VP8002 — Manual de instalação v6.0 PT, outubro/2024
+- Nedap Now — Configuração da fazenda v4.0 PT, abril/2024
+- VP8002-VP4102 set — Installation manual v2.0 EN, agosto/2022
 
-## Como rodar localmente
+O conteúdo em inglês foi traduzido e adaptado para português de uso técnico no campo.
+
+## Rodar localmente
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Configurar Supabase
+## Supabase
 
-1. No Supabase, abra SQL Editor.
-2. Execute o arquivo:
-
-```text
-supabase/schema.sql
-```
-
-3. Crie um arquivo `.env.local` na raiz do projeto:
+1. Abra o Supabase > SQL Editor.
+2. Execute `supabase/schema.sql`.
+3. Crie `.env.local` na raiz:
 
 ```env
-VITE_SUPABASE_URL=https://SEU-PROJETO.supabase.co
+VITE_SUPABASE_URL=https://SEU_PROJETO.supabase.co
 VITE_SUPABASE_ANON_KEY=SUA_CHAVE_ANON_PUBLIC
 ```
 
-4. Rode o projeto:
+4. Rode novamente:
 
 ```bash
 npm run dev
 ```
 
-## Variáveis na Vercel
+## Observações
 
-Na Vercel, adicione:
-
-```text
-VITE_SUPABASE_URL
-VITE_SUPABASE_ANON_KEY
-```
-
-Depois faça o deploy.
-
-## Observação sobre GPS
-
-A captura de localização funciona melhor em HTTPS. Em produção na Vercel funciona normalmente, desde que o usuário permita localização no navegador.
-
-## Observação sobre login
-
-Esta versão usa e-mail e senha pelo Supabase Auth. Se o Supabase estiver exigindo confirmação de e-mail, confirme o e-mail ou desative a confirmação em Authentication > Providers > Email, se for apenas uso pessoal.
+- A chave anon public pode ficar no frontend, desde que RLS esteja ativo.
+- O mapa satélite usa camada Esri/Leaflet.
+- O raio de cobertura é visual e serve para apoio técnico, não como garantia de cobertura real.
+- O app compila com `npm run build`.
