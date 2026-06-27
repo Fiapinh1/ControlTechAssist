@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import './styles.css';
 
-const APP_VERSION = '1.6.0';
+const APP_VERSION = '1.6.1';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -351,12 +351,29 @@ function App(){
   const [view,setView]=useState('fazendas');
   const [selectedFarmId,setSelectedFarmId]=useState(null);
   const [localMode,setLocalMode]=useState(localStorage.getItem(LOCAL_MODE_KEY)==='true');
+  const [recoveryMode,setRecoveryMode]=useState(()=> window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery'));
   const update = useAppUpdate();
   const data=useData(user, localMode);
   const selectedFarm=data.fazendas.find(f=>f.id===selectedFarmId);
-  useEffect(()=>{ if(!supabase) { setAuthLoading(false); return; } supabase.auth.getSession().then(({data})=>{setUser(data.session?.user||null); setAuthLoading(false)}); const {data:sub}=supabase.auth.onAuthStateChange((_e,session)=>setUser(session?.user||null)); return ()=>sub.subscription.unsubscribe(); },[]);
+  useEffect(()=>{
+    if(!supabase) { setAuthLoading(false); return; }
+    let active = true;
+    supabase.auth.getSession().then(({data,error})=>{
+      if(!active) return;
+      if(error) console.warn('Auth session:', error.message);
+      setUser(data?.session?.user||null);
+      setAuthLoading(false);
+    });
+    const {data:sub}=supabase.auth.onAuthStateChange((event,session)=>{
+      setUser(session?.user||null);
+      if(event==='PASSWORD_RECOVERY') setRecoveryMode(true);
+      if(event==='SIGNED_OUT') setRecoveryMode(false);
+    });
+    return ()=>{ active=false; sub?.subscription?.unsubscribe?.(); };
+  },[]);
   if(authLoading) return <Splash/>;
   if(!supabase && !localMode) return <SupabaseSetup onUseLocal={()=>{localStorage.setItem(LOCAL_MODE_KEY,'true'); setLocalMode(true)}}/>;
+  if(supabase && recoveryMode && user && !localMode) return <PasswordRecovery onDone={()=>{setRecoveryMode(false); window.history.replaceState({}, document.title, window.location.origin + window.location.pathname);}}/>;
   if(supabase && !user && !localMode) return <Login onUseLocal={()=>{localStorage.setItem(LOCAL_MODE_KEY,'true'); setLocalMode(true)}}/>;
   const goFarm = id => { setSelectedFarmId(id); setView('fazenda'); };
   const setMainView = v => { setView(v); if(v!=='fazenda') setSelectedFarmId(null); };
@@ -374,10 +391,65 @@ function App(){
 
 function Splash(){return <div className="splash"><Logo/><p>Carregando ambiente técnico...</p></div>}
 function Logo(){return <div className="logo"><div className="logoIcon"><ClipboardCheck size={25}/><Wifi size={15} className="wifi"/></div><div><b>ControlTech</b><span>Assist</span></div></div>}
+function translateAuthError(message=''){
+  const m = String(message || '').toLowerCase();
+  if(m.includes('invalid login credentials')) return 'E-mail ou senha incorretos.';
+  if(m.includes('email not confirmed')) return 'Confirme seu e-mail antes de entrar.';
+  if(m.includes('user already registered')) return 'Este e-mail já possui cadastro. Use entrar ou recupere a senha.';
+  if(m.includes('password should be at least')) return 'A senha precisa ter pelo menos 6 caracteres.';
+  return message || 'Não foi possível concluir a ação.';
+}
+
 function Login({onUseLocal}){
-  const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[mode,setMode]=useState('login'),[msg,setMsg]=useState('');
-  const submit=async(e)=>{e.preventDefault();setMsg(''); const fn=mode==='login'?supabase.auth.signInWithPassword:supabase.auth.signUp; const {error}=await fn({email,password}); setMsg(error?error.message:(mode==='login'?'Entrando...':'Cadastro criado. Verifique o e-mail se necessário.'))};
-  return <div className="loginPage"><section className="loginCard"><Logo/><h1>Seu copiloto técnico de campo</h1><p>Fazendas, visitas, equipamentos, mapa, checklists e diagnóstico baseado em manual oficial.</p><form onSubmit={submit} className="form"><label>Email<input value={email} onChange={e=>setEmail(e.target.value)} type="email" required placeholder="seu@email.com"/></label><label>Senha<input value={password} onChange={e=>setPassword(e.target.value)} type="password" required placeholder="mínimo 6 caracteres"/></label><button className="btn primary">{mode==='login'?'Entrar':'Criar conta'}</button></form><button className="linkBtn" onClick={()=>setMode(mode==='login'?'signup':'login')}>{mode==='login'?'Criar uma conta':'Já tenho conta'}</button>{msg&&<div className="notice">{msg}</div>}<button type="button" className="linkBtn dangerText" onClick={onUseLocal}>Usar modo local de emergência</button></section></div>
+  const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[mode,setMode]=useState('login'),[msg,setMsg]=useState(''),[busy,setBusy]=useState(false);
+  const submit=async(e)=>{
+    e.preventDefault();
+    setMsg('');
+    setBusy(true);
+    try{
+      if(!supabase) throw new Error('Supabase não configurado.');
+      const cleanEmail = email.trim();
+      let result;
+      if(mode==='forgot'){
+        result = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo: window.location.origin });
+        if(result.error) throw result.error;
+        setMsg('Enviamos um link para redefinir sua senha. Abra o e-mail neste mesmo navegador ou no domínio do app.');
+        return;
+      }
+      if(password.length < 6) throw new Error('A senha precisa ter pelo menos 6 caracteres.');
+      if(mode==='login'){
+        result = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
+        if(result.error) throw result.error;
+        setMsg('Entrando...');
+      } else {
+        result = await supabase.auth.signUp({ email: cleanEmail, password, options: { emailRedirectTo: window.location.origin } });
+        if(result.error) throw result.error;
+        setMsg('Cadastro criado. Se o Supabase pedir confirmação, verifique seu e-mail antes de entrar.');
+      }
+    } catch(err){
+      console.error('Erro de autenticação:', err);
+      setMsg(translateAuthError(err?.message));
+    } finally { setBusy(false); }
+  };
+  return <div className="loginPage"><section className="loginCard"><Logo/><h1>Seu copiloto técnico de campo</h1><p>Fazendas, visitas, equipamentos, mapa, checklists e diagnóstico baseado em manual oficial.</p><form onSubmit={submit} className="form"><label>Email<input value={email} onChange={e=>setEmail(e.target.value)} type="email" required placeholder="seu@email.com"/></label>{mode!=='forgot'&&<label>Senha<input value={password} onChange={e=>setPassword(e.target.value)} type="password" required placeholder="mínimo 6 caracteres"/></label>}<button className="btn primary" disabled={busy}>{busy?'Aguarde...':mode==='login'?'Entrar':mode==='signup'?'Criar conta':'Enviar link de recuperação'}</button></form><div className="authLinks"><button className="linkBtn" onClick={()=>{setMsg(''); setMode(mode==='login'?'signup':'login')}}>{mode==='login'?'Criar uma conta':'Já tenho conta'}</button><button className="linkBtn" onClick={()=>{setMsg(''); setMode('forgot')}}>Esqueci minha senha</button></div>{msg&&<div className="notice">{msg}</div>}<button type="button" className="linkBtn dangerText" onClick={onUseLocal}>Usar modo local de emergência</button></section></div>
+}
+
+function PasswordRecovery({onDone}){
+  const [password,setPassword]=useState(''),[confirm,setConfirm]=useState(''),[msg,setMsg]=useState(''),[busy,setBusy]=useState(false);
+  const submit=async(e)=>{
+    e.preventDefault(); setMsg('');
+    if(password.length<6){ setMsg('A nova senha precisa ter pelo menos 6 caracteres.'); return; }
+    if(password!==confirm){ setMsg('As senhas não conferem.'); return; }
+    setBusy(true);
+    try{
+      const {error}=await supabase.auth.updateUser({ password });
+      if(error) throw error;
+      setMsg('Senha atualizada com sucesso. Você já pode usar o sistema.');
+      setTimeout(onDone, 900);
+    }catch(err){ setMsg(translateAuthError(err?.message)); }
+    finally{ setBusy(false); }
+  };
+  return <div className="loginPage"><section className="loginCard"><Logo/><h1>Definir nova senha</h1><p>Você acessou o link de recuperação. Crie uma nova senha para continuar.</p><form onSubmit={submit} className="form"><label>Nova senha<input value={password} onChange={e=>setPassword(e.target.value)} type="password" required placeholder="mínimo 6 caracteres"/></label><label>Confirmar senha<input value={confirm} onChange={e=>setConfirm(e.target.value)} type="password" required placeholder="repita a nova senha"/></label><button className="btn primary" disabled={busy}>{busy?'Salvando...':'Atualizar senha'}</button></form>{msg&&<div className="notice">{msg}</div>}</section></div>
 }
 
 function SupabaseSetup({onUseLocal}){

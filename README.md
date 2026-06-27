@@ -34,3 +34,27 @@ add column if not exists localizacao_origem text;
 npm install
 npm run dev
 ```
+
+## V1.6.1 — Correção de autenticação
+
+Esta versão corrige o fluxo de autenticação do Supabase:
+
+- Login com `signInWithPassword` sem perder contexto do client.
+- Criação de conta com `signUp` e redirect para o domínio atual.
+- Recuperação de senha com `resetPasswordForEmail`.
+- Tela para definir nova senha após abrir o link do e-mail.
+- Mensagens de erro traduzidas e mais claras.
+- Versão do app atualizada para 1.6.1.
+
+No Supabase, mantenha em Authentication > URL Configuration:
+
+```text
+Site URL:
+https://control-tech-assist.vercel.app
+
+Redirect URLs:
+https://control-tech-assist.vercel.app
+https://control-tech-assist.vercel.app/*
+http://localhost:5173
+http://localhost:5173/*
+```
