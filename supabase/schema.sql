@@ -4,9 +4,18 @@ create table if not exists public.fazendas (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete cascade,
   nome text not null,
+  central text,
+  regional_nome text,
+  veterinario_apoio text,
   responsavel text,
   telefone text,
+  estado_uf text,
+  estado_nome text,
   cidade text,
+  codigo_ibge_cidade text,
+  latitude numeric,
+  longitude numeric,
+  localizacao_origem text,
   endereco text,
   qtd_colares_prevista integer default 0,
   qtd_colares_instalada integer default 0,
@@ -125,3 +134,19 @@ create policy "diagnosticos_select_own" on public.diagnosticos_realizados for se
 create policy "diagnosticos_insert_own" on public.diagnosticos_realizados for insert with check (auth.uid() = user_id);
 create policy "diagnosticos_update_own" on public.diagnosticos_realizados for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "diagnosticos_delete_own" on public.diagnosticos_realizados for delete using (auth.uid() = user_id);
+
+
+-- Atualização V1.5.3: separar fazendas por central, regional e apoio veterinário.
+alter table public.fazendas
+add column if not exists central text,
+add column if not exists regional_nome text,
+add column if not exists veterinario_apoio text;
+
+
+alter table public.fazendas
+add column if not exists estado_uf text,
+add column if not exists estado_nome text,
+add column if not exists codigo_ibge_cidade text,
+add column if not exists latitude numeric,
+add column if not exists longitude numeric,
+add column if not exists localizacao_origem text;

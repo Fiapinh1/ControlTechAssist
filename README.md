@@ -1,62 +1,36 @@
-# ControlTech Assist V1.5 — Operação de Campo
+# ControlTech Assist V1.6 — Mapa de atuação
 
-Versão focada em transformar o app em um facilitador real de instalação, diagnóstico e controle de visitas.
+Versão com mapa do Brasil na página inicial, cadastro de Estado/Cidade via IBGE, localização automática por malha municipal, mapa interno com camadas e correção do erro de componente indefinido.
 
-## Principais recursos
+## Novidades
 
-- Fazendas como centro do sistema
-- Cadastro/edição de fazendas com quantidade de colares prevista e instalada
-- Dossiê técnico por fazenda
-- Equipamentos VP8002, VP4102 e outros
-- GPS ou marcação manual no mapa
-- Mapa satélite com raio visual de cobertura para VP4102
-- Visitas/registros por fazenda
-- Checklists por fazenda
-- Relatório geral e individual em TSV
-- Instalação guiada baseada nos manuais oficiais
-- Diagnóstico por sintomas
-- Diagnóstico de LEDs VP8002
-- Diagnóstico de códigos CAN bus
-- Checklist “Antes de chamar suporte”
-- Guia técnico offline em português
-- Módulo operacional de colares/SmartTags
-- Supabase com RLS e fallback LocalStorage
+- Mapa de atuação na Home com estados cinza/coloridos conforme fazendas cadastradas.
+- Filtro do mapa por central: Alta Genetics, Genex Brasil ou Outra.
+- Marcadores de fazendas no mapa do Brasil.
+- Cadastro de fazenda com Estado e Cidade carregados pela API do IBGE.
+- Ao selecionar cidade, o app tenta buscar a malha do município no IBGE e calcular uma coordenada aproximada.
+- Opção de usar GPS atual para deixar a localização mais precisa.
+- Mapa técnico da fazenda com camadas: Mapa com nomes, Satélite e Híbrido.
+- Correção do erro do componente Empty sem ícone.
+- Supabase continua como modo principal.
 
-## Manuais usados como base
+## Atualização do banco
 
-- VP8002 — Manual de instalação v6.0 PT, outubro/2024
-- Nedap Now — Configuração da fazenda v4.0 PT, abril/2024
-- VP8002-VP4102 set — Installation manual v2.0 EN, agosto/2022
+Execute `supabase/schema.sql` ou rode este complemento:
 
-O conteúdo em inglês foi traduzido e adaptado para português de uso técnico no campo.
+```sql
+alter table public.fazendas
+add column if not exists estado_uf text,
+add column if not exists estado_nome text,
+add column if not exists codigo_ibge_cidade text,
+add column if not exists latitude numeric,
+add column if not exists longitude numeric,
+add column if not exists localizacao_origem text;
+```
 
-## Rodar localmente
+## Rodar
 
 ```bash
 npm install
 npm run dev
 ```
-
-## Supabase
-
-1. Abra o Supabase > SQL Editor.
-2. Execute `supabase/schema.sql`.
-3. Crie `.env.local` na raiz:
-
-```env
-VITE_SUPABASE_URL=https://SEU_PROJETO.supabase.co
-VITE_SUPABASE_ANON_KEY=SUA_CHAVE_ANON_PUBLIC
-```
-
-4. Rode novamente:
-
-```bash
-npm run dev
-```
-
-## Observações
-
-- A chave anon public pode ficar no frontend, desde que RLS esteja ativo.
-- O mapa satélite usa camada Esri/Leaflet.
-- O raio de cobertura é visual e serve para apoio técnico, não como garantia de cobertura real.
-- O app compila com `npm run build`.
