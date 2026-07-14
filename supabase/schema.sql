@@ -150,3 +150,72 @@ add column if not exists codigo_ibge_cidade text,
 add column if not exists latitude numeric,
 add column if not exists longitude numeric,
 add column if not exists localizacao_origem text;
+
+
+-- V2.0: planejamento de cobertura de antenas
+create table if not exists public.planejamentos_antena (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  fazenda_id uuid not null references public.fazendas(id) on delete cascade,
+  nome text not null,
+  tipo_antena text default 'VP4102',
+  latitude numeric not null,
+  longitude numeric not null,
+  raio_metros integer not null default 200,
+  status text default 'Planejado',
+  observacoes text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+alter table public.planejamentos_antena enable row level security;
+drop policy if exists "planejamentos_select_own" on public.planejamentos_antena;
+create policy "planejamentos_select_own" on public.planejamentos_antena for select using (auth.uid() = user_id);
+drop policy if exists "planejamentos_insert_own" on public.planejamentos_antena;
+create policy "planejamentos_insert_own" on public.planejamentos_antena for insert with check (auth.uid() = user_id);
+drop policy if exists "planejamentos_update_own" on public.planejamentos_antena;
+create policy "planejamentos_update_own" on public.planejamentos_antena for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "planejamentos_delete_own" on public.planejamentos_antena;
+create policy "planejamentos_delete_own" on public.planejamentos_antena for delete using (auth.uid() = user_id);
+
+-- V2.1: planejamento de obstáculos e validação real de cobertura
+create table if not exists public.obstaculos_cobertura (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  fazenda_id uuid not null references public.fazendas(id) on delete cascade,
+  planejamento_id uuid references public.planejamentos_antena(id) on delete set null,
+  nome text,
+  tipo text not null,
+  geometria text not null default 'ponto',
+  pontos_json jsonb not null default '[]'::jsonb,
+  altura_m numeric,
+  intensidade text default 'Média',
+  observacoes text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table if not exists public.testes_cobertura (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  fazenda_id uuid not null references public.fazendas(id) on delete cascade,
+  planejamento_id uuid references public.planejamentos_antena(id) on delete set null,
+  resultado text not null,
+  latitude numeric not null,
+  longitude numeric not null,
+  observacoes text,
+  testado_em timestamptz default now(),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table public.obstaculos_cobertura enable row level security;
+alter table public.testes_cobertura enable row level security;
+
+drop policy if exists "obstaculos_owner_all" on public.obstaculos_cobertura;
+create policy "obstaculos_owner_all" on public.obstaculos_cobertura for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "testes_owner_all" on public.testes_cobertura;
+create policy "testes_owner_all" on public.testes_cobertura for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- V2.2: raio estimado salvo diretamente no equipamento VP4102
+alter table public.equipamentos
+add column if not exists raio_metros integer default 75;

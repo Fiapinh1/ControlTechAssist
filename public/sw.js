@@ -1,4 +1,4 @@
-const VERSION = '1.6.0';
+const VERSION = '2.3.0';
 const CACHE_NAME = `controltech-assist-${VERSION}`;
 
 self.addEventListener('install', (event) => {

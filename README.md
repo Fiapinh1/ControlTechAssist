@@ -1,60 +1,43 @@
-# ControlTech Assist V1.6 — Mapa de atuação
+# ControlTech Assist 3.0 — Field Experience
 
-Versão com mapa do Brasil na página inicial, cadastro de Estado/Cidade via IBGE, localização automática por malha municipal, mapa interno com camadas e correção do erro de componente indefinido.
+Aplicativo de apoio técnico de campo para cadastro de fazendas, equipamentos VP8002/VP4102, mapas, checklists, visitas, diagnósticos e relatórios.
 
-## Novidades
+## Destaques da versão 3.0
 
-- Mapa de atuação na Home com estados cinza/coloridos conforme fazendas cadastradas.
-- Filtro do mapa por central: Alta Genetics, Genex Brasil ou Outra.
-- Marcadores de fazendas no mapa do Brasil.
-- Cadastro de fazenda com Estado e Cidade carregados pela API do IBGE.
-- Ao selecionar cidade, o app tenta buscar a malha do município no IBGE e calcular uma coordenada aproximada.
-- Opção de usar GPS atual para deixar a localização mais precisa.
-- Mapa técnico da fazenda com camadas: Mapa com nomes, Satélite e Híbrido.
-- Correção do erro do componente Empty sem ícone.
-- Supabase continua como modo principal.
+- Nova experiência de equipamentos com edição dividida em **Dados** e **Localização**.
+- Mapa de localização separado do formulário para evitar modal quebrado e rolagem confusa.
+- Confirmação visual antes de substituir uma coordenada GPS existente.
+- Marcadores personalizados para fazendas, VP8002 e VP4102.
+- Mapa técnico mostra todos os equipamentos cadastrados e permite filtrar por tipo.
+- Controles para exibir ou ocultar nomes e raios de cobertura.
+- Dashboard com filtros por central, status, pendências, GPS e equipamentos.
+- Pesquisa também encontra equipamentos por código e apelido.
+- Interface otimizada para celular e uso com uma mão.
 
-## Atualização do banco
-
-Execute `supabase/schema.sql` ou rode este complemento:
-
-```sql
-alter table public.fazendas
-add column if not exists estado_uf text,
-add column if not exists estado_nome text,
-add column if not exists codigo_ibge_cidade text,
-add column if not exists latitude numeric,
-add column if not exists longitude numeric,
-add column if not exists localizacao_origem text;
-```
-
-## Rodar
+## Instalação
 
 ```bash
 npm install
 npm run dev
 ```
 
-## V1.6.1 — Correção de autenticação
+## Build de produção
 
-Esta versão corrige o fluxo de autenticação do Supabase:
-
-- Login com `signInWithPassword` sem perder contexto do client.
-- Criação de conta com `signUp` e redirect para o domínio atual.
-- Recuperação de senha com `resetPasswordForEmail`.
-- Tela para definir nova senha após abrir o link do e-mail.
-- Mensagens de erro traduzidas e mais claras.
-- Versão do app atualizada para 1.6.1.
-
-No Supabase, mantenha em Authentication > URL Configuration:
-
-```text
-Site URL:
-https://control-tech-assist.vercel.app
-
-Redirect URLs:
-https://control-tech-assist.vercel.app
-https://control-tech-assist.vercel.app/*
-http://localhost:5173
-http://localhost:5173/*
+```bash
+npm run build
 ```
+
+## Supabase
+
+Crie um arquivo `.env.local`:
+
+```env
+VITE_SUPABASE_URL=https://SEU-PROJETO.supabase.co
+VITE_SUPABASE_ANON_KEY=SUA_CHAVE_ANON_PUBLIC
+```
+
+No Vercel, cadastre as mesmas variáveis em **Settings > Environment Variables**.
+
+## Banco de dados
+
+Execute `supabase/schema.sql` no SQL Editor do Supabase. Esta versão continua compatível com o schema da V2.3 e utiliza `raio_metros` em `equipamentos`.
