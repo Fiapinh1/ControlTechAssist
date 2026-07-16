@@ -19,6 +19,10 @@ create table if not exists public.fazendas (
   endereco text,
   qtd_colares_prevista integer default 0,
   qtd_colares_instalada integer default 0,
+  servico_inicio_em timestamptz,
+  servico_fim_em timestamptz,
+  servico_responsavel text,
+  servico_observacoes text,
   status text default 'Não iniciada',
   observacoes text,
   created_at timestamptz default now(),
@@ -420,3 +424,13 @@ create policy "testes_select_access" on public.testes_cobertura for select using
 create policy "testes_insert_admin" on public.testes_cobertura for insert with check (public.can_write_fazenda(fazenda_id));
 create policy "testes_update_admin" on public.testes_cobertura for update using (public.can_write_fazenda(fazenda_id)) with check (public.can_write_fazenda(fazenda_id));
 create policy "testes_delete_admin" on public.testes_cobertura for delete using (public.can_write_fazenda(fazenda_id));
+
+-- V3.6: produtividade por fazenda
+alter table public.fazendas
+add column if not exists servico_inicio_em timestamptz,
+add column if not exists servico_fim_em timestamptz,
+add column if not exists servico_responsavel text,
+add column if not exists servico_observacoes text;
+
+create index if not exists fazendas_servico_inicio_idx on public.fazendas(servico_inicio_em);
+create index if not exists fazendas_servico_fim_idx on public.fazendas(servico_fim_em);
