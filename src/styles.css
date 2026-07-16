@@ -83,6 +83,7 @@
 .bottomNav{grid-template-columns:repeat(5,1fr)}
 .bottomNav button.mobileLogout{color:#dc2626}
 .bottomNav button.mobileLogout:hover{color:#b91c1c}
+.farmBottomNav,.farmMoreBackdrop,.farmMoreSheet{display:none}
 .reportSelector{background:linear-gradient(180deg,#fff,#f8fafc)}
 .reportSelectedFarm{display:flex;justify-content:space-between;gap:14px;align-items:center;margin-top:14px;padding:14px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:16px}
 .reportSelectedFarm b,.reportSelectedFarm span{display:block}
@@ -97,6 +98,26 @@
 .reportChecklist b,.reportChecklist span{display:block}.reportChecklist span{color:#64748b;font-size:12px;margin-top:3px}
 .reportPreview .visit article{position:static;border-left:4px solid #16a34a;background:#f8fafc;border-radius:12px;padding:10px;margin:8px 0}
 @media(max-width:760px){.reportSelectedFarm{align-items:flex-start;flex-direction:column}.reportSelectedFarm>div:last-child{justify-content:flex-start}.reportInfoGrid{grid-template-columns:1fr}.bottomNav{grid-template-columns:repeat(5,1fr)}}
+@media(max-width:900px){
+  .farmDetail>.back,.farmDetail .farmTabs,.farmDetail .farmHero .heroActions{display:none!important}
+  .farmDetail .farmHero{margin-bottom:14px}
+  .farmBottomNav{position:fixed;left:0;right:0;bottom:0;height:76px;z-index:1000;display:grid;grid-template-columns:repeat(6,1fr);padding:7px 8px 8px;background:linear-gradient(135deg,#0f172a,#12483d);border-top:1px solid rgba(134,239,172,.26);box-shadow:0 -18px 45px rgba(15,23,42,.22);backdrop-filter:blur(18px)}
+  .farmBottomNav button{border:0;background:transparent;color:#cbd5e1;display:grid;place-items:center;align-content:center;gap:3px;min-width:0;border-radius:14px;font-size:10px;font-weight:900}
+  .farmBottomNav button svg{width:19px;height:19px}
+  .farmBottomNav button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .farmBottomNav button.active{background:rgba(255,255,255,.12);color:#fff}
+  .farmBottomNav button:first-child{color:#86efac}
+  .farmMoreBackdrop{display:block;position:fixed;inset:0;z-index:998;background:rgba(15,23,42,.42)}
+  .farmMoreSheet{display:block;position:fixed;left:12px;right:12px;bottom:88px;z-index:999;background:#fff;border:1px solid #dbe4ef;border-radius:22px;padding:14px;box-shadow:0 30px 90px rgba(15,23,42,.32)}
+  .farmContextName{border:1px solid #bbf7d0;background:#f0fdf4;border-radius:16px;padding:10px 12px;margin-bottom:10px}
+  .farmContextName span{display:block;color:#16a34a;text-transform:uppercase;letter-spacing:.1em;font-size:10px;font-weight:900}
+  .farmContextName b{display:block;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .farmMoreGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .farmMoreGrid button{border:1px solid #e2e8f0;background:#fff;border-radius:15px;padding:12px 10px;display:flex;align-items:center;gap:8px;color:#0f172a;font-weight:900;text-align:left}
+  .farmMoreGrid button svg{color:#16a34a;flex:0 0 auto}
+  .farmMoreGrid button.strong{background:#ecfdf5;border-color:#86efac;color:#166534}
+}
+@media(max-width:420px){.farmMoreGrid{grid-template-columns:1fr}.farmBottomNav button{font-size:9.5px}.farmBottomNav{padding-left:5px;padding-right:5px}}
 
 /* V3.3 - compartilhamento por fazenda */
 .accessBadge{display:inline-flex;align-items:center;width:max-content;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;border:1px solid #dbe4ef;background:#f8fafc;color:#334155}
@@ -130,3 +151,9 @@
 @media(max-width:1050px){.serviceControl{grid-template-columns:1fr}.serviceActions{display:flex;flex-wrap:wrap}.productivityGrid{grid-template-columns:1fr}.serviceFacts{grid-template-columns:repeat(2,minmax(0,1fr))}.workdayPanel{grid-template-columns:repeat(2,minmax(0,1fr))}.workdayIntro{grid-column:1/-1}.insightGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:760px){.serviceControl{padding:13px;border-radius:18px}.serviceActions .btn{width:100%}.prodBar{grid-template-columns:52px minmax(0,1fr) 50px}.productivityFilters .grid4{grid-template-columns:1fr!important}.serviceOpenList{grid-template-columns:1fr}.workdayPanel{grid-template-columns:1fr}.workdayToggle{height:auto;min-height:52px}.lineChart{padding:4px}.lineValue{font-size:11px}.lineMonth{font-size:11px}}
 @media(max-width:420px){.serviceFacts{grid-template-columns:1fr}.prodTable table{min-width:760px}.insightGrid{grid-template-columns:1fr}.workdayIntro h3{font-size:18px}}
+
+/* V3.7 - resumo e localização da fazenda */
+.farmEditor{padding-top:0!important}.farmEditorTabs{padding-left:0;padding-right:0}.farmDataPane{gap:14px}.farmLocationCompact{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;border:1px solid #bbf7d0;background:linear-gradient(135deg,#f0fdf4,#ffffff);border-radius:20px;padding:15px}.farmLocationCompact h3{margin:3px 0 4px;font-size:18px}.farmLocationCompact p,.farmLocationCompact small{display:block;margin:0;color:#475569;font-weight:800;word-break:break-word}.farmLocationCompact small{margin-top:4px;color:#64748b;font-size:12px}.locationCompactActions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.farmLocationPane .mapSearch{margin-top:0}.farmLocationMap{height:min(54dvh,470px);min-height:390px}.farmOverviewGrid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(270px,.75fr);gap:14px;align-items:stretch}.farmInfoPanel,.farmQuickPanel{border:1px solid var(--line);border-radius:22px;background:#fff;padding:16px}.farmInfoPanel{background:linear-gradient(180deg,#fff,#f8fafc)}.farmInfoHead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}.farmInfoHead h3{margin:4px 0 0;font-size:22px;letter-spacing:-.03em}.farmInfoHead .btn{padding:9px 12px;border-radius:12px;white-space:nowrap}.farmInfoTiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.farmInfoTile{min-width:0;border:1px solid #e2e8f0;background:#fff;border-radius:16px;padding:12px;box-shadow:0 8px 18px rgba(15,23,42,.035)}.farmInfoTile span{display:flex;align-items:center;gap:7px;color:#64748b;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}.farmInfoTile span svg{color:#16a34a;flex:0 0 auto}.farmInfoTile b{display:block;margin-top:7px;color:#0f172a;font-size:15px;line-height:1.25;word-break:break-word}.farmNotes{margin-top:10px;padding:12px;border-left:4px solid #16a34a;background:#ecfdf5;border-radius:14px}.farmNotes span{display:block;color:#047857;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}.farmNotes p{margin:4px 0 0;color:#334155;line-height:1.45}.farmQuickPanel{display:grid;gap:12px;background:#f8fafc}.farmLocationSummary{border:1px solid #bbf7d0;background:#f0fdf4;border-radius:18px;padding:14px;display:grid;grid-template-columns:auto 1fr;gap:11px;align-items:flex-start}.farmLocationSummary svg{color:#16a34a}.farmLocationSummary span,.farmLocationSummary small{display:block;color:#64748b;font-size:12px;font-weight:800}.farmLocationSummary b{display:block;margin:4px 0;color:#0f172a;word-break:break-word}.farmQuickGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.farmQuickGrid article{border:1px solid #e2e8f0;background:#fff;border-radius:16px;padding:12px;min-height:92px;display:flex;flex-direction:column;justify-content:space-between}.farmQuickGrid svg{color:#16a34a}.farmQuickGrid span{color:#64748b;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}.farmQuickGrid b{font-size:18px;line-height:1.1;word-break:break-word}
+@media(max-width:980px){.farmOverviewGrid{grid-template-columns:1fr}.farmQuickPanel{grid-template-columns:1fr 1fr}.farmQuickGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.farmLocationCompact{grid-template-columns:1fr}.locationCompactActions{display:grid;grid-template-columns:1fr;justify-content:stretch}.locationCompactActions .btn{width:100%}.farmInfoPanel,.farmQuickPanel{padding:13px;border-radius:18px}.farmInfoHead{align-items:stretch;flex-direction:column}.farmInfoHead .btn{width:100%}.farmInfoTiles{grid-template-columns:1fr}.farmQuickPanel{grid-template-columns:1fr}.farmLocationSummary{grid-template-columns:1fr}.farmQuickGrid{grid-template-columns:repeat(2,minmax(0,1fr))}.farmLocationMap{height:52dvh;min-height:360px}}
+@media(max-width:420px){.farmQuickGrid{grid-template-columns:1fr}.farmQuickGrid article{min-height:76px}}
