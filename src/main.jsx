@@ -291,18 +291,72 @@ function useData(user, localMode=false){
     load(); return ()=>{alive=false};
   },[cloud,user?.id,localMode]);
 
+  async function activeUserId(){
+    if(!cloud) return user?.id || null;
+    const { data, error } = await supabase.auth.getSession();
+    const id = data?.session?.user?.id;
+    if(error || !id){
+      const message = 'Sessão expirada. Entre novamente para salvar no Supabase.';
+      setError(message, error || {});
+      notify(message, 'error');
+      return null;
+    }
+    return id;
+  }
+  async function saveFazendaRpc(row){
+    const { data, error } = await supabase.rpc('save_fazenda', { payload: row });
+    if(!error) return {data,error:null,handled:true};
+    const message = String(error.message || '');
+    const missingFunction = error.code === 'PGRST202' || message.includes('save_fazenda') || message.includes('Could not find the function');
+    return missingFunction ? {handled:false} : {data:null,error,handled:true};
+  }
   async function upsert(table, setter, key, row){
     const clean = {...row, updated_at: nowISO()};
+    let savedRow = clean;
     if(cloud){
-      const { error } = await supabase.from(table).upsert(clean);
+      const authUserId = await activeUserId();
+      if(!authUserId) return {ok:false,error:new Error('Sessão inválida')};
+      const currentList = {
+        fazendas,
+        equipamentos,
+        visitas,
+        checklists_fazenda: checklists,
+        diagnosticos_realizados: diagnosticos,
+        planejamentos_antena: planejamentos,
+        obstaculos_cobertura: obstaculos,
+        testes_cobertura: testesCobertura
+      }[table] || [];
+      const existsInState = currentList.some(item=>item.id===clean.id);
+      if(!clean.user_id || clean.user_id === 'local-user' || (table === 'fazendas' && !existsInState)){
+        clean.user_id = authUserId;
+      }
+      if(table === 'fazendas'){
+        const rpcResult = await saveFazendaRpc(clean);
+        if(rpcResult.handled){
+          if(rpcResult.error){
+            setError(`Erro ao salvar em ${table}: ${rpcResult.error.message}`, rpcResult.error);
+            notify(`Não foi possível salvar no Supabase: ${rpcResult.error.message}`,'error');
+            return {ok:false,error:rpcResult.error};
+          }
+          savedRow = normalizeFarmRow(rpcResult.data || clean);
+          setOk();
+          setter(prev => { const exists=prev.some(x=>x.id===savedRow.id); const next=exists?prev.map(x=>x.id===savedRow.id?savedRow:x):[savedRow,...prev]; return next; });
+          return {ok:true};
+        }
+      }
+      const query = existsInState
+        ? supabase.from(table).update(clean).eq('id', clean.id)
+        : supabase.from(table).insert(clean);
+      const { data:saved, error } = await query.select('*').single();
       if(error){
         setError(`Erro ao salvar em ${table}: ${error.message}`, error);
         notify(`Não foi possível salvar no Supabase: ${error.message}`,'error');
         return {ok:false,error};
       }
+      savedRow = table === 'fazendas' ? normalizeFarmRow(saved || clean) : (saved || clean);
       setOk();
     }
-    setter(prev => { const exists=prev.some(x=>x.id===clean.id); const next=exists?prev.map(x=>x.id===clean.id?clean:x):[clean,...prev]; if(!cloud) saveLocal(key,next); return next; });
+    setter(prev => { const exists=prev.some(x=>x.id===savedRow.id); const next=exists?prev.map(x=>x.id===savedRow.id?savedRow:x):[savedRow,...prev]; if(!cloud) saveLocal(key,next); return next; });
     return {ok:true};
   }
   async function remove(table, setter, key, id){
@@ -707,7 +761,7 @@ function Fazendas({data,onOpen}){
     <div className="statsGrid fieldStats"><Stat icon={MapPinned} label="fazendas" value={data.fazendas.length}/><Stat icon={Clock} label="em andamento" value={counts.andamento}/><Stat icon={AlertTriangle} label="com pendência" value={counts.pendencias} tone="orange"/><Stat icon={CheckCircle2} label="concluídas" value={counts.finalizadas} tone="green"/></div>
     <section className="panel fieldFinder smartFilters"><div className="filterHeader fieldFinderHeader"><div><span className="eyebrow">Localizar fazenda</span><h2><Filter size={20}/> Busca e filtros</h2></div><button className="btn light" onClick={resetFilters}>Limpar filtros</button></div><div className="toolbar"><div className="search"><Search size={18}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar por fazenda, cidade, regional, veterinário, equipamento ou código..."/></div><select value={central} onChange={e=>setCentral(e.target.value)}><option>Todas</option>{CENTRAIS.map(c=><option key={c}>{c}</option>)}</select><select value={status} onChange={e=>setStatus(e.target.value)}><option>Todos</option>{FARM_STATUS.map(s=><option key={s}>{s}</option>)}</select></div><div className="filterChips"><button className={quick==='todos'?'active':''} onClick={()=>setQuick('todos')}>Todas</button><button className={quick==='pendencias'?'active':''} onClick={()=>setQuick('pendencias')}><AlertTriangle size={15}/> Com pendências</button><button className={quick==='sem-gps'?'active':''} onClick={()=>setQuick('sem-gps')}><LocateFixed size={15}/> Sem GPS</button><button className={quick==='sem-equip'?'active':''} onClick={()=>setQuick('sem-equip')}><Cpu size={15}/> Sem equipamentos</button></div><div className="finderSummary"><b>{farms.length}</b><span>fazenda(s) encontrada(s)</span></div>{farms.length===0?<><Empty title="Nenhuma fazenda encontrada" text="Altere os filtros ou cadastre uma nova fazenda."/>{data.cloud&&data.fazendas.length===0&&<AccountDataNotice userId={data.userId}/>}</>:<div className="farmGrid finderGrid">{farms.map(f=><FarmCard key={f.id} farm={f} data={data} onOpen={()=>onOpen(f.id)}/>)}</div>}</section>
     <div className="fieldMapSecondary"><BrasilAtuacaoMap fazendas={data.fazendas} onOpen={onOpen}/></div>
-    {modal&&<FazendaModal onClose={()=>setModal(false)} onSave={(r)=>{data.saveFazenda(r);setModal(false)}}/>}</div>
+    {modal&&<FazendaModal onClose={()=>setModal(false)} onSave={async(r)=>{const result=await data.saveFazenda(r);if(result.ok)setModal(false)}}/>}</div>
 }
 function AccountDataNotice({userId}){const copy=async()=>{try{await navigator.clipboard.writeText(userId||'');notify('UID copiado.')}catch{}};return <section className="accountNotice"><UserCheck size={24}/><div><h3>Conta conectada, mas sem fazendas vinculadas</h3><p>O Supabase protege os dados por UID. Se suas fazendas foram criadas com outra conta, elas continuam no banco, mas não aparecem para esta conta.</p><div className="uidBox"><code>{userId||'UID indisponível'}</code><button onClick={copy}><Copy size={15}/> Copiar UID</button></div><small>Use o arquivo <b>supabase/migrar_dados_entre_contas.sql</b> para transferir os registros da conta antiga para esta conta sem perder equipamentos, visitas ou checklists.</small></div></section>}
 function FarmCard({farm,data,onOpen}){const access=farmAccess(farm,data);const eq=data.equipamentos.filter(e=>e.fazenda_id===farm.id).length; const visits=data.visitas.filter(v=>v.fazenda_id===farm.id); const pct=num(farm.qtd_colares_prevista)?Math.round(num(farm.qtd_colares_instalada)/num(farm.qtd_colares_prevista)*100):0; const displayStatus=farmStatus(farm); return <article className="farmCard" onClick={onOpen}><div className="cardTop"><div className="badgeIcon"><Building2 size={20}/></div><span className={`status ${statusTone(displayStatus)}`}>{displayStatus}</span></div><div className="farmCentral"><span>{farm.central||'Central não informada'}</span>{access.isShared&&<AccessBadge access={access}/>}</div><h3>{farm.nome}</h3><p><MapPin size={15}/>{farm.cidade||'Cidade não informada'}{getFarmUF(farm)?` / ${getFarmUF(farm)}`:''}</p><p><User size={15}/>{farm.responsavel||'Responsável não informado'}</p><p><ShieldCheck size={15}/>{farm.regional_nome||'Regional não informado'}</p>{farm.veterinario_apoio&&<p><Stethoscope size={15}/>{farm.veterinario_apoio}</p>}<div className="progress"><span style={{width:`${Math.min(pct,100)}%`}}/></div><div className="miniStats"><span><b>{num(farm.qtd_colares_instalada)}</b> instalados</span><span><b>{num(farm.qtd_colares_prevista)}</b> previstos</span><span><b>{eq}</b> equips.</span></div><footer>Última visita: {visits[0]?brDate(visits[0].data_visita):'sem visita'}<ChevronLeft className="rotate" size={17}/></footer></article>}
@@ -777,7 +831,7 @@ function FazendaDetalhe({farm,data,onBack}){const [tab,setTab]=useState('resumo'
     {tab==='resumo'&&<section className="panel"><ServiceControl farm={farm} canEdit={access.canEdit} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)}/><div className="statsGrid"><Stat icon={Hash} label="colares previstos" value={num(farm.qtd_colares_prevista)}/><Stat icon={CheckCircle2} label="instalados" value={num(farm.qtd_colares_instalada)} tone="green"/><Stat icon={Gauge} label="progresso" value={`${pct}%`}/><Stat icon={Cpu} label="equipamentos" value={equips.length}/><Stat icon={Clock} label="tempo de servico" value={serviceDurationLabel(farm)}/></div><FarmSummaryOverview farm={farm} visits={visits} checks={checks} diags={diags} equips={equips} evidencias={evidencias} onOpenMap={()=>setTab('mapa')}/></section>}
     {tab==='checklists'&&<ChecklistsFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='equipamentos'&&<EquipamentosFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={()=>setEquipModal(true)}/>} {tab==='mapa'&&<MapaFazenda farm={farm} data={data}/>} {tab==='visitas'&&<VisitasFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={()=>setVisitModal(true)}/>} {tab==='evidencias'&&<EvidenciasFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='relatorio'&&<RelatorioFazenda farm={farm} data={data}/>} {tab==='acessos'&&<AcessosFazenda farm={farm} data={data} access={access}/>}
     <FarmBottomNav farm={farm} tabs={tabs} tab={tab} setTab={setTab} onBack={onBack} access={access} serviceActive={serviceActive} serviceDone={serviceDone} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)} onNewVisit={()=>setVisitModal(true)}/>
-    {edit&&access.canEdit&&<FazendaModal farm={farm} onClose={()=>setEdit(false)} onSave={async(r)=>{await data.saveFazenda(r);setEdit(false)}}/>}{equipModal&&access.canEdit&&<EquipModal farm={farm} onClose={()=>setEquipModal(false)} onSave={async(r)=>{await data.saveEquipamento(r);setEquipModal(false)}}/>}{visitModal&&access.canEdit&&<VisitModal farm={farm} onClose={()=>setVisitModal(false)} onSave={async(r)=>{await data.saveVisita(r);setVisitModal(false)}}/>}</div>}
+    {edit&&access.canEdit&&<FazendaModal farm={farm} onClose={()=>setEdit(false)} onSave={async(r)=>{const result=await data.saveFazenda(r);if(result.ok)setEdit(false)}}/>}{equipModal&&access.canEdit&&<EquipModal farm={farm} onClose={()=>setEquipModal(false)} onSave={async(r)=>{const result=await data.saveEquipamento(r);if(result.ok)setEquipModal(false)}}/>}{visitModal&&access.canEdit&&<VisitModal farm={farm} onClose={()=>setVisitModal(false)} onSave={async(r)=>{const result=await data.saveVisita(r);if(result.ok)setVisitModal(false)}}/>}</div>}
 function ServiceControl({farm,canEdit,onStart,onFinish,onEdit}){const active=Boolean(farm.servico_inicio_em&&!farm.servico_fim_em), done=Boolean(farm.servico_inicio_em&&farm.servico_fim_em); const status=farmStatus(farm); return <div className={`serviceControl ${active?'active':done?'done':''}`}><div className="serviceLead"><span className="eyebrow">Produtividade</span><h2><Clock size={20}/> Serviço da fazenda</h2></div><div className="serviceFacts"><div><span>Situação</span><b>{status}</b></div><div><span>Início</span><b>{brDateTime(farm.servico_inicio_em)}</b></div><div><span>Fim</span><b>{brDateTime(farm.servico_fim_em)}</b></div><div><span>Duração</span><b>{serviceDurationLabel(farm)}</b></div></div><div className="serviceActions">{canEdit&&!farm.servico_inicio_em&&<button className="btn primary" onClick={onStart}><PlayCircle size={17}/> Iniciar serviço</button>}{canEdit&&active&&<button className="btn primary" onClick={onFinish}><CheckCircle2 size={17}/> Finalizar serviço</button>}{canEdit&&<button className="btn light" onClick={onEdit}><Pencil size={17}/> Ajustar datas</button>}</div>{farm.servico_observacoes&&<p className="serviceNote">{farm.servico_observacoes}</p>}</div>}
 function AcessosFazenda({farm,data,access}){
   const [email,setEmail]=useState(''),[role,setRole]=useState('viewer'),[busy,setBusy]=useState(false);

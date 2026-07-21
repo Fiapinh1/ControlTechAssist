@@ -505,3 +505,123 @@ create policy "evidencias_storage_delete_admin" on storage.objects for delete us
   bucket_id = 'fazenda-evidencias'
   and public.can_write_fazenda((storage.foldername(name))[1]::uuid)
 );
+
+-- V3.10: salvamento seguro de fazenda pelo banco
+create or replace function public.save_fazenda(payload jsonb)
+returns public.fazendas
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_uid uuid := auth.uid();
+  target_id uuid := coalesce(nullif(payload->>'id', '')::uuid, gen_random_uuid());
+  existing public.fazendas;
+  result public.fazendas;
+begin
+  if current_uid is null then
+    raise exception 'Usuario nao autenticado.';
+  end if;
+
+  select * into existing
+  from public.fazendas
+  where id = target_id;
+
+  if not found then
+    insert into public.fazendas (
+      id,
+      user_id,
+      nome,
+      central,
+      regional_nome,
+      veterinario_apoio,
+      responsavel,
+      telefone,
+      estado_uf,
+      estado_nome,
+      cidade,
+      codigo_ibge_cidade,
+      latitude,
+      longitude,
+      localizacao_origem,
+      endereco,
+      qtd_colares_prevista,
+      qtd_colares_instalada,
+      servico_inicio_em,
+      servico_fim_em,
+      servico_responsavel,
+      servico_observacoes,
+      status,
+      observacoes,
+      created_at,
+      updated_at
+    )
+    values (
+      target_id,
+      current_uid,
+      coalesce(nullif(payload->>'nome', ''), 'Nova fazenda'),
+      nullif(payload->>'central', ''),
+      nullif(payload->>'regional_nome', ''),
+      nullif(payload->>'veterinario_apoio', ''),
+      nullif(payload->>'responsavel', ''),
+      nullif(payload->>'telefone', ''),
+      nullif(payload->>'estado_uf', ''),
+      nullif(payload->>'estado_nome', ''),
+      nullif(payload->>'cidade', ''),
+      nullif(payload->>'codigo_ibge_cidade', ''),
+      nullif(payload->>'latitude', '')::numeric,
+      nullif(payload->>'longitude', '')::numeric,
+      nullif(payload->>'localizacao_origem', ''),
+      nullif(payload->>'endereco', ''),
+      coalesce(nullif(payload->>'qtd_colares_prevista', '')::integer, 0),
+      coalesce(nullif(payload->>'qtd_colares_instalada', '')::integer, 0),
+      nullif(payload->>'servico_inicio_em', '')::timestamptz,
+      nullif(payload->>'servico_fim_em', '')::timestamptz,
+      nullif(payload->>'servico_responsavel', ''),
+      nullif(payload->>'servico_observacoes', ''),
+      coalesce(nullif(payload->>'status', ''), 'Não iniciada'),
+      nullif(payload->>'observacoes', ''),
+      coalesce(nullif(payload->>'created_at', '')::timestamptz, now()),
+      now()
+    )
+    returning * into result;
+  else
+    if existing.user_id is not null and not public.can_write_fazenda(target_id, current_uid) then
+      raise exception 'Sem permissao para alterar esta fazenda.';
+    end if;
+
+    update public.fazendas
+    set
+      user_id = coalesce(existing.user_id, current_uid),
+      nome = coalesce(nullif(payload->>'nome', ''), existing.nome),
+      central = nullif(payload->>'central', ''),
+      regional_nome = nullif(payload->>'regional_nome', ''),
+      veterinario_apoio = nullif(payload->>'veterinario_apoio', ''),
+      responsavel = nullif(payload->>'responsavel', ''),
+      telefone = nullif(payload->>'telefone', ''),
+      estado_uf = nullif(payload->>'estado_uf', ''),
+      estado_nome = nullif(payload->>'estado_nome', ''),
+      cidade = nullif(payload->>'cidade', ''),
+      codigo_ibge_cidade = nullif(payload->>'codigo_ibge_cidade', ''),
+      latitude = nullif(payload->>'latitude', '')::numeric,
+      longitude = nullif(payload->>'longitude', '')::numeric,
+      localizacao_origem = nullif(payload->>'localizacao_origem', ''),
+      endereco = nullif(payload->>'endereco', ''),
+      qtd_colares_prevista = coalesce(nullif(payload->>'qtd_colares_prevista', '')::integer, 0),
+      qtd_colares_instalada = coalesce(nullif(payload->>'qtd_colares_instalada', '')::integer, 0),
+      servico_inicio_em = nullif(payload->>'servico_inicio_em', '')::timestamptz,
+      servico_fim_em = nullif(payload->>'servico_fim_em', '')::timestamptz,
+      servico_responsavel = nullif(payload->>'servico_responsavel', ''),
+      servico_observacoes = nullif(payload->>'servico_observacoes', ''),
+      status = coalesce(nullif(payload->>'status', ''), existing.status),
+      observacoes = nullif(payload->>'observacoes', ''),
+      updated_at = now()
+    where id = target_id
+    returning * into result;
+  end if;
+
+  return result;
+end;
+$$;
+
+grant execute on function public.save_fazenda(jsonb) to authenticated;

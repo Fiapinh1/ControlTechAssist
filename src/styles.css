@@ -161,3 +161,305 @@
 /* V3.8 - evidencias fotograficas */
 .srOnly{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}.btn.disabled{opacity:.65;pointer-events:none}.evidenceTotal{border:1px solid #bbf7d0;background:#f0fdf4;border-radius:16px;padding:10px 14px;text-align:center;color:#047857}.evidenceTotal b{display:block;font-size:22px;line-height:1}.evidenceTotal span{font-size:12px;font-weight:900}.evidenceUploader{border:1px solid #bbf7d0;background:linear-gradient(135deg,#f0fdf4,#fff);border-radius:22px;padding:16px;margin-bottom:14px;display:grid;gap:12px}.evidenceUploaderHead{display:flex;gap:12px;align-items:flex-start}.evidenceUploaderHead>svg{color:#16a34a;flex:0 0 auto}.evidenceUploaderHead b,.evidenceUploaderHead span{display:block}.evidenceUploaderHead span{color:#64748b;font-size:13px;margin-top:3px}.evidenceUploadActions{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.evidenceFilters{display:flex;gap:8px;overflow:auto;padding-bottom:4px;margin-bottom:14px;scrollbar-width:none}.evidenceFilters button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 11px;color:#64748b;font-weight:900;white-space:nowrap}.evidenceFilters button.active{background:#0f172a;color:#fff;border-color:#0f172a}.evidenceGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}.evidenceCard{border:1px solid var(--line);background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 10px 28px rgba(15,23,42,.05);display:grid;grid-template-rows:180px 1fr auto}.evidenceThumb{position:relative;border:0;background:#e2e8f0;width:100%;height:100%;display:grid;place-items:center;color:#64748b;overflow:hidden}.evidenceThumb img{width:100%;height:100%;object-fit:cover;display:block;transition:.2s}.evidenceThumb:hover img{transform:scale(1.03)}.evidenceThumb span{position:absolute;right:10px;bottom:10px;display:inline-flex;align-items:center;gap:5px;background:rgba(15,23,42,.82);color:#fff;border-radius:999px;padding:6px 9px;font-size:12px;font-weight:900}.evidenceContent{padding:13px;display:grid;gap:8px}.evidenceContent>div:first-child{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.evidenceContent b{font-size:15px}.evidenceContent .pill{padding:5px 8px;font-size:10px;background:#dcfce7;color:#166534}.evidenceContent p{margin:0;color:#334155;line-height:1.4}.evidenceContent small{display:flex;align-items:center;gap:5px;color:#64748b;font-size:12px;line-height:1.35}.evidenceCard footer{display:flex;justify-content:flex-end;gap:8px;border-top:1px solid var(--line);padding:10px 12px;background:#f8fafc}.evidenceViewer{display:grid;gap:14px}.evidenceViewer>img{width:100%;max-height:68vh;object-fit:contain;background:#020617;border-radius:18px;border:1px solid var(--line)}.reportEvidenceGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.reportEvidenceGrid article{border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;background:#f8fafc}.reportEvidenceGrid img{width:100%;height:190px;object-fit:cover;display:block}.reportEvidenceGrid b,.reportEvidenceGrid span{display:block;padding:0 10px}.reportEvidenceGrid b{padding-top:9px}.reportEvidenceGrid span{padding-bottom:10px;color:#64748b;font-size:12px;line-height:1.35}
 @media(max-width:700px){.evidenceUploader{padding:13px;border-radius:18px}.evidenceUploadActions{display:grid}.evidenceUploadActions .btn,.evidenceUploadActions .optionCheck{width:100%;justify-content:center}.evidenceGrid{grid-template-columns:1fr}.evidenceCard{grid-template-rows:210px 1fr auto}.reportEvidenceGrid{grid-template-columns:1fr}.reportEvidenceGrid img{height:210px}}
+
+/* V3.9: desktop containment and polished farm workspace */
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.app {
+  grid-template-columns: 280px minmax(0, 1fr);
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+.main {
+  min-width: 0;
+  max-width: min(1280px, 100%);
+  padding-inline: clamp(18px, 2.4vw, 34px);
+  overflow-x: hidden;
+}
+
+.farmDetail,
+.farmDetail > *,
+.panel,
+.farmHero,
+.farmTabs,
+.evidencePanel,
+.evidenceUploader,
+.evidenceGrid,
+.sectionTitle {
+  min-width: 0;
+}
+
+.farmHero {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: clamp(16px, 2.2vw, 28px);
+  align-items: start;
+  overflow: hidden;
+  isolation: isolate;
+  border: 1px solid rgba(148, 163, 184, .18);
+  border-radius: 28px;
+  padding: clamp(22px, 2.7vw, 34px);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(34, 197, 94, .22), transparent 34%),
+    linear-gradient(135deg, #0f172a 0%, #111827 52%, #12483f 100%);
+  box-shadow: 0 22px 55px rgba(15, 23, 42, .14);
+}
+
+.farmHero::after {
+  content: "";
+  position: absolute;
+  inset: auto -18% -58% 42%;
+  height: 190px;
+  background: linear-gradient(90deg, transparent, rgba(34, 197, 94, .16), transparent);
+  transform: rotate(-8deg);
+  z-index: -1;
+}
+
+.farmHero > div:first-child {
+  min-width: 0;
+}
+
+.farmHero h1 {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.farmHero p {
+  flex-wrap: wrap;
+  row-gap: 7px;
+}
+
+.farmHero .heroActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(132px, 1fr));
+  width: min(360px, 100%);
+  justify-content: stretch;
+}
+
+.farmHero .heroActions .btn {
+  width: 100%;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.farmTabs {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 8px;
+  margin: 18px 0;
+  padding: 8px;
+  overflow: visible;
+  border: 1px solid rgba(203, 213, 225, .88);
+  border-radius: 20px;
+  background: rgba(248, 250, 252, .94);
+  box-shadow: 0 16px 38px rgba(15, 23, 42, .08);
+  backdrop-filter: blur(16px);
+}
+
+.farmTabs button {
+  min-width: 0;
+  justify-content: center;
+  padding: 11px 10px;
+  border-radius: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.farmTabs button svg {
+  flex: 0 0 auto;
+}
+
+.evidencePanel {
+  overflow: hidden;
+  border-radius: 24px;
+}
+
+.evidencePanel .sectionTitle {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.evidenceUploader {
+  grid-template-columns: minmax(220px, .42fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+  padding: 18px;
+  border-color: rgba(34, 197, 94, .28);
+  background:
+    linear-gradient(135deg, rgba(240, 253, 244, .98), rgba(255, 255, 255, .98)),
+    radial-gradient(circle at 0 0, rgba(34, 197, 94, .14), transparent 40%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7);
+}
+
+.evidenceUploaderHead {
+  grid-row: 1 / span 4;
+  align-items: center;
+  padding: 18px;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(34, 197, 94, .28), transparent 35%),
+    linear-gradient(135deg, #0f172a, #134e4a);
+  color: #fff;
+}
+
+.evidenceUploaderHead > svg {
+  color: #86efac;
+}
+
+.evidenceUploaderHead b {
+  font-size: 20px;
+}
+
+.evidenceUploader > .grid2,
+.evidenceUploader > .field,
+.evidenceUploader > .evidenceUploadActions {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.evidenceUploader > .grid2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.evidenceUploader textarea,
+.evidenceUploader select,
+.evidenceUploader input {
+  min-width: 0;
+}
+
+.evidenceUploadActions {
+  padding-top: 2px;
+}
+
+.evidenceFilters {
+  margin-top: 4px;
+  padding: 4px 0 10px;
+}
+
+.evidenceGrid {
+  grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr));
+}
+
+@media (max-width: 1180px) {
+  .farmHero {
+    grid-template-columns: 1fr;
+  }
+
+  .farmHero .heroActions {
+    width: 100%;
+    max-width: 520px;
+  }
+
+  .farmTabs {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .farmTabs button {
+    flex: 0 0 146px;
+  }
+}
+
+@media (max-width: 1080px) {
+  .app {
+    grid-template-columns: 250px minmax(0, 1fr);
+  }
+
+  .evidenceUploader {
+    grid-template-columns: 1fr;
+  }
+
+  .evidenceUploaderHead,
+  .evidenceUploader > .grid2,
+  .evidenceUploader > .field,
+  .evidenceUploader > .evidenceUploadActions {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 900px) {
+  .app {
+    display: block;
+    max-width: 100%;
+  }
+
+  .main {
+    padding-inline: 14px;
+  }
+
+  .farmDetail .farmTabs {
+    display: none !important;
+  }
+}
+
+@media (max-width: 700px) {
+  .evidencePanel .sectionTitle {
+    align-items: flex-start;
+  }
+
+  .evidenceUploader > .grid2 {
+    grid-template-columns: 1fr;
+  }
+
+  .evidenceUploaderHead {
+    padding: 15px;
+  }
+}
+
+/* V3.9.1: keep sidebar sticky while content remains contained */
+.app {
+  overflow-x: visible;
+}
+
+.sidebar {
+  align-self: start;
+  z-index: 25;
+  flex-shrink: 0;
+}
+
+/* V3.9.2: fixed desktop shell with independent sidebar scroll */
+@media (min-width: 901px) {
+  .app {
+    display: block;
+    min-height: 100vh;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .sidebar {
+    position: fixed !important;
+    inset: 0 auto 0 0;
+    width: 280px;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+
+  .main {
+    width: auto;
+    max-width: min(1280px, calc(100vw - 280px));
+    margin: 0 auto 0 280px;
+  }
+}
