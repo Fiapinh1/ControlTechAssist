@@ -434,3 +434,74 @@ add column if not exists servico_observacoes text;
 
 create index if not exists fazendas_servico_inicio_idx on public.fazendas(servico_inicio_em);
 create index if not exists fazendas_servico_fim_idx on public.fazendas(servico_fim_em);
+
+-- V3.8: evidencias fotograficas da instalacao
+create table if not exists public.evidencias_fazenda (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
+  fazenda_id uuid not null references public.fazendas(id) on delete cascade,
+  equipamento_id uuid references public.equipamentos(id) on delete set null,
+  visita_id uuid references public.visitas(id) on delete set null,
+  categoria text not null default 'Instalação finalizada',
+  descricao text,
+  arquivo_path text,
+  arquivo_url text,
+  arquivo_nome text,
+  mime_type text,
+  tamanho_bytes integer,
+  inclui_relatorio boolean not null default true,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table public.evidencias_fazenda enable row level security;
+
+drop policy if exists "evidencias_select_access" on public.evidencias_fazenda;
+drop policy if exists "evidencias_insert_admin" on public.evidencias_fazenda;
+drop policy if exists "evidencias_update_admin" on public.evidencias_fazenda;
+drop policy if exists "evidencias_delete_admin" on public.evidencias_fazenda;
+create policy "evidencias_select_access" on public.evidencias_fazenda for select using (public.can_view_fazenda(fazenda_id));
+create policy "evidencias_insert_admin" on public.evidencias_fazenda for insert with check (public.can_write_fazenda(fazenda_id));
+create policy "evidencias_update_admin" on public.evidencias_fazenda for update using (public.can_write_fazenda(fazenda_id)) with check (public.can_write_fazenda(fazenda_id));
+create policy "evidencias_delete_admin" on public.evidencias_fazenda for delete using (public.can_write_fazenda(fazenda_id));
+
+create index if not exists evidencias_fazenda_idx on public.evidencias_fazenda(fazenda_id, created_at desc);
+create index if not exists evidencias_equipamento_idx on public.evidencias_fazenda(equipamento_id);
+create index if not exists evidencias_visita_idx on public.evidencias_fazenda(visita_id);
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'fazenda-evidencias',
+  'fazenda-evidencias',
+  false,
+  10485760,
+  array['image/jpeg','image/png','image/webp','image/heic','image/heif']::text[]
+)
+on conflict (id) do update set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "evidencias_storage_select_access" on storage.objects;
+drop policy if exists "evidencias_storage_insert_admin" on storage.objects;
+drop policy if exists "evidencias_storage_update_admin" on storage.objects;
+drop policy if exists "evidencias_storage_delete_admin" on storage.objects;
+create policy "evidencias_storage_select_access" on storage.objects for select using (
+  bucket_id = 'fazenda-evidencias'
+  and public.can_view_fazenda((storage.foldername(name))[1]::uuid)
+);
+create policy "evidencias_storage_insert_admin" on storage.objects for insert with check (
+  bucket_id = 'fazenda-evidencias'
+  and public.can_write_fazenda((storage.foldername(name))[1]::uuid)
+);
+create policy "evidencias_storage_update_admin" on storage.objects for update using (
+  bucket_id = 'fazenda-evidencias'
+  and public.can_write_fazenda((storage.foldername(name))[1]::uuid)
+) with check (
+  bucket_id = 'fazenda-evidencias'
+  and public.can_write_fazenda((storage.foldername(name))[1]::uuid)
+);
+create policy "evidencias_storage_delete_admin" on storage.objects for delete using (
+  bucket_id = 'fazenda-evidencias'
+  and public.can_write_fazenda((storage.foldername(name))[1]::uuid)
+);
