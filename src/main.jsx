@@ -161,6 +161,8 @@ const CENTRAIS = ['Alta Genetics', 'Genex Brasil', 'Outra / Não informado'];
 const EQUIP_TYPES = ['VP8002 — Processador/Base', 'VP4102 — Antena', 'Outro equipamento'];
 const EQUIP_STATUS = ['Planejado', 'Instalado', 'Configurado', 'Validado', 'Com problema', 'Removido'];
 const VISIT_TYPES = ['Instalação', 'Manutenção', 'Diagnóstico', 'Retorno', 'Validação', 'Treinamento', 'Suporte'];
+const visitHasPending = v => Boolean(String(v?.pendencias||'').trim() || String(v?.proxima_acao||'').trim());
+const visitSummaryText = v => String(v?.resumo||'').trim() || `${v?.tipo||'Visita'} registrada em ${brDate(v?.data_visita)} sem pendências.`;
 const LOCAL_SUGGESTIONS = ['Ordenha', 'Sala de leite', 'Curral', 'Galpão 01', 'Galpão 02', 'Compost barn', 'Free stall', 'Piquete', 'Bezerreiro', 'Pré-parto', 'Pós-parto', 'Casa de máquinas', 'Escritório', 'Sala técnica', 'Torre', 'Caixa d’água', 'Barracão', 'Cocho', 'Pista de trato', 'Outro'];
 const OBSTACLE_TYPES = ['Parede de alvenaria','Parede de concreto','Estrutura metálica','Telhado metálico','Barracão/galpão','Mata densa','Desnível/relevo','Outro'];
 const COVERAGE_RESULTS = ['Leitura boa','Leitura instável','Sem leitura'];
@@ -826,12 +828,32 @@ function FazendaModal({farm={},onClose,onSave}){
     </div>}
     <div className="stickyFormActions"><button type="button" className="btn light" onClick={onClose}>Cancelar</button><button className="btn primary"><Save size={18}/> Salvar fazenda</button></div>
   </form></Modal>}
-function FazendaDetalhe({farm,data,onBack}){const [tab,setTab]=useState('resumo'),[edit,setEdit]=useState(false),[equipModal,setEquipModal]=useState(false),[visitModal,setVisitModal]=useState(false); const access=farmAccess(farm,data); const equips=data.equipamentos.filter(e=>e.fazenda_id===farm.id), visits=data.visitas.filter(v=>v.fazenda_id===farm.id), checks=data.checklists.filter(c=>c.fazenda_id===farm.id), diags=data.diagnosticos.filter(d=>d.fazenda_id===farm.id), evidencias=(data.evidencias||[]).filter(e=>e.fazenda_id===farm.id); const tabs=[['resumo','Resumo',Building2],['checklists','Checklists',ClipboardCheck],['equipamentos','Equipamentos',Cpu],['mapa','Mapa técnico',MapIcon],['visitas','Visitas',CalendarDays],['evidencias','Evidências',ImageIcon],['relatorio','Relatório',FileText],access.canManageAccess&&['acessos','Acessos',UserCheck]].filter(Boolean); const pct=num(farm.qtd_colares_prevista)?Math.round(num(farm.qtd_colares_instalada)/num(farm.qtd_colares_prevista)*100):0; const serviceActive=Boolean(farm.servico_inicio_em&&!farm.servico_fim_em), serviceDone=Boolean(farm.servico_inicio_em&&farm.servico_fim_em); const startService=async()=>{if(!access.canEdit)return;await data.saveFazenda({...farm,servico_inicio_em:farm.servico_inicio_em||nowISO(),servico_fim_em:null,servico_responsavel:farm.servico_responsavel||farm.regional_nome||farm.responsavel||'',status:'Em andamento'});notify('Servico iniciado.');}; const finishService=async()=>{if(!access.canEdit)return;await data.saveFazenda({...farm,servico_inicio_em:farm.servico_inicio_em||nowISO(),servico_fim_em:nowISO(),status:FARM_STATUS_DONE});notify('Servico finalizado.');};
-  return <div className="farmDetail"><button className="back" onClick={onBack}><ChevronLeft size={18}/> Voltar para fazendas</button><section className="farmHero"><div><span className="eyebrow">Dossiê técnico</span><h1>{farm.nome}</h1><p><MapPin size={16}/>{farm.cidade||'Cidade não informada'} <span>•</span> <Building2 size={16}/>{farm.central||'Central não informada'} <span>•</span> <User size={16}/>{farm.regional_nome||farm.responsavel||'Regional não informado'}</p><AccessBadge access={access}/></div><div className="heroActions">{access.canEdit&&!serviceActive&&!serviceDone&&<button className="btn light" onClick={startService}><PlayCircle size={17}/> Iniciar servico</button>}{access.canEdit&&serviceActive&&<button className="btn primary" onClick={finishService}><CheckCircle2 size={17}/> Finalizar servico</button>}{access.canEdit&&<button className="btn light" onClick={()=>setEdit(true)}><Pencil size={17}/> Editar</button>}{access.canEdit&&<button className="btn primary" onClick={()=>setVisitModal(true)}><Plus size={17}/> Nova visita</button>}</div></section>{!access.canEdit&&<PermissionNotice/>}<div className="tabs farmTabs">{tabs.map(([id,label,Icon])=><button key={id} onClick={()=>setTab(id)} className={tab===id?'active':''}><Icon size={17}/>{label}</button>)}</div>
-    {tab==='resumo'&&<section className="panel"><ServiceControl farm={farm} canEdit={access.canEdit} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)}/><div className="statsGrid"><Stat icon={Hash} label="colares previstos" value={num(farm.qtd_colares_prevista)}/><Stat icon={CheckCircle2} label="instalados" value={num(farm.qtd_colares_instalada)} tone="green"/><Stat icon={Gauge} label="progresso" value={`${pct}%`}/><Stat icon={Cpu} label="equipamentos" value={equips.length}/><Stat icon={Clock} label="tempo de servico" value={serviceDurationLabel(farm)}/></div><FarmSummaryOverview farm={farm} visits={visits} checks={checks} diags={diags} equips={equips} evidencias={evidencias} onOpenMap={()=>setTab('mapa')}/></section>}
+function FazendaDetalhe({farm,data,onBack}){
+  const [tab,setTab]=useState('resumo'),[edit,setEdit]=useState(false),[equipModal,setEquipModal]=useState(false),[visitModal,setVisitModal]=useState(false);
+  const access=farmAccess(farm,data);
+  const equips=data.equipamentos.filter(e=>e.fazenda_id===farm.id), visits=data.visitas.filter(v=>v.fazenda_id===farm.id), checks=data.checklists.filter(c=>c.fazenda_id===farm.id), diags=data.diagnosticos.filter(d=>d.fazenda_id===farm.id), evidencias=(data.evidencias||[]).filter(e=>e.fazenda_id===farm.id);
+  const tabs=[['resumo','Resumo',Building2],['checklists','Checklists',ClipboardCheck],['equipamentos','Equipamentos',Cpu],['mapa','Mapa técnico',MapIcon],['visitas','Visitas',CalendarDays],['evidencias','Evidências',ImageIcon],['relatorio','Relatório',FileText],access.canManageAccess&&['acessos','Acessos',UserCheck]].filter(Boolean);
+  const serviceActive=Boolean(farm.servico_inicio_em&&!farm.servico_fim_em), serviceDone=Boolean(farm.servico_inicio_em&&farm.servico_fim_em), compactHero=tab!=='resumo';
+  const startService=async()=>{if(!access.canEdit)return;await data.saveFazenda({...farm,servico_inicio_em:farm.servico_inicio_em||nowISO(),servico_fim_em:null,servico_responsavel:farm.servico_responsavel||farm.regional_nome||farm.responsavel||'',status:'Em andamento'});notify('Servico iniciado.');};
+  const finishService=async()=>{if(!access.canEdit)return;await data.saveFazenda({...farm,servico_inicio_em:farm.servico_inicio_em||nowISO(),servico_fim_em:nowISO(),status:FARM_STATUS_DONE});notify('Servico finalizado.');};
+  return <div className="farmDetail">
+    <button className="back" onClick={onBack}><ChevronLeft size={18}/> Voltar para fazendas</button>
+    <section className={`farmHero ${compactHero?'compactHero':''}`}>
+      <div>
+        {!compactHero&&<span className="eyebrow">Dossiê técnico</span>}
+        <h1>{farm.nome}</h1>
+        {!compactHero&&<div className="farmHeroMeta"><span><MapPin size={16}/>{farm.cidade||'Cidade não informada'}</span><span><Building2 size={16}/>{farm.central||'Central não informada'}</span><span><User size={16}/>{farm.regional_nome||farm.responsavel||'Regional não informado'}</span></div>}
+        {!compactHero&&<AccessBadge access={access}/>}
+      </div>
+    </section>
+    {!access.canEdit&&<PermissionNotice/>}
+    <div className="tabs farmTabs">{tabs.map(([id,label,Icon])=><button key={id} onClick={()=>setTab(id)} className={tab===id?'active':''}><Icon size={17}/>{label}</button>)}</div>
+    {tab==='resumo'&&<FarmExecutiveSummary farm={farm} visits={visits} checks={checks} diags={diags} equips={equips} evidencias={evidencias} canEdit={access.canEdit} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)} onNewVisit={()=>setVisitModal(true)} onOpenMap={()=>setTab('mapa')}/>}
     {tab==='checklists'&&<ChecklistsFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='equipamentos'&&<EquipamentosFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={()=>setEquipModal(true)}/>} {tab==='mapa'&&<MapaFazenda farm={farm} data={data}/>} {tab==='visitas'&&<VisitasFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={()=>setVisitModal(true)}/>} {tab==='evidencias'&&<EvidenciasFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='relatorio'&&<RelatorioFazenda farm={farm} data={data}/>} {tab==='acessos'&&<AcessosFazenda farm={farm} data={data} access={access}/>}
     <FarmBottomNav farm={farm} tabs={tabs} tab={tab} setTab={setTab} onBack={onBack} access={access} serviceActive={serviceActive} serviceDone={serviceDone} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)} onNewVisit={()=>setVisitModal(true)}/>
-    {edit&&access.canEdit&&<FazendaModal farm={farm} onClose={()=>setEdit(false)} onSave={async(r)=>{const result=await data.saveFazenda(r);if(result.ok)setEdit(false)}}/>}{equipModal&&access.canEdit&&<EquipModal farm={farm} onClose={()=>setEquipModal(false)} onSave={async(r)=>{const result=await data.saveEquipamento(r);if(result.ok)setEquipModal(false)}}/>}{visitModal&&access.canEdit&&<VisitModal farm={farm} onClose={()=>setVisitModal(false)} onSave={async(r)=>{const result=await data.saveVisita(r);if(result.ok)setVisitModal(false)}}/>}</div>}
+    {edit&&access.canEdit&&<FazendaModal farm={farm} onClose={()=>setEdit(false)} onSave={async(r)=>{const result=await data.saveFazenda(r);if(result.ok)setEdit(false)}}/>}{equipModal&&access.canEdit&&<EquipModal farm={farm} onClose={()=>setEquipModal(false)} onSave={async(r)=>{const result=await data.saveEquipamento(r);if(result.ok)setEquipModal(false)}}/>}{visitModal&&access.canEdit&&<VisitModal farm={farm} onClose={()=>setVisitModal(false)} onSave={async(r)=>{const result=await data.saveVisita(r);if(result.ok)setVisitModal(false)}}/>}
+  </div>
+}
 function ServiceControl({farm,canEdit,onStart,onFinish,onEdit}){const active=Boolean(farm.servico_inicio_em&&!farm.servico_fim_em), done=Boolean(farm.servico_inicio_em&&farm.servico_fim_em); const status=farmStatus(farm); return <div className={`serviceControl ${active?'active':done?'done':''}`}><div className="serviceLead"><span className="eyebrow">Produtividade</span><h2><Clock size={20}/> Serviço da fazenda</h2></div><div className="serviceFacts"><div><span>Situação</span><b>{status}</b></div><div><span>Início</span><b>{brDateTime(farm.servico_inicio_em)}</b></div><div><span>Fim</span><b>{brDateTime(farm.servico_fim_em)}</b></div><div><span>Duração</span><b>{serviceDurationLabel(farm)}</b></div></div><div className="serviceActions">{canEdit&&!farm.servico_inicio_em&&<button className="btn primary" onClick={onStart}><PlayCircle size={17}/> Iniciar serviço</button>}{canEdit&&active&&<button className="btn primary" onClick={onFinish}><CheckCircle2 size={17}/> Finalizar serviço</button>}{canEdit&&<button className="btn light" onClick={onEdit}><Pencil size={17}/> Ajustar datas</button>}</div>{farm.servico_observacoes&&<p className="serviceNote">{farm.servico_observacoes}</p>}</div>}
 function AcessosFazenda({farm,data,access}){
   const [email,setEmail]=useState(''),[role,setRole]=useState('viewer'),[busy,setBusy]=useState(false);
@@ -842,27 +864,61 @@ function AcessosFazenda({farm,data,access}){
   return <section className="panel accessPanel"><div className="sectionTitle"><div><h2><UserCheck size={20}/> Acessos da fazenda</h2></div></div><form className="accessInvitePanel" onSubmit={add}><div className="accessInviteTop"><Field label="E-mail da pessoa"><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="nome@email.com" required/></Field><button className="btn primary" disabled={busy}><UserCheck size={17}/> {busy?'Liberando...':'Liberar acesso'}</button></div><div className="accessRoleCards">{roles.map(([value,label,desc])=><button type="button" key={value} className={role===value?'active':''} onClick={()=>setRole(value)}><span>{value==='admin'?<ShieldCheck size={18}/>:<UserCheck size={18}/>}</span><b>{label}</b><small>{desc}</small></button>)}</div></form><div className="accessPeopleGrid"><article className="accessPersonCard owner"><ShieldCheck size={22}/><div><b>Proprietário</b><span>Controle total da fazenda e dos acessos liberados.</span></div><AccessBadge access={{role:'owner',label:'Proprietário'}}/></article>{members.map(m=><article className="accessPersonCard" key={m.id}><UserCheck size={22}/><div><b>{m.profiles?.nome||m.profiles?.email||'Usuário autorizado'}</b><span>{m.profiles?.email||m.user_id}</span></div><div className="accessPersonActions"><select value={m.role} onChange={e=>data.updateFarmMember(m,e.target.value)}><option value="viewer">Visualizador</option><option value="admin">Administrador</option></select><button className="iconBtn danger" title="Remover acesso" onClick={()=>data.removeFarmMember(m.id)}><Trash2 size={16}/></button></div></article>)}</div>{!members.length&&<Empty icon={UserCheck} title="Nenhum acesso liberado" text="Adicione o e-mail de uma pessoa que já tenha conta no app."/>}</section>
 }
 function InfoCard({title,rows}){return <div className="infoCard"><h3>{title}</h3>{rows.map(([a,b])=><div className="infoRow" key={a}><span>{a}</span><b>{b||'-'}</b></div>)}</div>}
-function FarmSummaryOverview({farm,visits,checks,diags,equips,evidencias=[],onOpenMap}){
-  const hasLocation=farm.latitude&&farm.longitude;
-  const mapped=equips.filter(e=>e.latitude&&e.longitude).length;
-  const details=[
-    ['Central',farm.central||'Não informada',Building2],
-    ['Regional',farm.regional_nome||'Não informado',ShieldCheck],
-    ['Veterinário / apoio',farm.veterinario_apoio||'Não informado',Stethoscope],
-    ['Responsável',farm.responsavel||'Não informado',User],
-    ['Telefone',farm.telefone||'Não informado',Phone],
-    ['Cidade',`${farm.cidade||'Cidade não informada'}${getFarmUF(farm)?` / ${getFarmUF(farm)}`:''}`,MapPin],
-    ['Endereço',farm.endereco||'Sem referência cadastrada',Navigation],
-    ['Status',farmStatus(farm),BadgeCheck]
-  ];
-  const shortcuts=[
-    ['Última visita',visits[0]?brDate(visits[0].data_visita):'Sem visita',CalendarDays],
-    ['Checklists',checks.length,ClipboardCheck],
-    ['Diagnósticos',diags.length||'-',Stethoscope],
-    ['Pontos no mapa',`${mapped}/${equips.length}`,MapPinned],
-    ['Evidências',evidencias.length||'-',ImageIcon]
-  ];
-  return <div className="farmOverviewGrid"><section className="farmInfoPanel"><div className="farmInfoHead"><div><span className="eyebrow">Dados operacionais</span><h3>Dados da fazenda</h3></div>{hasLocation?<button type="button" className="btn light" onClick={()=>openMaps(farm.latitude,farm.longitude)}><Navigation size={16}/> Abrir rota</button>:<button type="button" className="btn light" onClick={onOpenMap}><MapPinned size={16}/> Ver mapa</button>}</div><div className="farmInfoTiles">{details.map(([label,value,Icon])=><article className="farmInfoTile" key={label}><span><Icon size={16}/>{label}</span><b>{value}</b></article>)}</div>{farm.observacoes&&<div className="farmNotes"><span>Observações</span><p>{farm.observacoes}</p></div>}</section><aside className="farmQuickPanel"><div className="farmLocationSummary"><MapPinned size={22}/><div><span>Localização da fazenda</span><b>{hasLocation?`${Number(farm.latitude).toFixed(6)}, ${Number(farm.longitude).toFixed(6)}`:'Sem GPS definido'}</b><small>{hasLocation?'Use a rota para chegar ao ponto salvo.':'Edite a fazenda e marque no mapa híbrido.'}</small></div></div><div className="farmQuickGrid">{shortcuts.map(([label,value,Icon])=><article key={label}><Icon size={17}/><span>{label}</span><b>{value}</b></article>)}</div></aside></div>
+function FarmExecutiveSummary({farm,visits,checks,diags,equips,evidencias=[],canEdit,onStart,onFinish,onEdit,onNewVisit,onOpenMap}){
+  const predicted=num(farm.qtd_colares_prevista), installed=num(farm.qtd_colares_instalada);
+  const progress=predicted?Math.min(100,Math.round(installed/predicted*100)):0;
+  const status=farmStatus(farm), active=Boolean(farm.servico_inicio_em&&!farm.servico_fim_em), done=Boolean(farm.servico_inicio_em&&farm.servico_fim_em);
+  const hasLocation=farm.latitude&&farm.longitude, mapped=equips.filter(e=>e.latitude&&e.longitude).length, pendingVisits=visits.filter(v=>v.pendencias).length;
+  const remaining=predicted?Math.max(predicted-installed,0):0;
+  const cityUf=`${farm.cidade||''}${getFarmUF(farm)?` / ${getFarmUF(farm)}`:''}`.trim();
+  const alerts=[
+    !farm.servico_inicio_em&&['Serviço ainda não iniciado',Clock],
+    !hasLocation&&['Fazenda sem GPS definido',MapPinned],
+    equips.length>mapped&&[`${equips.length-mapped} equipamento(s) sem GPS`,Cpu],
+    remaining>0&&[`${remaining} colar(es) restantes`,Hash],
+    pendingVisits>0&&[`${pendingVisits} visita(s) com pendência`,AlertTriangle]
+  ].filter(Boolean);
+  const essentials=[
+    farm.central&&['Central',farm.central,Building2],
+    (farm.regional_nome||farm.responsavel)&&['Regional',farm.regional_nome||farm.responsavel,User],
+    cityUf&&['Cidade',cityUf,MapPin],
+    hasLocation&&['GPS',`${Number(farm.latitude).toFixed(5)}, ${Number(farm.longitude).toFixed(5)}`,MapPinned]
+  ].filter(Boolean);
+  const fullDetails=[
+    farm.central&&['Central',farm.central,Building2],
+    farm.regional_nome&&['Regional',farm.regional_nome,ShieldCheck],
+    farm.veterinario_apoio&&['Veterinário / apoio',farm.veterinario_apoio,Stethoscope],
+    farm.responsavel&&['Responsável',farm.responsavel,User],
+    farm.telefone&&['Telefone',farm.telefone,Phone],
+    cityUf&&['Cidade',cityUf,MapPin],
+    farm.endereco&&['Endereço',farm.endereco,Navigation],
+    ['Status',status,BadgeCheck],
+    farm.servico_inicio_em&&['Início do serviço',brDateTime(farm.servico_inicio_em),Clock],
+    farm.servico_fim_em&&['Fim do serviço',brDateTime(farm.servico_fim_em),CheckCircle2],
+    farm.servico_responsavel&&['Responsável técnico',farm.servico_responsavel,User],
+    farm.observacoes&&['Observações',farm.observacoes,Info]
+  ].filter(Boolean);
+  return <section className="panel executiveSummaryPanel">
+    <div className="execSummaryHead">
+      <div><span className="eyebrow">Resumo</span><h2><Gauge size={22}/> Operação</h2></div>
+      <div className="execActions">
+        {canEdit&&!farm.servico_inicio_em&&<button className="btn primary execPrimaryAction" onClick={onStart}><PlayCircle size={17}/> Iniciar serviço</button>}
+        {canEdit&&active&&<button className="btn primary execPrimaryAction" onClick={onFinish}><CheckCircle2 size={17}/> Finalizar serviço</button>}
+        {canEdit&&<button className="btn light execQuickAction" onClick={onEdit}><Pencil size={17}/> Editar</button>}
+        {canEdit&&<button className="btn light execQuickAction" onClick={onNewVisit}><Plus size={17}/> Nova visita</button>}
+        {hasLocation?<button type="button" className="btn light execQuickAction" onClick={()=>openMaps(farm.latitude,farm.longitude)}><Navigation size={17}/> Rota</button>:<button type="button" className="btn light execQuickAction" onClick={onOpenMap}><MapPinned size={17}/> Mapa</button>}
+      </div>
+    </div>
+    <div className="execCards">
+      <article className={`execCard execStatusCard status-${statusTone(status)||'neutral'}`}><div className="execCardIcon"><BadgeCheck size={19}/></div><span>Status</span><b>{status}</b><small>{done?'Serviço encerrado':active?'Serviço em andamento':'Aguardando início'}</small></article>
+      <article className="execCard execProgressCard"><div className="execCardIcon"><Hash size={19}/></div><span>Colares</span><b>{installed} / {predicted||'-'}</b><div className="execProgress"><i style={{width:`${progress}%`}}/></div><small>{progress}% concluído</small></article>
+      <article className="execCard execMapCard"><div className="execCardIcon"><MapPinned size={19}/></div><span>Mapa</span><b>{mapped} / {equips.length}</b><small>equipamentos com GPS</small></article>
+      <article className="execCard execTimeCard"><div className="execCardIcon"><Clock size={19}/></div><span>Tempo</span><b>{serviceDurationLabel(farm)}</b><small>{farm.servico_inicio_em?`Início ${brDateTime(farm.servico_inicio_em)}`:'sem início'}</small></article>
+    </div>
+    {alerts.length>0&&<div className="execAlerts">{alerts.map(([text,Icon])=><span key={text}><Icon size={15}/>{text}</span>)}</div>}
+    {essentials.length>0&&<div className="execEssentials">{essentials.map(([label,value,Icon])=><article key={label}><Icon size={16}/><span>{label}</span><b>{value}</b></article>)}</div>}
+    <details className="farmFullDetails"><summary><span>Dados completos</span><b>{fullDetails.length}</b></summary><div className="farmFullGrid">{fullDetails.map(([label,value,Icon])=><article key={label}><span><Icon size={15}/>{label}</span><b>{value}</b></article>)}<article><span><CalendarDays size={15}/>Última visita</span><b>{visits[0]?brDate(visits[0].data_visita):'Sem visita'}</b></article><article><span><ClipboardCheck size={15}/>Checklists</span><b>{checks.length}</b></article><article><span><Stethoscope size={15}/>Diagnósticos</span><b>{diags.length}</b></article><article><span><ImageIcon size={15}/>Evidências</span><b>{evidencias.length}</b></article></div></details>
+  </section>
 }
 
 function ChecklistsFazenda({farm,data,canEdit=true}){
@@ -910,13 +966,78 @@ function FitBounds({points,trigger}){const map=useMapEvents({});useEffect(()=>{c
 function HybridLayers({layer}){const imagery='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';if(layer==='mapa')return <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="OpenStreetMap"/>;return <><TileLayer url={imagery} attribution="Esri"/>{layer==='hibrido'&&<TileLayer url="https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png" attribution="CARTO"/>}</>}
 function TechnicalMapClick({mode,onPick}){useMapEvents({click(e){if(mode!=='navigate')onPick(e.latlng)}});return null;}
 function MapaFazenda({farm,data}){
-  const all=data.equipamentos.filter(e=>e.fazenda_id===farm.id&&e.latitude&&e.longitude),[layer,setLayer]=useState('hibrido'),[focus,setFocus]=useState(null),[fitTick,setFitTick]=useState(0),[showBuffers,setShowBuffers]=useState(true),[showLabels,setShowLabels]=useState(true),[typeFilter,setTypeFilter]=useState('todos');
+  const farmEquipamentos=data.equipamentos.filter(e=>e.fazenda_id===farm.id);
+  const all=farmEquipamentos.filter(e=>e.latitude&&e.longitude),[focus,setFocus]=useState(null),[fitTick,setFitTick]=useState(0),[showBuffers,setShowBuffers]=useState(true),[showLabels,setShowLabels]=useState(true),[typeFilter,setTypeFilter]=useState('todos');
+  const antennaCount=all.filter(e=>e.tipo?.includes('4102')).length, processorCount=all.filter(e=>e.tipo?.includes('8002')).length, otherCount=all.length-antennaCount-processorCount, missingCoords=farmEquipamentos.length-all.length;
   const equips=all.filter(e=>typeFilter==='todos'||(typeFilter==='vp4102'&&e.tipo?.includes('4102'))||(typeFilter==='vp8002'&&e.tipo?.includes('8002'))||(typeFilter==='outros'&&!e.tipo?.includes('4102')&&!e.tipo?.includes('8002')));
   const center=all[0]?[Number(all[0].latitude),Number(all[0].longitude)]:farmLatLng(farm);
   const fitPoints=[farm.latitude&&farm.longitude?[Number(farm.latitude),Number(farm.longitude)]:null,...equips.map(e=>[Number(e.latitude),Number(e.longitude)])].filter(Boolean);
-  return <section className="panel readOnlyMapPanel"><div className="sectionTitle"><div><h2>Mapa técnico operacional</h2></div><div className="mapHeadActions"><select value={layer} onChange={e=>setLayer(e.target.value)}><option value="hibrido">Híbrido</option><option value="mapa">Mapa com nomes</option><option value="satelite">Satélite</option></select><button className="btn light" onClick={()=>setFitTick(v=>v+1)}><LocateFixed size={16}/> Ver instalação inteira</button></div></div><SearchMapControl onSelect={(lat,lng)=>setFocus([lat,lng])}/><div className="mapControls"><div className="filterChips"><button className={typeFilter==='todos'?'active':''} onClick={()=>setTypeFilter('todos')}>Todos ({all.length})</button><button className={typeFilter==='vp8002'?'active':''} onClick={()=>setTypeFilter('vp8002')}>VP8002</button><button className={typeFilter==='vp4102'?'active':''} onClick={()=>setTypeFilter('vp4102')}>VP4102</button><button className={typeFilter==='outros'?'active':''} onClick={()=>setTypeFilter('outros')}>Outros</button></div><label className="mapToggle"><input type="checkbox" checked={showBuffers} onChange={e=>setShowBuffers(e.target.checked)}/> Raios</label><label className="mapToggle"><input type="checkbox" checked={showLabels} onChange={e=>setShowLabels(e.target.checked)}/> Nomes</label></div><div className="mapLegend"><span><i className="legendFarm"/> Fazenda</span><span><i className="legendProcessor"/> VP8002</span><span><i className="legendAntenna"/> VP4102</span><span><i className="legendOther"/> Outro equipamento</span><span><i className="legendBuffer"/> Cobertura estimada</span></div><div className="mapExperience"><div className="mapWrap technicalMap"><MapContainer center={center} zoom={all.length?18:15} className="bigMap"><HybridLayers layer={layer}/><RecenterMap position={focus}/><FitBounds points={fitPoints} trigger={fitTick}/>{farm.latitude&&farm.longitude&&<Marker position={[Number(farm.latitude),Number(farm.longitude)]} icon={farmMarkerIcon(farm)}><Popup><b>{farm.nome}</b><br/>Referência da fazenda<br/><button className="popupBtn" type="button" onClick={()=>openMaps(farm.latitude,farm.longitude)}>Abrir rota no Maps</button></Popup></Marker>}{equips.map(e=><React.Fragment key={e.id}><Marker position={[Number(e.latitude),Number(e.longitude)]} icon={equipmentMarkerIcon({...e,apelido:showLabels?(e.apelido||e.codigo_original):''})}><Popup><b>{e.apelido||e.codigo_original||e.tipo}</b><br/>{e.tipo}<br/>Código: {e.codigo_original||'-'}<br/>Local: {e.local_nome||'-'}<br/>Status: {e.status}<br/>Coordenadas: {Number(e.latitude).toFixed(6)}, {Number(e.longitude).toFixed(6)}{e.tipo?.includes('4102')&&<><br/>Raio estimado: {Number(e.raio_metros)||75} m</>}<br/><button className="popupBtn" type="button" onClick={()=>openMaps(e.latitude,e.longitude)}>Abrir rota no Maps</button></Popup></Marker>{showBuffers&&e.tipo?.includes('4102')&&<Circle center={[Number(e.latitude),Number(e.longitude)]} radius={Number(e.raio_metros)||75} pathOptions={{color:'#16a34a',fillColor:'#22c55e',fillOpacity:.08,weight:1.25}}/>}</React.Fragment>)}</MapContainer></div><aside className="mapPointList"><h3>Pontos da instalação</h3>{farm.latitude&&farm.longitude&&<button onClick={()=>setFocus([Number(farm.latitude),Number(farm.longitude)])}><span className="pointDot farm"/>Fazenda<span>{farm.nome}</span></button>}{equips.map(e=><button key={e.id} onClick={()=>setFocus([Number(e.latitude),Number(e.longitude)])}><span className={`pointDot ${e.tipo?.includes('4102')?'antenna':e.tipo?.includes('8002')?'processor':'other'}`}/>{e.apelido||e.codigo_original||e.tipo}<span>{e.local_nome||'sem local'} • {Number(e.latitude).toFixed(5)}, {Number(e.longitude).toFixed(5)}</span><em onClick={(event)=>{event.stopPropagation();openMaps(e.latitude,e.longitude)}}>Maps</em></button>)}</aside></div><div className="mapSummary"><div><b>{all.length}</b><span>equipamentos mapeados</span></div><div><b>{all.filter(e=>e.tipo?.includes('4102')).length}</b><span>antenas</span></div><div><b>{all.filter(e=>e.tipo?.includes('8002')).length}</b><span>processadores</span></div></div>{!all.length&&<Empty icon={MapIcon} title="Nenhum equipamento no mapa" text="Cadastre e posicione os equipamentos na aba Equipamentos."/>}</section>
+  const filterOptions=[['todos','Todos',all.length],['vp8002','VP8002',processorCount],['vp4102','VP4102',antennaCount],['outros','Outros',otherCount]];
+  return <section className="panel readOnlyMapPanel operationalMapPanel">
+    <div className="mapWorkspaceHeader">
+      <div className="mapWorkspaceTitle"><span className="eyebrow">Mapa operacional</span><h2><MapIcon size={22}/> Mapa técnico</h2></div>
+      <div className="mapMetricsStrip">
+        <div><b>{all.length}</b><span>mapeados</span></div>
+        <div><b>{antennaCount}</b><span>antenas</span></div>
+        <div><b>{processorCount}</b><span>bases</span></div>
+        {missingCoords>0&&<div className="mutedMetric"><b>{missingCoords}</b><span>sem GPS</span></div>}
+      </div>
+      <div className="mapHeadActions"><span className="mapModeBadge"><Layers size={15}/> Híbrido</span><button className="btn light" onClick={()=>{setTypeFilter('todos');setFitTick(v=>v+1)}}><LocateFixed size={16}/> Ver tudo</button></div>
+    </div>
+    <div className="mapToolbar">
+      <div className="filterChips mapFilterChips">{filterOptions.map(([key,label,count])=><button key={key} className={typeFilter===key?'active':''} onClick={()=>setTypeFilter(key)}>{label} <span>{count}</span></button>)}</div>
+      <div className="mapToggleGroup">
+        <label className="mapToggle"><input type="checkbox" checked={showBuffers} onChange={e=>setShowBuffers(e.target.checked)}/> Raios</label>
+        <label className="mapToggle"><input type="checkbox" checked={showLabels} onChange={e=>setShowLabels(e.target.checked)}/> Nomes</label>
+      </div>
+    </div>
+    <div className="mapLegend compact"><span><i className="legendFarm"/> Fazenda</span><span><i className="legendProcessor"/> VP8002</span><span><i className="legendAntenna"/> VP4102</span>{otherCount>0&&<span><i className="legendOther"/> Outro</span>}{showBuffers&&<span><i className="legendBuffer"/> Cobertura</span>}</div>
+    <div className="mapExperience">
+      <div className="mapWrap technicalMap"><MapContainer center={center} zoom={all.length?18:15} className="bigMap"><HybridLayers layer="hibrido"/><RecenterMap position={focus}/><FitBounds points={fitPoints} trigger={fitTick}/>{farm.latitude&&farm.longitude&&<Marker position={[Number(farm.latitude),Number(farm.longitude)]} icon={farmMarkerIcon(farm)}><Popup><b>{farm.nome}</b><br/>Referência da fazenda<br/><button className="popupBtn" type="button" onClick={()=>openMaps(farm.latitude,farm.longitude)}>Abrir rota no Maps</button></Popup></Marker>}{equips.map(e=><React.Fragment key={e.id}><Marker position={[Number(e.latitude),Number(e.longitude)]} icon={equipmentMarkerIcon({...e,apelido:showLabels?(e.apelido||e.codigo_original):''})}><Popup><b>{e.apelido||e.codigo_original||e.tipo}</b><br/>{e.tipo}<br/>Código: {e.codigo_original||'-'}<br/>Local: {e.local_nome||'-'}<br/>Status: {e.status}<br/>Coordenadas: {Number(e.latitude).toFixed(6)}, {Number(e.longitude).toFixed(6)}{e.tipo?.includes('4102')&&<><br/>Raio estimado: {Number(e.raio_metros)||75} m</>}<br/><button className="popupBtn" type="button" onClick={()=>openMaps(e.latitude,e.longitude)}>Abrir rota no Maps</button></Popup></Marker>{showBuffers&&e.tipo?.includes('4102')&&<Circle center={[Number(e.latitude),Number(e.longitude)]} radius={Number(e.raio_metros)||75} pathOptions={{color:'#16a34a',fillColor:'#22c55e',fillOpacity:.08,weight:1.25}}/>}</React.Fragment>)}</MapContainer></div>
+      <aside className="mapPointList"><div className="mapPointHeader"><h3>Pontos da instalação</h3><span>{equips.length}/{all.length}</span></div>{farm.latitude&&farm.longitude&&<button onClick={()=>setFocus([Number(farm.latitude),Number(farm.longitude)])}><span className="pointDot farm"/>Fazenda<span>{farm.nome}</span></button>}{equips.map(e=><button key={e.id} onClick={()=>setFocus([Number(e.latitude),Number(e.longitude)])}><span className={`pointDot ${e.tipo?.includes('4102')?'antenna':e.tipo?.includes('8002')?'processor':'other'}`}/>{e.apelido||e.codigo_original||e.tipo}<span>{e.local_nome||'sem local'} • {Number(e.latitude).toFixed(5)}, {Number(e.longitude).toFixed(5)}</span><em onClick={(event)=>{event.stopPropagation();openMaps(e.latitude,e.longitude)}}>Maps</em></button>)}</aside>
+    </div>
+    {!all.length&&<Empty icon={MapIcon} title="Nenhum equipamento no mapa" text="Nenhum equipamento com coordenadas nesta fazenda."/>}
+  </section>
 }
-function VisitasFazenda({farm,data,openNew,canEdit=true}){const [viewing,setViewing]=useState(null),[editing,setEditing]=useState(null);const visits=data.visitas.filter(v=>v.fazenda_id===farm.id); return <section className="panel"><div className="sectionTitle"><h2>Visitas e registros</h2>{canEdit&&<button className="btn primary" onClick={openNew}><Plus size={17}/> Nova visita</button>}</div>{!canEdit&&<PermissionNotice/>}<div className="timeline">{visits.map(v=><div className="visit actionVisit" key={v.id}><div className="dot"/><h3>{v.tipo} • {brDate(v.data_visita)}</h3><p><b>Resumo:</b> {v.resumo||'-'}</p>{v.pendencias&&<p><b>Pendências:</b> {v.pendencias}</p>}<div className="visitActionsText"><button className="btn light" onClick={()=>setViewing(v)}><Info size={15}/> Visualizar</button>{canEdit&&<button className="btn light" onClick={()=>setEditing(v)}><Pencil size={15}/> Editar</button>}{canEdit&&<button className="btn light dangerInline" onClick={()=>data.delVisita(v.id)}><Trash2 size={15}/> Excluir</button>}</div></div>)}</div>{visits.length===0&&<Empty icon={CalendarDays} title="Nenhuma visita registrada" text="Registre instalação, diagnóstico, retorno ou suporte."/>}{viewing&&<Modal title={`${viewing.tipo} • ${brDate(viewing.data_visita)}`} onClose={()=>setViewing(null)}><div className="modalBody"><InfoCard title="Detalhes da visita" rows={[['Resumo',viewing.resumo],['Problemas',viewing.problemas],['Solução',viewing.solucao],['Pendências',viewing.pendencias],['Próxima ação',viewing.proxima_acao]]}/></div></Modal>}{editing&&canEdit&&<VisitModal farm={farm} visit={editing} onClose={()=>setEditing(null)} onSave={async(r)=>{await data.saveVisita(r);setEditing(null)}}/>}</section>}
+function VisitasFazenda({farm,data,openNew,canEdit=true}){
+  const [viewing,setViewing]=useState(null),[editing,setEditing]=useState(null);
+  const visits=data.visitas.filter(v=>v.fazenda_id===farm.id).sort((a,b)=>new Date(b.data_visita||b.created_at||0)-new Date(a.data_visita||a.created_at||0));
+  const pending=visits.filter(visitHasPending), done=visits.length-pending.length, last=visits[0];
+  return <section className="panel visitsPanel">
+    <div className="sectionTitle visitsHead"><div><span className="eyebrow">Campo</span><h2><CalendarDays size={22}/> Visitas</h2></div>{canEdit&&<button className="btn primary" onClick={openNew}><Plus size={17}/> Nova visita</button>}</div>
+    {!canEdit&&<PermissionNotice/>}
+    <div className="visitSummaryStrip">
+      <article><CheckCircle2 size={18}/><b>{done}</b><span>concluídas</span></article>
+      <article className={pending.length?'warn':''}><AlertTriangle size={18}/><b>{pending.length}</b><span>pendências</span></article>
+      <article><Clock size={18}/><b>{last?brDate(last.data_visita):'-'}</b><span>última visita</span></article>
+    </div>
+    <div className="visitTimeline">{visits.map(v=>{
+      const hasPending=visitHasPending(v), summary=visitSummaryText(v);
+      return <article className={`visitCard ${hasPending?'pending':'ok'}`} key={v.id}>
+        <div className="visitStateIcon">{hasPending?<AlertTriangle size={19}/>:<CheckCircle2 size={19}/>}</div>
+        <div className="visitCardMain">
+          <div className="visitCardTop"><div><h3>{v.tipo}</h3><span>{brDate(v.data_visita)}</span></div><em>{hasPending?'Com pendência':'Concluída'}</em></div>
+          <p>{summary}</p>
+          {hasPending?<div className="visitPendingBox"><AlertTriangle size={15}/><span><b>Pendência</b>{v.pendencias||v.proxima_acao}</span></div>:<div className="visitOkBox"><CheckCircle2 size={15}/> Sem pendências registradas</div>}
+          <footer><button className="btn light" onClick={()=>setViewing(v)}><Info size={15}/> Ver</button>{canEdit&&<button className="btn light" onClick={()=>setEditing(v)}><Pencil size={15}/> Editar</button>}{canEdit&&<button className="btn light dangerInline" onClick={()=>data.delVisita(v.id)}><Trash2 size={15}/> Excluir</button>}</footer>
+        </div>
+      </article>
+    })}</div>
+    {visits.length===0&&<Empty icon={CalendarDays} title="Nenhuma visita registrada" text="Registre instalação, diagnóstico, retorno ou suporte."/>}
+    {viewing&&<VisitDetailModal visit={viewing} onClose={()=>setViewing(null)}/>}
+    {editing&&canEdit&&<VisitModal farm={farm} visit={editing} onClose={()=>setEditing(null)} onSave={async(r)=>{await data.saveVisita(r);setEditing(null)}}/>}
+  </section>
+}
+function VisitDetailModal({visit,onClose}){
+  const hasPending=visitHasPending(visit);
+  const details=[['Problemas',visit.problemas,AlertTriangle],['Solução',visit.solucao,CheckCircle2],['Próxima ação',visit.proxima_acao,Navigation]].filter(([,value])=>String(value||'').trim());
+  return <Modal title={`${visit.tipo} • ${brDate(visit.data_visita)}`} onClose={onClose}><div className="modalBody visitDetailModal">
+    <div className={`visitDetailStatus ${hasPending?'pending':'ok'}`}>{hasPending?<AlertTriangle size={24}/>:<CheckCircle2 size={24}/>}<div><b>{hasPending?'Visita com pendência':'Visita concluída'}</b><span>{hasPending?'Existe uma ação pendente registrada.':'Sem pendências registradas.'}</span></div></div>
+    <section className="visitDetailSection"><h3>Resumo</h3><p>{visitSummaryText(visit)}</p></section>
+    {hasPending&&<section className="visitDetailSection pending"><h3>Pendência</h3><p>{visit.pendencias||visit.proxima_acao}</p></section>}
+    {details.length>0&&<section className="visitDetailGrid">{details.map(([label,value,Icon])=><article key={label}><span><Icon size={15}/>{label}</span><b>{value}</b></article>)}</section>}
+  </div></Modal>
+}
 function evidenceLinkedText(item,equips,visits){
   const equip = item.equipamento_id ? equips.find(e=>e.id===item.equipamento_id) : null;
   const visit = item.visita_id ? visits.find(v=>v.id===item.visita_id) : null;
@@ -940,7 +1061,35 @@ function EvidenceEditModal({item,equips,visits,onClose,onSave}){
   return <Modal title="Editar evidência" onClose={onClose}><form className="form" onSubmit={e=>{e.preventDefault();onSave(form)}}><Field label="Categoria"><select value={form.categoria} onChange={e=>set('categoria',e.target.value)}>{EVIDENCE_CATEGORIES.map(c=><option key={c}>{c}</option>)}</select></Field><div className="grid2"><Field label="Equipamento"><select value={form.equipamento_id||''} onChange={e=>{set('equipamento_id',e.target.value);if(e.target.value)set('visita_id','')}}><option value="">Registro geral</option>{equips.map(eq=><option key={eq.id} value={eq.id}>{eq.apelido||eq.codigo_original||eq.tipo}</option>)}</select></Field><Field label="Visita"><select value={form.visita_id||''} onChange={e=>{set('visita_id',e.target.value);if(e.target.value)set('equipamento_id','')}}><option value="">Sem vínculo</option>{visits.map(v=><option key={v.id} value={v.id}>{v.tipo} - {brDate(v.data_visita)}</option>)}</select></Field></div><Field label="Descrição"><textarea value={form.descricao} onChange={e=>set('descricao',e.target.value)} placeholder="Descreva o que a foto mostra."/></Field><label className="optionCheck"><input type="checkbox" checked={form.inclui_relatorio} onChange={e=>set('inclui_relatorio',e.target.checked)}/> Incluir no relatório técnico</label><button className="btn primary full"><Save size={18}/> Salvar evidência</button></form></Modal>
 }
 
-function VisitModal({farm,visit={},onClose,onSave}){const [form,setForm]=useState({id:visit.id||uid(),fazenda_id:farm.id,tipo:visit.tipo||'Instalação',data_visita:visit.data_visita||todayInput(),resumo:visit.resumo||'',problemas:visit.problemas||'',solucao:visit.solucao||'',pendencias:visit.pendencias||'',proxima_acao:visit.proxima_acao||'',created_at:visit.created_at||nowISO()}); const set=(k,v)=>setForm({...form,[k]:v}); return <Modal title={visit.id?'Editar visita':'Nova visita'} onClose={onClose}><form className="form modern compactVisitForm" onSubmit={e=>{e.preventDefault();onSave(form)}}><div className="grid2"><Field label="Tipo"><select value={form.tipo} onChange={e=>set('tipo',e.target.value)}>{VISIT_TYPES.map(t=><option key={t}>{t}</option>)}</select></Field><Field label="Data"><input type="date" value={form.data_visita} onChange={e=>set('data_visita',e.target.value)}/></Field></div><Field label="Resumo da visita"><textarea value={form.resumo} onChange={e=>set('resumo',e.target.value)} placeholder="Ex.: base instalada, antena posicionada, testes feitos..."/></Field><Field label="Pendências / próxima ação"><textarea value={form.pendencias} onChange={e=>set('pendencias',e.target.value)} placeholder="Deixe em branco se não houver pendência."/></Field><details className="advancedVisit"><summary>Campos técnicos opcionais</summary><Field label="Problemas encontrados"><textarea value={form.problemas} onChange={e=>set('problemas',e.target.value)}/></Field><Field label="Solução aplicada"><textarea value={form.solucao} onChange={e=>set('solucao',e.target.value)}/></Field><Field label="Próxima ação detalhada"><textarea value={form.proxima_acao} onChange={e=>set('proxima_acao',e.target.value)}/></Field></details><button className="btn primary full"><Save size={18}/> {visit.id?'Atualizar visita':'Salvar visita'}</button></form></Modal>}
+function VisitModal({farm,visit={},onClose,onSave}){
+  const [form,setForm]=useState({id:visit.id||uid(),fazenda_id:farm.id,tipo:visit.tipo||'Instalação',data_visita:visit.data_visita||todayInput(),resumo:visit.resumo||'',problemas:visit.problemas||'',solucao:visit.solucao||'',pendencias:visit.pendencias||'',proxima_acao:visit.proxima_acao||'',created_at:visit.created_at||nowISO()});
+  const [hasPending,setHasPending]=useState(visitHasPending(visit));
+  const set=(k,v)=>setForm(prev=>({...prev,[k]:v}));
+  const defaultOkSummary=()=>`${form.tipo} realizada em ${brDate(form.data_visita)}. Sem pendências registradas.`;
+  const applyQuick=(kind)=>{
+    if(kind==='ok'){setHasPending(false);setForm(prev=>({...prev,resumo:prev.resumo||`${prev.tipo} concluída em ${brDate(prev.data_visita)}. Tudo certo no campo.`,pendencias:'',proxima_acao:''}));}
+    if(kind==='validado')setForm(prev=>({...prev,resumo:prev.resumo||'Equipamentos conferidos e operação validada em campo.'}));
+    if(kind==='pending'){setHasPending(true);}
+    if(kind==='return'){setHasPending(true);setForm(prev=>({...prev,pendencias:prev.pendencias||'Retorno necessário para concluir a validação.',proxima_acao:prev.proxima_acao||'Agendar retorno técnico.'}));}
+  };
+  const submit=e=>{
+    e.preventDefault();
+    const pendingText=String(form.pendencias||form.proxima_acao||'').trim();
+    if(hasPending&&!pendingText){notify('Informe a pendência ou próxima ação.','warning');return;}
+    const clean={...form,resumo:String(form.resumo||'').trim()||`${form.tipo} registrada ${hasPending?'com pendência':'sem pendências'} em ${brDate(form.data_visita)}.`};
+    if(!hasPending){clean.pendencias='';clean.proxima_acao='';}
+    onSave(clean);
+  };
+  return <Modal title={visit.id?'Editar visita':'Nova visita'} onClose={onClose}><form className="form modern visitEditor" onSubmit={submit}>
+    <div className="grid2 visitEditorTop"><Field label="Tipo"><select value={form.tipo} onChange={e=>set('tipo',e.target.value)}>{VISIT_TYPES.map(t=><option key={t}>{t}</option>)}</select></Field><Field label="Data"><input type="date" value={form.data_visita} onChange={e=>set('data_visita',e.target.value)}/></Field></div>
+    <div className="visitOutcome"><button type="button" className={!hasPending?'active ok':''} onClick={()=>applyQuick('ok')}><CheckCircle2 size={18}/><b>Tudo certo</b><span>sem pendência</span></button><button type="button" className={hasPending?'active pending':''} onClick={()=>applyQuick('pending')}><AlertTriangle size={18}/><b>Com pendência</b><span>precisa ação</span></button></div>
+    <div className="visitQuickChips"><button type="button" onClick={()=>applyQuick('ok')}><Check size={14}/> Concluída</button><button type="button" onClick={()=>applyQuick('validado')}><ClipboardCheck size={14}/> Validada</button><button type="button" onClick={()=>applyQuick('return')}><Route size={14}/> Precisa retorno</button></div>
+    <Field label="Resumo rápido"><textarea value={form.resumo} onChange={e=>set('resumo',e.target.value)} placeholder={defaultOkSummary()}/></Field>
+    {hasPending&&<div className="visitPendingEditor"><Field label="Pendência"><textarea value={form.pendencias} onChange={e=>set('pendencias',e.target.value)} placeholder="Ex.: nobreak pendente, cabo para substituir, ajuste de antena..."/></Field><Field label="Próxima ação"><textarea value={form.proxima_acao} onChange={e=>set('proxima_acao',e.target.value)} placeholder="Ex.: levar nobreak, retornar com suporte, validar com cliente..."/></Field></div>}
+    <details className="advancedVisit"><summary>Campos técnicos opcionais</summary><Field label="Problemas encontrados"><textarea value={form.problemas} onChange={e=>set('problemas',e.target.value)}/></Field><Field label="Solução aplicada"><textarea value={form.solucao} onChange={e=>set('solucao',e.target.value)}/></Field></details>
+    <button className="btn primary full"><Save size={18}/> {visit.id?'Atualizar visita':'Salvar visita'}</button>
+  </form></Modal>
+}
 
 function ReportPreview({farm,equips,visits,checks,mapped,evidencias=[]}){
   const farmPoint=farm.latitude&&farm.longitude?[Number(farm.latitude),Number(farm.longitude)]:null;
@@ -955,6 +1104,15 @@ function RelatorioFazenda({farm,data}){
   const evidencias=(data.evidencias||[]).filter(e=>e.fazenda_id===farm.id&&e.inclui_relatorio!==false);
   const displayStatus=farmStatus(farm);
   const [opts,setOpts]=useState({equip:true,visits:true,checks:true,evidencias:true,pend:true});const toggle=k=>setOpts(o=>({...o,[k]:!o[k]}));
+  const pendingCount=visits.filter(v=>v.pendencias).length;
+  const reportOptions=[
+    ['equip','Equipamentos',Cpu,equips.length],
+    ['visits','Visitas',CalendarDays,visits.length],
+    ['checks','Checklists',ClipboardCheck,checks.length],
+    ['evidencias','Evidências',ImageIcon,evidencias.length],
+    ['pend','Pendências',AlertTriangle,pendingCount]
+  ];
+  const enabledSections=reportOptions.filter(([k])=>opts[k]).length;
   const exportTsv=()=>{const rows=[['RELATÓRIO TÉCNICO',farm.nome],['Central',farm.central||''],['Regional',farm.regional_nome||''],['Veterinário/Apoio',farm.veterinario_apoio||''],['Responsável',farm.responsavel||''],['Cidade',`${farm.cidade||''} / ${getFarmUF(farm)}`],['Status',displayStatus],['Inicio do servico',brDateTime(farm.servico_inicio_em)],['Fim do servico',brDateTime(farm.servico_fim_em)],['Duracao do servico',serviceDurationLabel(farm)],['Responsavel produtividade',farm.servico_responsavel||''],['Colares previstos',farm.qtd_colares_prevista||0],['Colares instalados',farm.qtd_colares_instalada||0],['Evidências',evidencias.length],[],['EQUIPAMENTOS'],['Tipo','Código','Apelido','Local','Status','Raio (m)','Latitude','Longitude','Observações'],...equips.map(e=>[e.tipo,e.codigo_original,e.apelido,e.local_nome,e.status,e.raio_metros||'',e.latitude,e.longitude,e.observacoes||'']),[],['VISITAS'],['Data','Tipo','Resumo','Problemas','Solução','Pendências','Próxima ação'],...visits.map(v=>[v.data_visita,v.tipo,v.resumo,v.problemas,v.solucao,v.pendencias,v.proxima_acao]),[],['EVIDÊNCIAS'],['Data','Categoria','Descrição','Arquivo','Vínculo'],...evidencias.map(e=>[brDateTime(e.created_at),e.categoria,e.descricao,e.arquivo_nome,evidenceLinkedText(e,equips,visits)])];download(`${farm.nome}-relatorio-tecnico.tsv`,rows.map(r=>r.join('\t')).join('\n'));notify('Arquivo TSV gerado.');};
   const printReport=()=>{
     const safe=v=>String(v===undefined||v===null||String(v).trim()===''?'-':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -994,7 +1152,7 @@ function RelatorioFazenda({farm,data}){
     const win=window.open('','_blank');if(!win){notify('Permita pop-ups para gerar o relatório.','error');return;}win.document.write(polishedHtml);win.document.close();
   };
   const share=async()=>{const text=`RELATÓRIO TÉCNICO — ${farm.nome}\n${farm.cidade||''} / ${getFarmUF(farm)}\nCentral: ${farm.central||'-'}\nRegional: ${farm.regional_nome||'-'}\nStatus: ${displayStatus}\nServico: ${brDateTime(farm.servico_inicio_em)} ate ${brDateTime(farm.servico_fim_em)} (${serviceDurationLabel(farm)})\nColares: ${num(farm.qtd_colares_instalada)} / ${num(farm.qtd_colares_prevista)}\nEquipamentos: ${equips.length}\nEvidências: ${evidencias.length}\nPendências: ${visits.filter(v=>v.pendencias).length}`;try{if(navigator.share)await navigator.share({title:`Relatório técnico - ${farm.nome}`,text});else{await navigator.clipboard.writeText(text);notify('Resumo copiado para compartilhar.')}}catch{}};
-  return <section className="panel reportPanel"><div className="sectionTitle noPrint"><div><h2>Relatório técnico para coordenação</h2></div><div className="headActions"><button className="btn light" onClick={share}><Share2 size={17}/> Compartilhar resumo</button><button className="btn primary" onClick={printReport}><Printer size={17}/> Gerar relatório / PDF</button><button className="btn light" onClick={exportTsv}><FileDown size={17}/> Exportar dados</button></div></div><div className="reportOptions noPrint">{[['equip','Equipamentos'],['visits','Visitas'],['checks','Checklists'],['evidencias','Evidências'],['pend','Pendências']].map(([k,l])=><label className="optionCheck" key={k}><input type="checkbox" checked={opts[k]} onChange={()=>toggle(k)}/>{l}</label>)}</div><ReportPreview farm={farm} equips={equips} visits={visits} checks={checks} mapped={mapped} evidencias={opts.evidencias?evidencias:[]}/></section>}
+  return <section className="panel reportPanel reportComposer"><div className="reportControl noPrint"><div className="reportControlTop"><div className="reportControlTitle"><span className="eyebrow">Relatório</span><h2><FileText size={22}/> Técnico</h2></div><div className="reportControlStatus"><b>{enabledSections}/5</b><span>seções ativas</span></div></div><div className="reportActionGrid"><button className="btn primary reportGenerate" onClick={printReport}><Printer size={19}/><span>Gerar PDF</span></button><button className="btn light" onClick={share}><Share2 size={17}/><span>Compartilhar</span></button><button className="btn light" onClick={exportTsv}><FileDown size={17}/><span>Exportar</span></button></div><div className="reportOptionBlock"><div className="reportOptionHead"><b>Conteúdo</b><span>{enabledSections} selecionado(s)</span></div><div className="reportOptions">{reportOptions.map(([k,l,Icon,count])=><label className={`reportOption ${opts[k]?'active':''}`} key={k}><input type="checkbox" checked={opts[k]} onChange={()=>toggle(k)}/><span><Icon size={17}/><b>{l}</b><small>{count}</small></span></label>)}</div></div></div><div className="reportPreviewShell"><div className="reportPreviewTitle noPrint"><span>Prévia</span><b>{farm.nome}</b></div><ReportPreview farm={farm} equips={opts.equip?equips:[]} visits={opts.visits?visits:[]} checks={opts.checks?checks:[]} mapped={mapped} evidencias={opts.evidencias?evidencias:[]}/></div></section>}
 function CoberturaAssist(){const [tipo,setTipo]=useState('interna'),[comp,setComp]=useState(120),[larg,setLarg]=useState(40),[obst,setObst]=useState('medio'); const raio=tipo==='externa'?250:75; const diam=raio*2; const precisa=Math.max(1,Math.ceil(num(comp)/diam)*Math.ceil(num(larg)/diam)); const risco=obst==='alto'?'Alto':obst==='medio'?'Médio':'Baixo'; return <section className="panel"><div className="sectionTitle"><h2><Ruler size={20}/> Planejador rápido de antena</h2><span className="pill">apoio de campo</span></div><div className="grid4"><Field label="Tipo"><select value={tipo} onChange={e=>setTipo(e.target.value)}><option value="interna">Interna</option><option value="externa">Externa</option></select></Field><Field label="Comprimento aproximado (m)"><input type="number" value={comp} onChange={e=>setComp(e.target.value)}/></Field><Field label="Largura aproximada (m)"><input type="number" value={larg} onChange={e=>setLarg(e.target.value)}/></Field><Field label="Obstáculos"><select value={obst} onChange={e=>setObst(e.target.value)}><option value="baixo">Baixo</option><option value="medio">Médio</option><option value="alto">Alto/metálico</option></select></Field></div><div className="coverageResult"><RadioTower size={28}/><div><b>Estimativa inicial: {precisa} antena(s)</b><span>Raio usado: {raio} m • risco de interferência: {risco}. Validar com Reader/Tags analysis antes de encerrar.</span></div></div></section>}
 
 function Instalacao({data}){
