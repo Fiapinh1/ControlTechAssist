@@ -1676,10 +1676,11 @@ body,
 .reportComposer {
   display: grid;
   gap: 18px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .reportControl {
+  position: relative;
   display: grid;
   gap: 14px;
   padding: 18px;
@@ -1730,6 +1731,144 @@ body,
 .reportControlStatus span {
   margin-top: 4px;
   font-size: 11px;
+  font-weight: 900;
+}
+
+.reportControlHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reportFilterWrap {
+  position: relative;
+}
+
+.reportFilterButton {
+  width: 48px;
+  height: 48px;
+  border: 1px solid #dbe4ef;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .08);
+  transition: .18s;
+}
+
+.reportFilterButton:hover,
+.reportFilterButton.active {
+  border-color: #0f172a;
+  background: #0f172a;
+  color: #fff;
+}
+
+.reportFilterMenu {
+  position: absolute;
+  z-index: 35;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(390px, calc(100vw - 44px));
+  padding: 14px;
+  border: 1px solid #dbe4ef;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, .98);
+  box-shadow: 0 26px 70px rgba(15, 23, 42, .22);
+  backdrop-filter: blur(16px);
+}
+
+.reportFilterMenu .reportOptionHead {
+  margin-bottom: 12px;
+}
+
+.reportFilterMenu .reportOptionHead button {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.reportScopePicker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.reportScopePicker button {
+  min-width: 0;
+  border: 1px solid #dbe4ef;
+  border-radius: 16px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  background: #fff;
+  color: #0f172a;
+  transition: .18s;
+}
+
+.reportScopePicker button.active {
+  border-color: #86efac;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.reportScopePicker button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.reportScopePicker b,
+.reportScopePicker small {
+  display: block;
+}
+
+.reportScopePicker b {
+  font-size: 13px;
+}
+
+.reportScopePicker small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.reportVisitSelect {
+  min-height: 44px;
+}
+
+.reportFilterDivider {
+  height: 1px;
+  margin: 12px 0;
+  background: #e2e8f0;
+}
+
+.reportFilterMenu .reportOptions.compact {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 0;
+}
+
+.reportScopeChip {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border: 1px solid #dbe4ef;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
   font-weight: 900;
 }
 
@@ -1915,6 +2054,10 @@ body,
     align-items: center;
   }
 
+  .reportControlHeaderActions {
+    gap: 7px;
+  }
+
   .reportControlTitle h2 {
     gap: 8px;
     font-size: 22px;
@@ -1943,6 +2086,33 @@ body,
     font-size: 10px;
   }
 
+  .reportFilterButton {
+    width: 44px;
+    height: 44px;
+    border-radius: 15px;
+    box-shadow: none;
+  }
+
+  .reportFilterMenu {
+    right: -1px;
+    width: min(330px, calc(100vw - 58px));
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .reportScopePicker {
+    gap: 7px;
+  }
+
+  .reportScopePicker button {
+    padding: 9px;
+    border-radius: 14px;
+  }
+
+  .reportScopePicker small {
+    font-size: 10px;
+  }
+
   .reportActionGrid {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
@@ -1960,6 +2130,12 @@ body,
     min-height: 56px;
     justify-content: center;
     box-shadow: 0 14px 26px rgba(34, 197, 94, .22);
+  }
+
+  .reportScopeChip {
+    max-width: 100%;
+    margin-top: -2px;
+    font-size: 11px;
   }
 
   .reportOptionBlock {
@@ -2761,6 +2937,22 @@ body,
 
 .mapNeighborHint svg {
   color: #64748b;
+}
+
+.farmReferenceHint {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #047857;
+}
+
+.farmReferenceHint svg {
+  color: #16a34a;
+}
+
+.locationDangerButton {
+  border-color: #fecaca !important;
+  background: #fff7f7 !important;
+  color: #b91c1c !important;
 }
 
 .equipmentQuickActions {
