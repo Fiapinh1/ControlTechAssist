@@ -57,6 +57,9 @@ create table if not exists public.visitas (
   solucao text,
   pendencias text,
   proxima_acao text,
+  status text,
+  iniciada_em timestamptz,
+  finalizada_em timestamptz,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -625,3 +628,12 @@ end;
 $$;
 
 grant execute on function public.save_fazenda(jsonb) to authenticated;
+
+-- V3.17: ciclo de visitas de campo
+alter table public.visitas
+add column if not exists status text,
+add column if not exists iniciada_em timestamptz,
+add column if not exists finalizada_em timestamptz;
+
+create index if not exists visitas_fazenda_status_idx on public.visitas(fazenda_id, status);
+create index if not exists visitas_iniciada_idx on public.visitas(iniciada_em);
