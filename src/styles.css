@@ -4048,6 +4048,98 @@ body,
   font-weight: 850;
 }
 
+.farmCardProgress .milkMeter {
+  position: relative;
+  height: 12px;
+  min-height: 12px;
+  max-height: 12px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #dbeafe;
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .9), rgba(226, 238, 252, .88)),
+    linear-gradient(90deg, #eff6ff, #e0f2fe);
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, .08);
+}
+
+.farmCardProgress .milkMeter::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 18% 48%, rgba(255, 255, 255, .9) 0 2px, transparent 3px),
+    linear-gradient(100deg, transparent 0 25%, rgba(255, 255, 255, .7) 43%, transparent 62%);
+  opacity: .75;
+  transform: translateX(-115%);
+  animation: milkTrackShine 3s ease-in-out infinite;
+}
+
+.farmCardProgress .milkMeter.milkEmpty::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 36px;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, rgba(125, 211, 252, .55), rgba(255, 255, 255, .85), transparent);
+  animation: milkEmptySweep 2.4s ease-in-out infinite;
+}
+
+.farmCardProgress .milkFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 18% 45%, rgba(255, 255, 255, .95) 0 2px, transparent 3px),
+    linear-gradient(90deg, #e0f2fe 0%, #bae6fd 38%, #f8fbff 70%, #93c5fd 100%);
+  box-shadow: 0 0 14px rgba(14, 165, 233, .24);
+  transition: width .45s ease;
+}
+
+.farmCardProgress .milkFill::before {
+  content: "";
+  position: absolute;
+  inset: -8px 0;
+  background:
+    radial-gradient(ellipse at 22% 50%, rgba(255, 255, 255, .72) 0 9%, transparent 10% 100%),
+    radial-gradient(ellipse at 58% 45%, rgba(255, 255, 255, .56) 0 7%, transparent 8% 100%),
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, .34) 0 9px, rgba(125, 211, 252, .18) 9px 20px);
+  opacity: .8;
+  animation: milkCurrent 2.1s linear infinite;
+}
+
+.farmCardProgress .milkMeter.complete .milkFill {
+  background:
+    radial-gradient(circle at 18% 45%, rgba(255, 255, 255, .95) 0 2px, transparent 3px),
+    linear-gradient(90deg, #dff7ff 0%, #f8fbff 45%, #bfdbfe 100%);
+}
+
+@keyframes milkTrackShine {
+  0% { transform: translateX(-115%); }
+  55%, 100% { transform: translateX(115%); }
+}
+
+@keyframes milkEmptySweep {
+  0% { transform: translateX(-38px); opacity: 0; }
+  35% { opacity: .9; }
+  100% { transform: translateX(650px); opacity: 0; }
+}
+
+@keyframes milkCurrent {
+  to { transform: translateX(30px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .farmCardProgress .milkMeter::before,
+  .farmCardProgress .milkMeter.milkEmpty::after,
+  .farmCardProgress .milkFill::before {
+    animation: none;
+  }
+}
+
 .farmSignalRow {
   display: flex;
   flex-wrap: wrap;
@@ -5936,4 +6028,20 @@ body,
   .restrictedActions {
     display: grid;
   }
+}
+
+/* V3.22: checklist por fazenda com estado salvo mais claro */
+.checkTemplateRail button.saved:not(.active) {
+  border-color: #bbf7d0;
+  background: #f7fef9;
+}
+
+.checkTemplateRail button.saved:not(.active) small {
+  color: #047857;
+}
+
+.checkHistoryCard.active {
+  border-color: #16a34a;
+  background: #f0fdf4;
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, .10);
 }

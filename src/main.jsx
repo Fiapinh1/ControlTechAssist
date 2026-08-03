@@ -20,6 +20,13 @@ import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT
 
 const APP_VERSION = '3.0.0';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
+const APP_CONTEXT_KEY = 'cta_last_context';
+const readAppContext = () => {
+  try { return JSON.parse(localStorage.getItem(APP_CONTEXT_KEY) || '{}') || {}; } catch { return {}; }
+};
+const saveAppContext = (view, farmId = null) => {
+  try { localStorage.setItem(APP_CONTEXT_KEY, JSON.stringify({ view, farmId })); } catch {}
+};
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -654,14 +661,26 @@ async function forceRefreshApp(){
 function App(){
   const [user,setUser]=useState(null);
   const [authLoading,setAuthLoading]=useState(Boolean(supabase));
-  const [view,setView]=useState('fazendas');
-  const [selectedFarmId,setSelectedFarmId]=useState(null);
+  const [view,setView]=useState(()=>readAppContext().view || 'fazendas');
+  const [selectedFarmId,setSelectedFarmId]=useState(()=>readAppContext().farmId || null);
   const [localMode,setLocalMode]=useState(localStorage.getItem(LOCAL_MODE_KEY)==='true');
   const [recoveryMode,setRecoveryMode]=useState(()=> window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery'));
   const updateHandled=useRef(false);
   const update = useAppUpdate();
   const data=useData(user, localMode);
   const selectedFarm=data.fazendas.find(f=>f.id===selectedFarmId);
+  useEffect(()=>{
+    if(view==='fazenda' && !selectedFarmId){
+      saveAppContext('fazendas', null);
+      setView('fazendas');
+      return;
+    }
+    if(view==='fazenda' && selectedFarmId && data.dbStatus.lastSync && !selectedFarm){
+      saveAppContext('fazendas', null);
+      setSelectedFarmId(null);
+      setView('fazendas');
+    }
+  },[view, selectedFarmId, selectedFarm, data.dbStatus.lastSync]);
   useEffect(()=>{
     if(!supabase||!user||localMode)return;
     const email=String(user.email||'').trim().toLowerCase();
@@ -694,9 +713,9 @@ function App(){
   if(!supabase && !localMode) return <SupabaseSetup onUseLocal={()=>{localStorage.setItem(LOCAL_MODE_KEY,'true'); setLocalMode(true)}}/>;
   if(supabase && recoveryMode && user && !localMode) return <PasswordRecovery onDone={()=>{setRecoveryMode(false); window.history.replaceState({}, document.title, window.location.origin + window.location.pathname);}}/>;
   if(supabase && !user && !localMode) return <Login onUseLocal={()=>{localStorage.setItem(LOCAL_MODE_KEY,'true'); setLocalMode(true)}}/>;
-  const goFarm = id => { setSelectedFarmId(id); setView('fazenda'); };
-  const setMainView = v => { setView(v); if(v!=='fazenda') setSelectedFarmId(null); };
-  const exitLocalMode = () => { localStorage.removeItem(LOCAL_MODE_KEY); setLocalMode(false); setSelectedFarmId(null); setView('fazendas'); };
+  const goFarm = id => { setSelectedFarmId(id); setView('fazenda'); saveAppContext('fazenda', id); };
+  const setMainView = v => { setView(v); if(v!=='fazenda') setSelectedFarmId(null); saveAppContext(v, v==='fazenda'?selectedFarmId:null); };
+  const exitLocalMode = () => { localStorage.removeItem(LOCAL_MODE_KEY); saveAppContext('fazendas', null); setLocalMode(false); setSelectedFarmId(null); setView('fazendas'); };
   const logout = async () => { if(localMode){ exitLocalMode(); return; } await supabase?.auth.signOut(); };
   return <div className="app"><NotificationCenter/><Sidebar view={view} setView={setMainView} user={user} cloud={data.cloud} localMode={localMode} onExitLocal={exitLocalMode}/><main className="main">
     {(!data.cloud || localMode) && <SystemStatus data={data} localMode={localMode} onDisableLocal={()=>{localStorage.removeItem(LOCAL_MODE_KEY); setLocalMode(false)}}/>}
@@ -982,7 +1001,9 @@ function FarmCard({farm,data,onOpen}){
     </div>
     <div className="farmCardProgress">
       <div className="farmProgressTitle"><span><Milk size={15}/> Colares atendidos</span><b>{handled} / {planned}</b></div>
-      <div className="progress"><span style={{width:`${Math.min(pct,100)}%`}}/></div>
+      <div className={`milkMeter ${pct<=0?'milkEmpty':pct>=100?'complete':''}`} aria-label={`${pct}% dos colares atendidos`}>
+        <div className="milkFill" style={{width:`${Math.min(pct,100)}%`}}/>
+      </div>
       <small>{installed} instalado(s){collarDelivered(farm)>0?` • ${collarDelivered(farm)} entregue(s)`:''}</small>
     </div>
     <div className="farmSignalRow">
@@ -1344,18 +1365,43 @@ function FarmExecutiveSummary({farm,visits,checks,diags,equips,evidencias=[],can
 
 function ChecklistsFazenda({farm,data,canEdit=true}){
   const [template,setTemplate]=useState(QUICK_CHECKLISTS[0].id),[values,setValues]=useState({}),[obs,setObs]=useState(''),[editing,setEditing]=useState(null),[viewing,setViewing]=useState(null);
+  const saved=useMemo(()=>data.checklists.filter(c=>c.fazenda_id===farm.id).sort((a,b)=>new Date(b.updated_at||b.created_at||0)-new Date(a.updated_at||a.created_at||0)),[data.checklists,farm.id]);
+  const latestForTemplate=id=>saved.find(c=>c.tipo===id);
+  const hydrateChecklist=(item)=>{
+    const itemTpl=QUICK_CHECKLISTS.find(t=>t.id===item.tipo)||QUICK_CHECKLISTS[0];
+    setEditing(item);
+    setTemplate(itemTpl.id);
+    setObs(item.observacoes||'');
+    const next={};
+    (item.itens_json||[]).forEach((row,i)=>{next[i]=Boolean(row.ok)});
+    setValues(next);
+  };
+  const startBlank=id=>{setTemplate(id);setValues({});setObs('');setEditing(null)};
+  useEffect(()=>{
+    const first=saved[0];
+    if(first) hydrateChecklist(first);
+    else startBlank(QUICK_CHECKLISTS[0].id);
+  },[farm.id,data.checklists.length]);
   const tpl=QUICK_CHECKLISTS.find(t=>t.id===template)||QUICK_CHECKLISTS[0];
-  const saved=data.checklists.filter(c=>c.fazenda_id===farm.id);
   const done=tpl.items.filter((_,i)=>values[i]).length;
   const pct=tpl.items.length?Math.round(done/tpl.items.length*100):0;
   const toggle=i=>canEdit&&setValues({...values,[i]:!values[i]});
-  const reset=()=>{setEditing(null);setValues({});setObs('')};
-  const chooseTemplate=id=>{if(!canEdit)return;setTemplate(id);setValues({});setEditing(null)};
+  const reset=()=>startBlank(template);
+  const chooseTemplate=id=>{
+    const existing=latestForTemplate(id);
+    if(existing) hydrateChecklist(existing);
+    else startBlank(id);
+  };
   const markAll=()=>canEdit&&setValues(Object.fromEntries(tpl.items.map((_,i)=>[i,true])));
   const clearAll=()=>canEdit&&setValues({});
-  const edit=(item)=>{const itemTpl=QUICK_CHECKLISTS.find(t=>t.id===item.tipo)||QUICK_CHECKLISTS[0];setEditing(item);setTemplate(itemTpl.id);setObs(item.observacoes||'');const next={};(item.itens_json||[]).forEach((row,i)=>{next[i]=Boolean(row.ok)});setValues(next);};
-  const save=async()=>{if(!canEdit){notify('Voce esta como visualizador nesta fazenda.','warning');return;}const items=tpl.items.map((label,i)=>({label,ok:Boolean(values[i])}));await data.saveChecklist({id:editing?.id||uid(),fazenda_id:farm.id,tipo:tpl.id,titulo:tpl.title,itens_json:items,status:items.every(i=>i.ok)?'Completo':'Parcial',observacoes:obs,created_at:editing?.created_at||nowISO()});reset();notify(editing?'Checklist atualizado.':'Checklist salvo.');};
-  return <section className="panel checklistPanel"><div className="sectionTitle"><div><h2><ClipboardCheck size={21}/> Checklist por fazenda</h2>{editing&&<p className="sectionHint editingHint">Editando histórico salvo em {brDate(editing.created_at)}.</p>}</div><div className="checkCounter"><b>{done}/{tpl.items.length}</b><span>itens concluídos</span></div></div>{!canEdit&&<PermissionNotice/>}<div className="checkTemplateRail">{QUICK_CHECKLISTS.map(t=><button type="button" key={t.id} className={template===t.id?'active':''} disabled={!canEdit} onClick={()=>chooseTemplate(t.id)}><ClipboardList size={18}/><span><b>{t.title}</b><small>{t.items.length} itens</small></span></button>)}</div><div className="checkProgressHero"><div><span>{tpl.source}</span><b>{pct}% concluído</b></div><div className="progress"><span style={{width:pct+'%'}}/></div><div className="checkProgressActions"><button className="btn light" disabled={!canEdit} onClick={markAll}>Marcar tudo</button><button className="btn light" disabled={!canEdit} onClick={clearAll}>Limpar</button></div></div><div className="checkGrid">{tpl.items.map((item,i)=><button type="button" className={values[i]?'checkCard done':'checkCard'} disabled={!canEdit} key={item} onClick={()=>toggle(i)}><span className="checkBoxVisual">{values[i]?<Check size={16}/>:i+1}</span><b>{item}</b></button>)}</div><textarea className="checkNotes" disabled={!canEdit} value={obs} onChange={e=>setObs(e.target.value)} placeholder="Observações do checklist"/><div className="buttonRow"><button className="btn primary" disabled={!canEdit} onClick={save}><Save size={17}/> {editing?'Atualizar checklist':'Salvar checklist'}</button>{editing&&<button className="btn light" onClick={reset}>Cancelar edição</button>}</div><div className="checkHistoryHead"><h3>Histórico</h3><span>{saved.length} registro(s)</span></div><div className="checkHistoryGrid">{saved.map(c=>{const items=c.itens_json||[];const ok=items.filter(i=>i.ok).length;return <article className="checkHistoryCard" key={c.id}><div><ClipboardCheck size={18}/><span>{c.status}</span></div><b>{c.titulo}</b><small>{brDate(c.created_at)} - {ok}/{items.length||0} itens</small>{c.observacoes&&<p>{c.observacoes}</p>}<footer><button className="btn light" onClick={()=>setViewing(c)}><Info size={16}/> Visualizar</button>{canEdit&&<button className="iconBtn" title="Editar" onClick={()=>edit(c)}><Pencil size={16}/></button>}{canEdit&&<button className="iconBtn danger" title="Excluir" onClick={()=>data.delChecklist(c.id)}><Trash2 size={16}/></button>}</footer></article>})}</div>{!saved.length&&<Empty icon={ClipboardCheck} title="Nenhum checklist salvo" text="Salve um checklist para criar histórico da fazenda."/>}{viewing&&<Modal title={viewing.titulo} onClose={()=>setViewing(null)}><div className="modalBody"><p className="sourceText">{brDate(viewing.created_at)} - {viewing.status} - {viewing.observacoes||'sem observações'}</p><div className="checkViewList">{(viewing.itens_json||[]).map((item,i)=><div className={item.ok?'checkViewItem ok':'checkViewItem'} key={(item.label||'item')+'-'+i}><span>{item.ok?<Check size={15}/>:i+1}</span><b>{item.label}</b></div>)}</div></div></Modal>}</section>
+  const save=async()=>{
+    if(!canEdit){notify('Voce esta como visualizador nesta fazenda.','warning');return;}
+    const items=tpl.items.map((label,i)=>({label,ok:Boolean(values[i])}));
+    const row={id:editing?.id||uid(),fazenda_id:farm.id,tipo:tpl.id,titulo:tpl.title,itens_json:items,status:items.every(i=>i.ok)?'Completo':'Parcial',observacoes:obs,created_at:editing?.created_at||nowISO(),updated_at:nowISO()};
+    const result=await data.saveChecklist(row);
+    if(result.ok){setEditing(row);notify(editing?'Checklist atualizado.':'Checklist salvo.');}
+  };
+  return <section className="panel checklistPanel"><div className="sectionTitle"><div><h2><ClipboardCheck size={21}/> Checklist da fazenda</h2><p className="sectionHint editingHint">{editing?`Checklist salvo carregado: ${brDate(editing.updated_at||editing.created_at)}.`:'Checklist opcional. Salve apenas quando fizer sentido para esta fazenda.'}</p></div><div className="checkCounter"><b>{done}/{tpl.items.length}</b><span>itens concluídos</span></div></div>{!canEdit&&<PermissionNotice/>}<div className="checkTemplateRail">{QUICK_CHECKLISTS.map(t=>{const existing=latestForTemplate(t.id);const items=existing?.itens_json||[];const ok=items.filter(i=>i.ok).length;return <button type="button" key={t.id} className={`${template===t.id?'active ':''}${existing?'saved':''}`} onClick={()=>chooseTemplate(t.id)}><ClipboardList size={18}/><span><b>{t.title}</b><small>{existing?`${ok}/${items.length||t.items.length} salvo`:`${t.items.length} itens`}</small></span></button>})}</div><div className="checkProgressHero"><div><span>{tpl.source}</span><b>{pct}% concluído</b></div><div className="progress"><span style={{width:pct+'%'}}/></div><div className="checkProgressActions"><button className="btn light" disabled={!canEdit} onClick={markAll}>Marcar tudo</button><button className="btn light" disabled={!canEdit} onClick={clearAll}>Limpar</button></div></div><div className="checkGrid">{tpl.items.map((item,i)=><button type="button" className={values[i]?'checkCard done':'checkCard'} disabled={!canEdit} key={item} onClick={()=>toggle(i)}><span className="checkBoxVisual">{values[i]?<Check size={16}/>:i+1}</span><b>{item}</b></button>)}</div><textarea className="checkNotes" disabled={!canEdit} value={obs} onChange={e=>setObs(e.target.value)} placeholder="Observações do checklist"/><div className="buttonRow"><button className="btn primary" disabled={!canEdit} onClick={save}><Save size={17}/> {editing?'Atualizar checklist':'Salvar checklist'}</button></div><div className="checkHistoryHead"><h3>Registros salvos</h3><span>{saved.length} registro(s)</span></div><div className="checkHistoryGrid">{saved.map(c=>{const items=c.itens_json||[];const ok=items.filter(i=>i.ok).length;return <article className={editing?.id===c.id?'checkHistoryCard active':'checkHistoryCard'} key={c.id}><div><ClipboardCheck size={18}/><span>{c.status}</span></div><b>{c.titulo}</b><small>{brDate(c.updated_at||c.created_at)} - {ok}/{items.length||0} itens</small>{c.observacoes&&<p>{c.observacoes}</p>}<footer><button className="btn light" onClick={()=>setViewing(c)}><Info size={16}/> Visualizar</button>{canEdit&&<button className="iconBtn" title="Editar" onClick={()=>hydrateChecklist(c)}><Pencil size={16}/></button>}{canEdit&&<button className="iconBtn danger" title="Excluir" onClick={async()=>{const result=await data.delChecklist(c.id);if(result.ok&&editing?.id===c.id)reset();}}><Trash2 size={16}/></button>}</footer></article>})}</div>{!saved.length&&<Empty icon={ClipboardCheck} title="Nenhum checklist salvo" text="Checklist não é obrigatório. Registre apenas quando precisar documentar conferências da fazenda."/>}{viewing&&<Modal title={viewing.titulo} onClose={()=>setViewing(null)}><div className="modalBody"><p className="sourceText">{brDate(viewing.updated_at||viewing.created_at)} - {viewing.status} - {viewing.observacoes||'sem observações'}</p><div className="checkViewList">{(viewing.itens_json||[]).map((item,i)=><div className={item.ok?'checkViewItem ok':'checkViewItem'} key={(item.label||'item')+'-'+i}><span>{item.ok?<Check size={15}/>:i+1}</span><b>{item.label}</b></div>)}</div></div></Modal>}</section>
 }
 function EquipamentosFazenda({farm,data,openNew,canEdit=true}){
   const [edit,setEdit]=useState(null),[photoEquip,setPhotoEquip]=useState(null);
