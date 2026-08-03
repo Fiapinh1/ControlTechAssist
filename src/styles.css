@@ -2733,7 +2733,7 @@ body,
   }
 
   .visitSummaryStrip {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 7px;
     margin-bottom: 12px;
   }
@@ -3374,7 +3374,7 @@ body,
   }
 
   .visitSummaryStrip {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .visitSummaryStrip article {
@@ -3514,7 +3514,7 @@ body,
 
 .farmsHeroMetrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(112px, 150px));
+  grid-template-columns: repeat(4, minmax(96px, 140px));
   gap: 9px;
 }
 
@@ -3872,12 +3872,12 @@ body,
 .farmCardPro {
   position: relative;
   overflow: hidden;
-  min-height: 310px;
+  min-height: 276px;
   display: grid;
   align-content: start;
-  gap: 12px;
+  gap: 10px;
   border-radius: 24px;
-  padding: 20px;
+  padding: 17px 18px;
   border-color: #dbe4ef;
   background: linear-gradient(180deg, #fff, #fbfdff);
   box-shadow: 0 14px 34px rgba(15,23,42,.07);
@@ -3916,9 +3916,9 @@ body,
 }
 
 .farmBrandMark {
-  width: 46px;
-  height: 46px;
-  border-radius: 17px;
+  width: 42px;
+  height: 42px;
+  border-radius: 15px;
   display: grid;
   place-items: center;
   color: #0f172a;
@@ -3981,7 +3981,7 @@ body,
 
 .farmCardPro h3 {
   margin: 2px 0 0;
-  font-size: clamp(21px, 1.7vw, 27px);
+  font-size: clamp(20px, 1.45vw, 24px);
   line-height: 1.08;
   letter-spacing: 0;
 }
@@ -4008,8 +4008,12 @@ body,
 
 .farmCardProgress {
   display: grid;
-  gap: 8px;
+  gap: 7px;
   margin-top: 2px;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff, #f8fafc);
 }
 
 .farmCardProgress > div:first-child {
@@ -4020,6 +4024,9 @@ body,
 }
 
 .farmCardProgress span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: #64748b;
   font-size: 12px;
   font-weight: 900;
@@ -4027,8 +4034,18 @@ body,
   letter-spacing: .05em;
 }
 
+.farmCardProgress svg {
+  color: #16a34a;
+}
+
 .farmCardProgress b {
   font-size: 17px;
+}
+
+.farmCardProgress small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 850;
 }
 
 .farmSignalRow {
@@ -4110,7 +4127,7 @@ body,
 
   .farmsHeroMetrics {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 7px;
   }
 
@@ -4238,13 +4255,13 @@ body,
 
   .farmCardPro {
     min-height: 0;
-    padding: 16px;
-    border-radius: 22px;
-    gap: 10px;
+    padding: 13px 14px;
+    border-radius: 21px;
+    gap: 8px;
   }
 
   .farmCardPro h3 {
-    font-size: 23px;
+    font-size: 20px;
   }
 
   .farmCardMeta {
@@ -4252,7 +4269,25 @@ body,
   }
 
   .farmCardMeta span {
-    font-size: 13px;
+    font-size: 12px;
+  }
+
+  .farmCardProgress {
+    padding: 8px;
+    border-radius: 14px;
+    gap: 6px;
+  }
+
+  .farmCardProgress span {
+    font-size: 10px;
+  }
+
+  .farmCardProgress b {
+    font-size: 15px;
+  }
+
+  .farmCardProgress small {
+    font-size: 10px;
   }
 
   .farmCardBadges {
@@ -4268,9 +4303,9 @@ body,
   }
 
   .farmSignalRow span {
-    min-height: 30px;
+    min-height: 28px;
     font-size: 11px;
-    padding: 6px 8px;
+    padding: 5px 8px;
   }
 
   .farmsMapPreview {
@@ -4434,7 +4469,7 @@ body,
   }
 
   .farmsHeroMetrics span:last-child {
-    grid-column: 1 / -1;
+    grid-column: auto;
   }
 
   .farmsCommandBar {
@@ -4460,8 +4495,8 @@ body,
   }
 
   .farmCardPro footer {
-    align-items: flex-start;
-    flex-direction: column;
+    align-items: center;
+    flex-direction: row;
   }
 }
 
@@ -4657,7 +4692,7 @@ body,
 
 .serviceCloseGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(160px, .55fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(180px, .7fr);
   gap: 12px;
   align-items: end;
 }
@@ -4826,13 +4861,17 @@ body,
 .miniStatusPill {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   border-radius: 999px;
   padding: 7px 10px;
+  max-width: 190px;
   background: #eef2ff;
   color: #3730a3;
   font-size: 12px;
   font-weight: 900;
   white-space: nowrap;
+  line-height: 1.15;
+  text-align: center;
 }
 
 .miniStatusPill.done {
@@ -4909,6 +4948,24 @@ body,
   line-height: 1.1;
 }
 
+.serviceMiniTitleLine {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.serviceMiniTitleLine b {
+  min-width: 0;
+}
+
+.serviceMiniTitleLine .serviceMiniAdjust {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+}
+
 .serviceMiniText small {
   margin-top: 3px;
   white-space: nowrap;
@@ -4920,6 +4977,10 @@ body,
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.serviceMiniActions:empty {
+  display: none;
 }
 
 .serviceMiniPrimary {
@@ -5029,9 +5090,12 @@ body,
   }
 
   .miniStatusPill {
-    max-width: 118px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    max-width: 136px;
+    padding: 6px 9px;
+    overflow: visible;
+    white-space: normal;
+    text-overflow: clip;
+    font-size: 11px;
   }
 
   .serviceMiniBar {
@@ -5051,6 +5115,10 @@ body,
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
+  }
+
+  .serviceMiniActions:empty {
+    display: none;
   }
 
   .serviceMiniPrimary {
@@ -5778,5 +5846,94 @@ body,
   .managerFilterMenu {
     right: -1px;
     width: min(340px, calc(100vw - 56px));
+  }
+}
+.collarReasonGrid {
+  align-items: end;
+}
+
+.restrictedDataPanel {
+  display: grid;
+  gap: 18px;
+}
+
+.restrictedHero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #bbf7d0;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 70%);
+}
+
+.restrictedHeroIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  color: #047857;
+  background: #dcfce7;
+  flex: 0 0 auto;
+}
+
+.restrictedHero h2 {
+  margin: 2px 0 4px;
+}
+
+.restrictedHero p {
+  margin: 0;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.restrictedForm {
+  display: grid;
+  gap: 14px;
+}
+
+.secretInput {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.secretInput input {
+  min-width: 0;
+  flex: 1;
+}
+
+.secretInput button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid #dbe4ef;
+  border-radius: 14px;
+  background: #f8fafc;
+  color: #0f172a;
+  display: grid;
+  place-items: center;
+}
+
+.restrictedActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.restrictedActions small {
+  color: #64748b;
+  font-weight: 800;
+}
+
+@media (max-width: 720px) {
+  .restrictedHero {
+    align-items: flex-start;
+    padding: 16px;
+  }
+
+  .restrictedActions {
+    display: grid;
   }
 }

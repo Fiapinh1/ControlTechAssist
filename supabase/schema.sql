@@ -19,6 +19,9 @@ create table if not exists public.fazendas (
   endereco text,
   qtd_colares_prevista integer default 0,
   qtd_colares_instalada integer default 0,
+  qtd_colares_entregue_cliente integer default 0,
+  motivo_colares_restantes text,
+  observacoes_colares text,
   servico_inicio_em timestamptz,
   servico_fim_em timestamptz,
   servico_responsavel text,
@@ -509,6 +512,12 @@ create policy "evidencias_storage_delete_admin" on storage.objects for delete us
   and public.can_write_fazenda((storage.foldername(name))[1]::uuid)
 );
 
+-- V3.19: controle de colares atendidos sem pendencia falsa
+alter table public.fazendas
+add column if not exists qtd_colares_entregue_cliente integer default 0,
+add column if not exists motivo_colares_restantes text,
+add column if not exists observacoes_colares text;
+
 -- V3.10: salvamento seguro de fazenda pelo banco
 create or replace function public.save_fazenda(payload jsonb)
 returns public.fazendas
@@ -550,6 +559,9 @@ begin
       endereco,
       qtd_colares_prevista,
       qtd_colares_instalada,
+      qtd_colares_entregue_cliente,
+      motivo_colares_restantes,
+      observacoes_colares,
       servico_inicio_em,
       servico_fim_em,
       servico_responsavel,
@@ -578,6 +590,9 @@ begin
       nullif(payload->>'endereco', ''),
       coalesce(nullif(payload->>'qtd_colares_prevista', '')::integer, 0),
       coalesce(nullif(payload->>'qtd_colares_instalada', '')::integer, 0),
+      coalesce(nullif(payload->>'qtd_colares_entregue_cliente', '')::integer, 0),
+      nullif(payload->>'motivo_colares_restantes', ''),
+      nullif(payload->>'observacoes_colares', ''),
       nullif(payload->>'servico_inicio_em', '')::timestamptz,
       nullif(payload->>'servico_fim_em', '')::timestamptz,
       nullif(payload->>'servico_responsavel', ''),
@@ -612,6 +627,9 @@ begin
       endereco = nullif(payload->>'endereco', ''),
       qtd_colares_prevista = coalesce(nullif(payload->>'qtd_colares_prevista', '')::integer, 0),
       qtd_colares_instalada = coalesce(nullif(payload->>'qtd_colares_instalada', '')::integer, 0),
+      qtd_colares_entregue_cliente = coalesce(nullif(payload->>'qtd_colares_entregue_cliente', '')::integer, 0),
+      motivo_colares_restantes = nullif(payload->>'motivo_colares_restantes', ''),
+      observacoes_colares = nullif(payload->>'observacoes_colares', ''),
       servico_inicio_em = nullif(payload->>'servico_inicio_em', '')::timestamptz,
       servico_fim_em = nullif(payload->>'servico_fim_em', '')::timestamptz,
       servico_responsavel = nullif(payload->>'servico_responsavel', ''),
@@ -637,3 +655,31 @@ add column if not exists finalizada_em timestamptz;
 
 create index if not exists visitas_fazenda_status_idx on public.visitas(fazenda_id, status);
 create index if not exists visitas_iniciada_idx on public.visitas(iniciada_em);
+
+-- V3.20: dados restritos por fazenda, visiveis apenas para owner/admin
+create table if not exists public.fazenda_dados_restritos (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) on delete set null,
+  fazenda_id uuid not null references public.fazendas(id) on delete cascade,
+  sistema text default 'Nedap',
+  usuario_service text,
+  senha_service text,
+  numero_licenca text,
+  observacoes_restritas text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  unique (fazenda_id)
+);
+
+alter table public.fazenda_dados_restritos enable row level security;
+
+drop policy if exists "fazenda_dados_restritos_select_admin" on public.fazenda_dados_restritos;
+drop policy if exists "fazenda_dados_restritos_insert_admin" on public.fazenda_dados_restritos;
+drop policy if exists "fazenda_dados_restritos_update_admin" on public.fazenda_dados_restritos;
+drop policy if exists "fazenda_dados_restritos_delete_admin" on public.fazenda_dados_restritos;
+create policy "fazenda_dados_restritos_select_admin" on public.fazenda_dados_restritos for select using (public.can_write_fazenda(fazenda_id));
+create policy "fazenda_dados_restritos_insert_admin" on public.fazenda_dados_restritos for insert with check (public.can_write_fazenda(fazenda_id));
+create policy "fazenda_dados_restritos_update_admin" on public.fazenda_dados_restritos for update using (public.can_write_fazenda(fazenda_id)) with check (public.can_write_fazenda(fazenda_id));
+create policy "fazenda_dados_restritos_delete_admin" on public.fazenda_dados_restritos for delete using (public.can_write_fazenda(fazenda_id));
+
+create index if not exists fazenda_dados_restritos_fazenda_idx on public.fazenda_dados_restritos(fazenda_id);

@@ -13,7 +13,7 @@ import {
   ClipboardX, CircleAlert, Cable, Zap, Settings, Clock, Check, PlayCircle, Info,
   ClipboardPenLine, LifeBuoy, FileDown, Antenna, Gauge, ScanLine, Globe2, Filter, LocateFixed, Printer, Share2,
   BrickWall, Trees, Mountain, Warehouse, Signal, SignalLow, SignalZero, CloudOff, RefreshCw, Copy, UserCheck,
-  Image as ImageIcon, Camera, Upload, Eye, Link2
+  Image as ImageIcon, Camera, Upload, Eye, Link2, Milk
 } from 'lucide-react';
 import './styles.css';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
@@ -152,9 +152,27 @@ function farmStatus(farm){
   const current = normalizeFarmStatus(farm?.status);
   return autoServiceStatus(farm?.servico_inicio_em, farm?.servico_fim_em, current);
 }
-const normalizeFarmRow = row => ({...row, status: farmStatus(row)});
+const normalizeFarmRow = row => ({...row, qtd_colares_entregue_cliente:num(row?.qtd_colares_entregue_cliente), status: farmStatus(row)});
 const statusTone = status => status === 'Com pendência' ? 'warn' : status === FARM_STATUS_DONE ? 'ok' : '';
 const isOpenFarmStatus = status => ['Não iniciada','Em andamento','Com pendência','Aguardando validação'].includes(normalizeFarmStatus(status));
+const COLLAR_REASONS = ['Entregue ao cliente / reserva', 'Cliente pediu para não instalar', 'Animal indisponível', 'Pendente de retorno', 'Perda / defeito', 'Outro'];
+const NON_PENDING_COLLAR_REASONS = new Set(['Entregue ao cliente / reserva', 'Cliente pediu para não instalar', 'Animal indisponível']);
+const collarInstalled = farm => num(farm?.qtd_colares_instalada);
+const collarDelivered = farm => num(farm?.qtd_colares_entregue_cliente);
+const collarHandled = farm => collarInstalled(farm) + collarDelivered(farm);
+const collarRemaining = farm => Math.max(num(farm?.qtd_colares_prevista) - collarHandled(farm), 0);
+const collarProgress = farm => {
+  const planned = num(farm?.qtd_colares_prevista);
+  return planned ? Math.min(100, Math.round((collarHandled(farm) / planned) * 100)) : 0;
+};
+const collarHasPending = farm => {
+  const touched = Boolean(farm?.servico_inicio_em || farm?.servico_fim_em || collarInstalled(farm) || collarDelivered(farm));
+  return touched && collarRemaining(farm) > 0 && !NON_PENDING_COLLAR_REASONS.has(farm?.motivo_colares_restantes || '');
+};
+const collarBreakdown = farm => {
+  const installed = collarInstalled(farm), delivered = collarDelivered(farm), planned = num(farm?.qtd_colares_prevista);
+  return delivered ? `${installed} instalados • ${delivered} entregues • ${planned} previstos` : `${installed} / ${planned || '-'}`;
+};
 const CENTRAIS = ['Alta Genetics', 'Genex Brasil', 'Outra / Não informado'];
 const EQUIP_TYPES = ['VP8002 — Processador/Base', 'VP4102 — Antena', 'Outro equipamento'];
 const EQUIP_STATUS = ['Planejado', 'Instalado', 'Com problema', 'Removido'];
@@ -252,7 +270,7 @@ const autoServiceStatus = (inicio, fim, fallback = 'Não iniciada') => {
 };
 
 function useData(user, localMode=false){
-  const [fazendas,setFazendas]=useState([]), [equipamentos,setEquipamentos]=useState([]), [visitas,setVisitas]=useState([]), [checklists,setChecklists]=useState([]), [diagnosticos,setDiagnosticos]=useState([]), [planejamentos,setPlanejamentos]=useState([]), [obstaculos,setObstaculos]=useState([]), [testesCobertura,setTestesCobertura]=useState([]), [evidencias,setEvidencias]=useState([]), [fazendaMembros,setFazendaMembros]=useState([]);
+  const [fazendas,setFazendas]=useState([]), [equipamentos,setEquipamentos]=useState([]), [visitas,setVisitas]=useState([]), [checklists,setChecklists]=useState([]), [diagnosticos,setDiagnosticos]=useState([]), [planejamentos,setPlanejamentos]=useState([]), [obstaculos,setObstaculos]=useState([]), [testesCobertura,setTestesCobertura]=useState([]), [evidencias,setEvidencias]=useState([]), [fazendaMembros,setFazendaMembros]=useState([]), [dadosRestritos,setDadosRestritos]=useState([]);
   const [loading,setLoading]=useState(false);
   const [dbStatus,setDbStatus]=useState({
     mode: supabase ? 'supabase' : 'local',
@@ -316,9 +334,11 @@ function useData(user, localMode=false){
         if(!evidenciasResult.error)setEvidencias(await signEvidenceRows(evidenciasResult.data||[]));else{console.warn('Evidências não carregadas:',evidenciasResult.error.message);setEvidencias([]);}
         const membros = await supabase.from('fazenda_membros').select('*, profiles:user_id(id,email,nome)').order('created_at',{ascending:true});
         if(!membros.error)setFazendaMembros(membros.data||[]);else{console.warn('Compartilhamento não carregado:',membros.error.message);setFazendaMembros([]);}
+        const restritos = await supabase.from('fazenda_dados_restritos').select('*').order('updated_at',{ascending:false});
+        if(!restritos.error)setDadosRestritos(restritos.data||[]);else{console.warn('Dados restritos não carregados:',restritos.error.message);setDadosRestritos([]);}
         setOk();
       } else {
-        setFazendas(loadLocal('cta_fazendas').map(normalizeFarmRow)); setEquipamentos(loadLocal('cta_equipamentos')); setVisitas(loadLocal('cta_visitas')); setChecklists(loadLocal('cta_checklists')); setDiagnosticos(loadLocal('cta_diagnosticos')); setPlanejamentos(loadLocal('cta_planejamentos')); setObstaculos(loadLocal('cta_obstaculos')); setTestesCobertura(loadLocal('cta_testes_cobertura')); setEvidencias(loadLocal('cta_evidencias')); setFazendaMembros([]);
+        setFazendas(loadLocal('cta_fazendas').map(normalizeFarmRow)); setEquipamentos(loadLocal('cta_equipamentos')); setVisitas(loadLocal('cta_visitas')); setChecklists(loadLocal('cta_checklists')); setDiagnosticos(loadLocal('cta_diagnosticos')); setPlanejamentos(loadLocal('cta_planejamentos')); setObstaculos(loadLocal('cta_obstaculos')); setTestesCobertura(loadLocal('cta_testes_cobertura')); setEvidencias(loadLocal('cta_evidencias')); setFazendaMembros([]); setDadosRestritos(loadLocal('cta_dados_restritos'));
         setDbStatus({mode:'local',connected:false,lastError: supabase ? 'Modo local de emergência ativado manualmente.' : 'Supabase não configurado no .env.local.', lastSync:new Date().toLocaleString('pt-BR'), details:{}});
       }
       setLoading(false);
@@ -498,6 +518,40 @@ function useData(user, localMode=false){
     notify('Evidência removida.');
     return {ok:true};
   }
+  async function saveDadosRestritos(row){
+    if(!row?.fazenda_id){ notify('Fazenda não informada para dados restritos.','error'); return {ok:false}; }
+    const clean = {
+      id: row.id || uid(),
+      user_id: user?.id,
+      fazenda_id: row.fazenda_id,
+      sistema: row.sistema || 'Nedap',
+      usuario_service: row.usuario_service || '',
+      senha_service: row.senha_service || '',
+      numero_licenca: row.numero_licenca || '',
+      observacoes_restritas: row.observacoes_restritas || '',
+      updated_at: nowISO(),
+      created_at: row.created_at || nowISO()
+    };
+    let saved = clean;
+    if(cloud){
+      const authUserId = await activeUserId();
+      if(!authUserId) return {ok:false,error:new Error('Sessão inválida')};
+      clean.user_id = authUserId;
+      const { data:savedRow, error } = await supabase.from('fazenda_dados_restritos').upsert(clean,{onConflict:'fazenda_id'}).select('*').single();
+      if(error){ notify(`Não foi possível salvar dados restritos: ${error.message}`,'error'); return {ok:false,error}; }
+      saved = savedRow || clean;
+      setOk();
+    }
+    setDadosRestritos(prev=>{
+      const next = prev.some(item=>item.fazenda_id===saved.fazenda_id)
+        ? prev.map(item=>item.fazenda_id===saved.fazenda_id?saved:item)
+        : [saved,...prev];
+      if(!cloud) saveLocal('cta_dados_restritos',next);
+      return next;
+    });
+    notify('Dados restritos salvos.');
+    return {ok:true,data:saved};
+  }
   async function shareFarm(farm, email, role='viewer'){
     if(!cloud){ notify('Compartilhamento exige Supabase ativo.','warning'); return {ok:false}; }
     const cleanEmail=String(email||'').trim().toLowerCase();
@@ -532,8 +586,8 @@ function useData(user, localMode=false){
   }
   return {
     cloud, loading, dbStatus, testConnection,
-    userId:user?.id, currentUser:user ? {id:user.id,email:user.email,nome:personName(user.user_metadata)||user.email?.split('@')[0]||'Usuário atual'} : null, fazendas, equipamentos, visitas, checklists, diagnosticos, planejamentos, obstaculos, testesCobertura, evidencias, fazendaMembros,
-    shareFarm, updateFarmMember, removeFarmMember, uploadEvidencias, saveEvidencia, delEvidencia,
+    userId:user?.id, currentUser:user ? {id:user.id,email:user.email,nome:personName(user.user_metadata)||user.email?.split('@')[0]||'Usuário atual'} : null, fazendas, equipamentos, visitas, checklists, diagnosticos, planejamentos, obstaculos, testesCobertura, evidencias, fazendaMembros, dadosRestritos,
+    shareFarm, updateFarmMember, removeFarmMember, uploadEvidencias, saveEvidencia, delEvidencia, saveDadosRestritos,
     saveFazenda: r => upsert('fazendas', setFazendas, 'cta_fazendas', normalizeFarmRow(withExistingOwner(fazendas,r))),
     saveEquipamento: r => upsert('equipamentos', setEquipamentos, 'cta_equipamentos', withExistingOwner(equipamentos,r)),
     saveVisita: r => upsert('visitas', setVisitas, 'cta_visitas', withExistingOwner(visitas,r)),
@@ -775,7 +829,7 @@ function BrasilAtuacaoMap({fazendas,onOpen}){
     <div className="brMap"><MapContainer center={[-15.8,-47.9]} zoom={4} minZoom={3} className="bigMap" scrollWheelZoom={false}>
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="OpenStreetMap" />
       {geo && <GeoJSON key={filter+fazendas.length} data={geo} style={styleFeature} onEachFeature={(feature,layer)=>{const uf=getGeoUF(feature); const count=farms.filter(f=>getFarmUF(f)===uf).length; layer.bindTooltip(`${uf || 'UF'} • ${count} fazenda(s)`);}} />}
-      {farms.map(f=><Marker key={f.id} position={farmLatLng(f)} icon={farmMarkerIcon(f)} eventHandlers={{click:()=>onOpen(f.id)}}><Popup><b>{f.nome}</b><br/>{f.cidade||'-'} {getFarmUF(f)&&`/ ${getFarmUF(f)}`}<br/>Central: {f.central||'-'}<br/>Regional: {f.regional_nome||'-'}<br/>Colares: {num(f.qtd_colares_instalada)} / {num(f.qtd_colares_prevista)}</Popup></Marker>)}
+      {farms.map(f=><Marker key={f.id} position={farmLatLng(f)} icon={farmMarkerIcon(f)} eventHandlers={{click:()=>onOpen(f.id)}}><Popup><b>{f.nome}</b><br/>{f.cidade||'-'} {getFarmUF(f)&&`/ ${getFarmUF(f)}`}<br/>Central: {f.central||'-'}<br/>Regional: {f.regional_nome||'-'}<br/>Colares: {collarBreakdown(f)}</Popup></Marker>)}
     </MapContainer></div>{err&&<p className="sourceText">{err}</p>}</section>
 }
 
@@ -796,7 +850,7 @@ const centralMatches = (farm, value) => {
   if (value === 'Outra / Não informado') return centralTone(farm.central) === 'other';
   return (farm.central || '') === value;
 };
-const farmHasPending = (farm, data) => farmStatus(farm) === 'Com pendência' || data.visitas.some(v => v.fazenda_id === farm.id && v.pendencias);
+const farmHasPending = (farm, data) => farmStatus(farm) === 'Com pendência' || collarHasPending(farm) || data.visitas.some(v => v.fazenda_id === farm.id && v.pendencias);
 const latestFarmVisit = (farm, data) => data.visitas.filter(v => v.fazenda_id === farm.id).sort((a,b) => String(b.data_visita || '').localeCompare(String(a.data_visita || '')))[0];
 
 function Fazendas({data,onOpen}){
@@ -811,6 +865,7 @@ function Fazendas({data,onOpen}){
     return matchesText&&centralMatches(f,central)&&matchesStatus&&matchesQuick;
   });
   const counts={
+    naoIniciadas:data.fazendas.filter(f=>farmStatus(f)==='Não iniciada').length,
     andamento:data.fazendas.filter(f=>farmStatus(f)==='Em andamento').length,
     pendencias:data.fazendas.filter(f=>farmHasPending(f,data)).length,
     finalizadas:data.fazendas.filter(f=>farmStatus(f)===FARM_STATUS_DONE).length,
@@ -839,6 +894,7 @@ function Fazendas({data,onOpen}){
         <h1>Fazendas</h1>
         <div className="farmsHeroMetrics">
           <span><small>Total</small><b>{data.fazendas.length}</b><em>cadastradas</em></span>
+          <span><small>A iniciar</small><b>{counts.naoIniciadas}</b><em>não iniciadas</em></span>
           <span><small>Agora</small><b>{counts.andamento}</b><em>em andamento</em></span>
           <span><small>Fechadas</small><b>{counts.finalizadas}</b><em>concluídas</em></span>
         </div>
@@ -902,13 +958,14 @@ function FarmCard({farm,data,onOpen}){
   const access=farmAccess(farm,data);
   const equips=data.equipamentos.filter(e=>e.fazenda_id===farm.id);
   const eq=equips.length;
-  const planned=num(farm.qtd_colares_prevista), installed=num(farm.qtd_colares_instalada);
-  const pct=planned?Math.round(installed/planned*100):0;
+  const planned=num(farm.qtd_colares_prevista), installed=collarInstalled(farm), handled=collarHandled(farm);
+  const pct=collarProgress(farm);
   const displayStatus=farmStatus(farm);
   const tone=centralTone(farm.central);
   const lastVisit=latestFarmVisit(farm,data);
   const hasGps=Boolean(farm.latitude&&farm.longitude);
   const pending=farmHasPending(farm,data);
+  const peopleLine=[farm.responsavel,farm.regional_nome].filter(Boolean).join(' • ')||'Responsável não informado';
   return <article className={`farmCard farmCardPro central-${tone}`} onClick={onOpen}>
     <div className="farmCardAccent" />
     <div className="farmCardHeader">
@@ -921,15 +978,14 @@ function FarmCard({farm,data,onOpen}){
     <h3>{farm.nome}</h3>
     <div className="farmCardMeta">
       <span><MapPin size={15}/>{farm.cidade||'Cidade não informada'}{getFarmUF(farm)?` / ${getFarmUF(farm)}`:''}</span>
-      <span><User size={15}/>{farm.responsavel||'Responsável não informado'}</span>
-      <span><ShieldCheck size={15}/>{farm.regional_nome||'Regional não informado'}</span>
+      <span><User size={15}/>{peopleLine}</span>
     </div>
     <div className="farmCardProgress">
-      <div><span>Progresso</span><b>{installed} / {planned}</b></div>
+      <div className="farmProgressTitle"><span><Milk size={15}/> Colares atendidos</span><b>{handled} / {planned}</b></div>
       <div className="progress"><span style={{width:`${Math.min(pct,100)}%`}}/></div>
+      <small>{installed} instalado(s){collarDelivered(farm)>0?` • ${collarDelivered(farm)} entregue(s)`:''}</small>
     </div>
     <div className="farmSignalRow">
-      <span className={pct>=100?'ok':''}><CheckCircle2 size={15}/>{pct}%</span>
       <span className={hasGps?'ok':'warn'}><LocateFixed size={15}/>{hasGps?'GPS':'Sem GPS'}</span>
       <span><Cpu size={15}/>{eq} equip.</span>
       {pending&&<span className="warn"><AlertTriangle size={15}/>Pendência</span>}
@@ -943,7 +999,7 @@ function FazendaModal({farm={},data={},onClose,onSave}){
   const initialResponsible=farm.servico_responsavel||(!farm.id?currentUserName:'');
   const [ufs,setUfs]=useState([]),[cities,setCities]=useState([]),[loadingCities,setLoadingCities]=useState(false);
   const [tab,setTab]=useState('dados'),[focus,setFocus]=useState(null);
-  const [form,setForm]=useState({id:farm.id||uid(),nome:farm.nome||'',central:farm.central||'',regional_nome:farm.regional_nome||'',veterinario_apoio:farm.veterinario_apoio||'',responsavel:farm.responsavel||'',telefone:formatPhoneBR(farm.telefone||''),estado_uf:farm.estado_uf||parseUF(farm.cidade)||'',estado_nome:farm.estado_nome||'',cidade:farm.cidade?.replace(/\s*\/\s*[A-Z]{2}$/,'')||'',codigo_ibge_cidade:farm.codigo_ibge_cidade||'',latitude:farm.latitude||'',longitude:farm.longitude||'',localizacao_origem:farm.localizacao_origem||'',endereco:farm.endereco||'',qtd_colares_prevista:farm.qtd_colares_prevista||'',qtd_colares_instalada:farm.qtd_colares_instalada||'',status:farmStatus(farm),servico_inicio_em:dateTimeInput(farm.servico_inicio_em),servico_fim_em:dateTimeInput(farm.servico_fim_em),servico_responsavel:initialResponsible,servico_observacoes:farm.servico_observacoes||'',observacoes:farm.observacoes||'',created_at:farm.created_at||nowISO()});
+  const [form,setForm]=useState({id:farm.id||uid(),nome:farm.nome||'',central:farm.central||'',regional_nome:farm.regional_nome||'',veterinario_apoio:farm.veterinario_apoio||'',responsavel:farm.responsavel||'',telefone:formatPhoneBR(farm.telefone||''),estado_uf:farm.estado_uf||parseUF(farm.cidade)||'',estado_nome:farm.estado_nome||'',cidade:farm.cidade?.replace(/\s*\/\s*[A-Z]{2}$/,'')||'',codigo_ibge_cidade:farm.codigo_ibge_cidade||'',latitude:farm.latitude||'',longitude:farm.longitude||'',localizacao_origem:farm.localizacao_origem||'',endereco:farm.endereco||'',qtd_colares_prevista:farm.qtd_colares_prevista||'',qtd_colares_instalada:farm.qtd_colares_instalada||'',qtd_colares_entregue_cliente:farm.qtd_colares_entregue_cliente||'',motivo_colares_restantes:farm.motivo_colares_restantes||'',observacoes_colares:farm.observacoes_colares||'',status:farmStatus(farm),servico_inicio_em:dateTimeInput(farm.servico_inicio_em),servico_fim_em:dateTimeInput(farm.servico_fim_em),servico_responsavel:initialResponsible,servico_observacoes:farm.servico_observacoes||'',observacoes:farm.observacoes||'',created_at:farm.created_at||nowISO()});
   const set=(k,v)=>setForm(prev=>({...prev,[k]:v}));
   const cityListId=`city-options-${form.id}`;
   const normalizeCity=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
@@ -975,6 +1031,9 @@ function FazendaModal({farm={},data={},onClose,onSave}){
       ...form,
       qtd_colares_prevista:num(form.qtd_colares_prevista),
       qtd_colares_instalada:num(form.qtd_colares_instalada),
+      qtd_colares_entregue_cliente:num(form.qtd_colares_entregue_cliente),
+      motivo_colares_restantes:form.motivo_colares_restantes,
+      observacoes_colares:form.observacoes_colares,
       status:autoServiceStatus(farm.servico_inicio_em || toIsoOrNull(form.servico_inicio_em), farm.servico_fim_em || toIsoOrNull(form.servico_fim_em), form.status),
       latitude:form.latitude!==''&&form.latitude!==null?Number(form.latitude):null,
       longitude:form.longitude!==''&&form.longitude!==null?Number(form.longitude):null,
@@ -1046,18 +1105,27 @@ function ServiceModal({farm,data,mode='adjust',pendingEquips=[],onClose,onSave})
     servico_responsavel:farm.servico_responsavel||currentUserName||farm.regional_nome||farm.responsavel||'',
     servico_observacoes:farm.servico_observacoes||'',
     qtd_colares_instalada:farm.qtd_colares_instalada||'',
+    qtd_colares_entregue_cliente:farm.qtd_colares_entregue_cliente||'',
+    motivo_colares_restantes:farm.motivo_colares_restantes||'',
+    observacoes_colares:farm.observacoes_colares||'',
     status:finishing ? FARM_STATUS_DONE : autoServiceStatus(farm.servico_inicio_em, farm.servico_fim_em, farm.status)
   });
   const set=(k,v)=>setForm(prev=>({...prev,[k]:v}));
   const planned=num(farm.qtd_colares_prevista);
   const installed=num(form.qtd_colares_instalada);
-  const remaining=planned?Math.max(planned-installed,0):0;
+  const delivered=num(form.qtd_colares_entregue_cliente);
+  const handled=installed+delivered;
+  const remaining=planned?Math.max(planned-handled,0):0;
+  const handledProgress=planned?Math.min(100,Math.round((handled/planned)*100)):0;
   const clearService=()=>setForm(prev=>({
     ...prev,
     servico_inicio_em:'',
     servico_fim_em:'',
     servico_observacoes:'',
     qtd_colares_instalada:'',
+    qtd_colares_entregue_cliente:'',
+    motivo_colares_restantes:'',
+    observacoes_colares:'',
     status:'Não iniciada'
   }));
   const submit=e=>{
@@ -1071,6 +1139,9 @@ function ServiceModal({farm,data,mode='adjust',pendingEquips=[],onClose,onSave})
       servico_responsavel:form.servico_responsavel,
       servico_observacoes:form.servico_observacoes,
       qtd_colares_instalada:installed,
+      qtd_colares_entregue_cliente:delivered,
+      motivo_colares_restantes:form.motivo_colares_restantes,
+      observacoes_colares:form.observacoes_colares,
       status:finishing ? FARM_STATUS_DONE : derivedStatus
     });
   };
@@ -1086,12 +1157,14 @@ function ServiceModal({farm,data,mode='adjust',pendingEquips=[],onClose,onSave})
       </div>
       {!finishing&&<button type="button" className="serviceResetButton" onClick={clearService}><X size={17}/> Limpar serviço iniciado por engano</button>}
       <div className="serviceCloseGrid">
-        <Field label="Colares instalados" icon={Hash}><input type="number" min="0" value={form.qtd_colares_instalada} onChange={e=>set('qtd_colares_instalada',e.target.value)} placeholder="0"/></Field>
+        <Field label="Colares instalados em animais" icon={Hash}><input type="number" min="0" value={form.qtd_colares_instalada} onChange={e=>set('qtd_colares_instalada',e.target.value)} placeholder="0"/></Field>
+        <Field label="Entregues ao cliente / reserva" icon={BadgeCheck}><input type="number" min="0" value={form.qtd_colares_entregue_cliente} onChange={e=>set('qtd_colares_entregue_cliente',e.target.value)} placeholder="0"/></Field>
         <article className={remaining>0?'serviceCollarPreview pending':'serviceCollarPreview'}>
           <Hash size={18}/>
-          <div><b>{planned?`${installed} / ${planned}`:`${installed}`}</b><span>{planned?`${remaining} restante(s)`:'sem meta prevista'}</span></div>
+          <div><b>{planned?`${handled} / ${planned}`:`${handled}`}</b><span>{planned?`${remaining} restante(s) • ${handledProgress}% atendido`:'sem meta prevista'}</span></div>
         </article>
       </div>
+      {remaining>0&&<div className="grid2 collarReasonGrid"><Field label="Motivo dos colares restantes" icon={AlertTriangle}><select value={form.motivo_colares_restantes} onChange={e=>set('motivo_colares_restantes',e.target.value)}><option value="">Selecione...</option>{COLLAR_REASONS.map(reason=><option key={reason}>{reason}</option>)}</select></Field><Field label="Observação dos colares" icon={Info}><input value={form.observacoes_colares} onChange={e=>set('observacoes_colares',e.target.value)} placeholder="Ex.: 10 ficaram com o cliente, retorno combinado..."/></Field></div>}
       <ResponsibleServiceField value={form.servico_responsavel} onChange={v=>set('servico_responsavel',v)} options={options}/>
       <Field label={finishing?'Informações importantes do fechamento':'Observações do serviço'} icon={Info}><textarea value={form.servico_observacoes} onChange={e=>set('servico_observacoes',e.target.value)} placeholder="Ex.: colares instalados, ajuste de equipamento, pendência combinada, motivo de atraso..."/></Field>
       {finishing&&pendingEquips.length>0&&<div className="servicePendingAlert"><AlertTriangle size={20}/><div><b>{pendingEquips.length} equipamento(s) ainda pendente(s)</b><span>{pendingEquips.slice(0,3).map(e=>e.apelido||e.local_nome||e.tipo).join(', ')}{pendingEquips.length>3?'...':''}</span></div></div>}
@@ -1108,7 +1181,7 @@ function FazendaDetalhe({farm,data,onBack}){
   const [tab,setTab]=useState('resumo'),[edit,setEdit]=useState(false),[equipModal,setEquipModal]=useState(null),[visitModal,setVisitModal]=useState(false),[serviceModal,setServiceModal]=useState(null);
   const access=farmAccess(farm,data);
   const equips=data.equipamentos.filter(e=>e.fazenda_id===farm.id), visits=data.visitas.filter(v=>v.fazenda_id===farm.id), checks=data.checklists.filter(c=>c.fazenda_id===farm.id), diags=data.diagnosticos.filter(d=>d.fazenda_id===farm.id), evidencias=(data.evidencias||[]).filter(e=>e.fazenda_id===farm.id);
-  const tabs=[['resumo','Resumo',Building2],['checklists','Checklists',ClipboardCheck],['equipamentos','Equipamentos',Cpu],['mapa','Mapa técnico',MapIcon],['visitas','Visitas',CalendarDays],['evidencias','Evidências',ImageIcon],['relatorio','Relatório',FileText],access.canManageAccess&&['acessos','Acessos',UserCheck]].filter(Boolean);
+  const tabs=[['resumo','Resumo',Building2],['checklists','Checklists',ClipboardCheck],['equipamentos','Equipamentos',Cpu],['mapa','Mapa técnico',MapIcon],['visitas','Visitas',CalendarDays],['evidencias','Evidências',ImageIcon],['relatorio','Relatório',FileText],access.canEdit&&['restrito','Restrito',ShieldCheck],access.canManageAccess&&['acessos','Acessos',UserCheck]].filter(Boolean);
   const serviceActive=Boolean(farm.servico_inicio_em&&!farm.servico_fim_em), serviceDone=Boolean(farm.servico_inicio_em&&farm.servico_fim_em), compactHero=tab!=='resumo';
   const currentResponsible=personName(data.currentUser);
   const openVisit=visits.find(isOpenVisit);
@@ -1141,6 +1214,9 @@ function FazendaDetalhe({farm,data,onBack}){
       servico_responsavel:payload.servico_responsavel,
       servico_observacoes:payload.servico_observacoes,
       qtd_colares_instalada:num(payload.qtd_colares_instalada),
+      qtd_colares_entregue_cliente:num(payload.qtd_colares_entregue_cliente),
+      motivo_colares_restantes:payload.motivo_colares_restantes || '',
+      observacoes_colares:payload.observacoes_colares || '',
       status
     });
     if(!result.ok)return result;
@@ -1166,12 +1242,40 @@ function FazendaDetalhe({farm,data,onBack}){
     {!access.canEdit&&<PermissionNotice/>}
     <div className="tabs farmTabs">{tabs.map(([id,label,Icon])=><button key={id} onClick={()=>setTab(id)} className={tab===id?'active':''}><Icon size={17}/>{label}</button>)}</div>
     {tab==='resumo'&&<FarmExecutiveSummary farm={farm} visits={visits} checks={checks} diags={diags} equips={equips} evidencias={evidencias} canEdit={access.canEdit} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)} onAdjustService={()=>setServiceModal('adjust')} onNewVisit={openVisitModal} onOpenMap={()=>setTab('mapa')}/>}
-    {tab==='checklists'&&<ChecklistsFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='equipamentos'&&<EquipamentosFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={()=>setEquipModal({})}/>} {tab==='mapa'&&<MapaFazenda farm={farm} data={data} canEdit={access.canEdit} onEditEquip={openEquipmentFromMap}/>} {tab==='visitas'&&<VisitasFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={openVisitModal}/>} {tab==='evidencias'&&<EvidenciasFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='relatorio'&&<RelatorioFazenda farm={farm} data={data}/>} {tab==='acessos'&&<AcessosFazenda farm={farm} data={data} access={access}/>}
+    {tab==='checklists'&&<ChecklistsFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='equipamentos'&&<EquipamentosFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={()=>setEquipModal({})}/>} {tab==='mapa'&&<MapaFazenda farm={farm} data={data} canEdit={access.canEdit} onEditEquip={openEquipmentFromMap}/>} {tab==='visitas'&&<VisitasFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={openVisitModal}/>} {tab==='evidencias'&&<EvidenciasFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='relatorio'&&<RelatorioFazenda farm={farm} data={data}/>} {tab==='restrito'&&access.canEdit&&<DadosRestritosFazenda farm={farm} data={data}/>} {tab==='acessos'&&<AcessosFazenda farm={farm} data={data} access={access}/>}
     <FarmBottomNav farm={farm} tabs={tabs} tab={tab} setTab={setTab} onBack={onBack} access={access} serviceActive={serviceActive} serviceDone={serviceDone} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)} onNewVisit={openVisitModal}/>
     {edit&&access.canEdit&&<FazendaModal farm={farm} data={data} onClose={()=>setEdit(false)} onSave={async(r)=>{const result=await data.saveFazenda(r);if(result.ok)setEdit(false)}}/>}{serviceModal&&access.canEdit&&<ServiceModal farm={farm} data={data} mode={serviceModal} pendingEquips={equips.filter(isEquipmentPendingInstall)} onClose={()=>setServiceModal(null)} onSave={saveService}/>} {equipModal&&access.canEdit&&<EquipModal farm={farm} data={data} equip={equipModal} onClose={()=>setEquipModal(null)} onSave={async(r)=>{const result=await data.saveEquipamento(r);if(result.ok)setEquipModal(null)}}/>}{visitModal&&access.canEdit&&<VisitModal farm={farm} onClose={()=>setVisitModal(false)} onSave={saveVisitFromDetail}/>}
   </div>
 }
 function ServiceControl({farm,canEdit,onStart,onFinish,onEdit}){const active=Boolean(farm.servico_inicio_em&&!farm.servico_fim_em), done=Boolean(farm.servico_inicio_em&&farm.servico_fim_em); const status=farmStatus(farm); return <div className={`serviceControl ${active?'active':done?'done':''}`}><div className="serviceLead"><span className="eyebrow">Produtividade</span><h2><Clock size={20}/> Serviço da fazenda</h2></div><div className="serviceFacts"><div><span>Situação</span><b>{status}</b></div><div><span>Início</span><b>{brDateTime(farm.servico_inicio_em)}</b></div><div><span>Fim</span><b>{brDateTime(farm.servico_fim_em)}</b></div><div><span>Duração</span><b>{serviceDurationLabel(farm)}</b></div></div><div className="serviceActions">{canEdit&&!farm.servico_inicio_em&&<button className="btn primary" onClick={onStart}><PlayCircle size={17}/> Iniciar serviço</button>}{canEdit&&active&&<button className="btn primary" onClick={onFinish}><CheckCircle2 size={17}/> Finalizar serviço</button>}{canEdit&&<button className="btn light" onClick={onEdit}><Pencil size={17}/> Ajustar datas</button>}</div>{farm.servico_observacoes&&<p className="serviceNote">{farm.servico_observacoes}</p>}</div>}
+function DadosRestritosFazenda({farm,data}){
+  const existing=(data.dadosRestritos||[]).find(item=>item.fazenda_id===farm.id)||{};
+  const [showSecret,setShowSecret]=useState(false);
+  const [saving,setSaving]=useState(false);
+  const [form,setForm]=useState({
+    sistema:existing.sistema||'Nedap',
+    usuario_service:existing.usuario_service||'',
+    senha_service:existing.senha_service||'',
+    numero_licenca:existing.numero_licenca||'',
+    observacoes_restritas:existing.observacoes_restritas||''
+  });
+  useEffect(()=>setForm({sistema:existing.sistema||'Nedap',usuario_service:existing.usuario_service||'',senha_service:existing.senha_service||'',numero_licenca:existing.numero_licenca||'',observacoes_restritas:existing.observacoes_restritas||''}),[existing.id,farm.id]);
+  const set=(k,v)=>setForm(prev=>({...prev,[k]:v}));
+  const copyValue=async(label,value)=>{if(!value){notify(`${label} vazio.`, 'warning');return;}try{await navigator.clipboard.writeText(value);notify(`${label} copiado.`);}catch{notify('Não foi possível copiar automaticamente.','error');}};
+  const save=async(e)=>{e.preventDefault();setSaving(true);await data.saveDadosRestritos({...existing,...form,fazenda_id:farm.id});setSaving(false);};
+  return <section className="panel restrictedDataPanel">
+    <div className="restrictedHero">
+      <div className="restrictedHeroIcon"><ShieldCheck size={24}/></div>
+      <div><span className="eyebrow">Acesso restrito</span><h2>Dados internos</h2><p>Licenças, usuário de serviço e senhas ficam fora dos relatórios e ocultos para visualizadores.</p></div>
+    </div>
+    <form className="restrictedForm" onSubmit={save}>
+      <div className="grid2"><Field label="Sistema"><input value={form.sistema} onChange={e=>set('sistema',e.target.value)} placeholder="Nedap, CowControl, rede local..."/></Field><Field label="Número da licença"><div className="secretInput"><input value={form.numero_licenca} onChange={e=>set('numero_licenca',e.target.value)} placeholder="Chave ou licença"/><button type="button" onClick={()=>copyValue('Licença',form.numero_licenca)}><Copy size={16}/></button></div></Field></div>
+      <div className="grid2"><Field label="Usuário service"><div className="secretInput"><input value={form.usuario_service} onChange={e=>set('usuario_service',e.target.value)} placeholder="Usuário de serviço"/><button type="button" onClick={()=>copyValue('Usuário',form.usuario_service)}><Copy size={16}/></button></div></Field><Field label="Senha service"><div className="secretInput"><input type={showSecret?'text':'password'} value={form.senha_service} onChange={e=>set('senha_service',e.target.value)} placeholder="Senha"/><button type="button" onClick={()=>setShowSecret(v=>!v)}><Eye size={16}/></button><button type="button" onClick={()=>copyValue('Senha',form.senha_service)}><Copy size={16}/></button></div></Field></div>
+      <Field label="Observações restritas"><textarea value={form.observacoes_restritas} onChange={e=>set('observacoes_restritas',e.target.value)} placeholder="Configurações Nedap, acessos, IPs, contatos internos ou qualquer dado que não deve aparecer para visualizadores."/></Field>
+      <div className="restrictedActions"><button className="btn primary" disabled={saving}><Save size={18}/> {saving?'Salvando...':'Salvar dados restritos'}</button>{existing.updated_at&&<small>Última atualização: {brDateTime(existing.updated_at)}</small>}</div>
+    </form>
+  </section>
+}
 function AcessosFazenda({farm,data,access}){
   const [email,setEmail]=useState(''),[role,setRole]=useState('viewer'),[busy,setBusy]=useState(false);
   const members=data.fazendaMembros.filter(m=>m.fazenda_id===farm.id);
@@ -1182,18 +1286,18 @@ function AcessosFazenda({farm,data,access}){
 }
 function InfoCard({title,rows}){return <div className="infoCard"><h3>{title}</h3>{rows.map(([a,b])=><div className="infoRow" key={a}><span>{a}</span><b>{b||'-'}</b></div>)}</div>}
 function FarmExecutiveSummary({farm,visits,checks,diags,equips,evidencias=[],canEdit,onStart,onFinish,onEdit,onAdjustService,onNewVisit,onOpenMap}){
-  const predicted=num(farm.qtd_colares_prevista), installed=num(farm.qtd_colares_instalada);
-  const progress=predicted?Math.min(100,Math.round(installed/predicted*100)):0;
+  const predicted=num(farm.qtd_colares_prevista), installed=collarInstalled(farm), delivered=collarDelivered(farm), handled=collarHandled(farm);
+  const progress=collarProgress(farm);
   const status=farmStatus(farm), active=Boolean(farm.servico_inicio_em&&!farm.servico_fim_em), done=Boolean(farm.servico_inicio_em&&farm.servico_fim_em);
   const hasLocation=farm.latitude&&farm.longitude, mapped=equips.filter(e=>e.latitude&&e.longitude).length, pendingVisits=visits.filter(v=>v.pendencias).length;
-  const remaining=predicted?Math.max(predicted-installed,0):0;
+  const remaining=collarRemaining(farm);
   const cityUf=`${farm.cidade||''}${getFarmUF(farm)?` / ${getFarmUF(farm)}`:''}`.trim();
   const serviceState=done?'Encerrado':active?'Em andamento':'Não iniciada';
   const serviceHint=done?serviceDurationLabel(farm):active?`Início ${brDateTime(farm.servico_inicio_em)}`:'Aguardando início';
   const alerts=[
     !hasLocation&&['Fazenda sem GPS definido',MapPinned],
     equips.length>mapped&&[`${equips.length-mapped} equipamento(s) sem GPS`,Cpu],
-    remaining>0&&[`${remaining} colar(es) restantes`,Hash],
+    collarHasPending(farm)&&[`${remaining} colar(es) sem resolução`,Hash],
     pendingVisits>0&&[`${pendingVisits} visita(s) com pendência`,AlertTriangle]
   ].filter(Boolean);
   const fullDetails=[
@@ -1208,9 +1312,14 @@ function FarmExecutiveSummary({farm,visits,checks,diags,equips,evidencias=[],can
     farm.servico_inicio_em&&['Início do serviço',brDateTime(farm.servico_inicio_em),Clock],
     farm.servico_fim_em&&['Fim do serviço',brDateTime(farm.servico_fim_em),CheckCircle2],
     farm.servico_responsavel&&['Responsável técnico',farm.servico_responsavel,User],
-    farm.observacoes&&['Observações',farm.observacoes,Info]
+    delivered>0&&['Colares entregues ao cliente',delivered,BadgeCheck],
+    farm.motivo_colares_restantes&&['Motivo dos colares restantes',farm.motivo_colares_restantes,AlertTriangle],
+    farm.observacoes_colares&&['Observação dos colares',farm.observacoes_colares,Info],
+    canEdit&&farm.observacoes&&['Observações internas',farm.observacoes,Info],
+    canEdit&&farm.servico_observacoes&&['Observações do serviço',farm.servico_observacoes,Info]
   ].filter(Boolean);
   const serviceAction=!farm.servico_inicio_em?['Iniciar',PlayCircle,onStart]:active?['Finalizar',CheckCircle2,onFinish]:null;
+  const serviceAdjustButton=canEdit&&farm.servico_inicio_em?<button type="button" className="iconBtn serviceMiniAdjust" aria-label="Ajustar serviço" title="Ajustar serviço" onClick={onAdjustService}><Clock size={17}/></button>:null;
   return <section className="panel executiveSummaryPanel compactExecutiveSummary">
     <div className="execSummaryHead">
       <div><span className="eyebrow">Resumo</span><h2><Gauge size={22}/> Operação</h2></div>
@@ -1218,14 +1327,13 @@ function FarmExecutiveSummary({farm,visits,checks,diags,equips,evidencias=[],can
     </div>
     <div className={`serviceMiniBar ${done?'done':active?'active':''}`}>
       <div className="serviceMiniIcon">{done?<CheckCircle2 size={20}/>:active?<Clock size={20}/>:<PlayCircle size={20}/>}</div>
-      <div className="serviceMiniText"><span>Serviço</span><b>{serviceState}</b><small>{serviceHint}</small></div>
+      <div className="serviceMiniText"><span>Serviço</span><div className="serviceMiniTitleLine"><b>{serviceState}</b>{serviceAdjustButton}</div><small>{serviceHint}</small></div>
       <div className="serviceMiniActions">
         {canEdit&&serviceAction&&<button type="button" className="btn primary serviceMiniPrimary" onClick={serviceAction[2]}>{React.createElement(serviceAction[1],{size:17})}<span>{serviceAction[0]}</span></button>}
-        {canEdit&&farm.servico_inicio_em&&<button type="button" className="iconBtn serviceMiniAdjust" aria-label="Ajustar serviço" title="Ajustar serviço" onClick={onAdjustService}><Clock size={17}/></button>}
       </div>
     </div>
     <div className="execCards execCompactCards">
-      <article className="execCard execProgressCard"><div className="execCardIcon"><Hash size={19}/></div><span>Colares</span><b>{installed} / {predicted||'-'}</b><div className="execProgress"><i style={{width:`${progress}%`}}/></div><small>{progress}% concluído</small></article>
+      <article className="execCard execProgressCard"><div className="execCardIcon"><Hash size={19}/></div><span>Colares</span><b>{handled} / {predicted||'-'}</b><div className="execProgress"><i style={{width:`${progress}%`}}/></div><small>{delivered?`${installed} instalados • ${delivered} entregues`:`${progress}% concluído`}</small></article>
       <article className="execCard execMapCard"><div className="execCardIcon"><MapPinned size={19}/></div><span>Mapa</span><b>{mapped} / {equips.length}</b><small>equipamentos com GPS</small></article>
       <article className="execCard execTimeCard"><div className="execCardIcon"><Clock size={19}/></div><span>Tempo</span><b>{serviceDurationLabel(farm)}</b><small>{farm.servico_inicio_em?`Início ${brDateTime(farm.servico_inicio_em)}`:'sem início'}</small></article>
     </div>
@@ -1504,7 +1612,7 @@ function ReportPreview({farm,equips,visits,checks,mapped,evidencias=[]}){
   return <article className="printReport professionalReport reportPreview">
     <header className="reportHeader"><Logo/><div><span>RELATÓRIO TÉCNICO DE INSTALAÇÃO E CAMPO</span><small>Prévia conforme a fazenda selecionada</small></div></header>
     <section className="reportCover"><div><span className="reportTag">CONTROLTECH ASSIST</span><h1>{farm.nome}</h1><p>{farm.cidade||'Cidade não informada'} / {getFarmUF(farm)||'-'}</p></div><div className="reportStatus"><b>{displayStatus}</b><span>Situação da operação</span></div></section>
-    <div className="reportMetrics"><div><b>{num(farm.qtd_colares_prevista)}</b><span>Colares previstos</span></div><div><b>{num(farm.qtd_colares_instalada)}</b><span>Colares instalados</span></div><div><b>{equips.length}</b><span>Equipamentos</span></div><div><b>{visits.length}</b><span>Visitas registradas</span></div><div><b>{serviceDurationLabel(farm)}</b><span>Tempo de servico</span></div></div>
+    <div className="reportMetrics"><div><b>{num(farm.qtd_colares_prevista)}</b><span>Colares previstos</span></div><div><b>{collarInstalled(farm)}</b><span>Instalados</span></div><div><b>{collarDelivered(farm)}</b><span>Entregues</span></div><div><b>{equips.length}</b><span>Equipamentos</span></div><div><b>{serviceDurationLabel(farm)}</b><span>Tempo de servico</span></div></div>
     <section className="reportSection"><h2>Dados da fazenda</h2><div className="reportInfoGrid"><div><span>Central</span><b>{farm.central||'-'}</b></div><div><span>Regional</span><b>{farm.regional_nome||'-'}</b></div><div><span>Responsavel</span><b>{farm.responsavel||'-'}</b></div><div><span>Telefone</span><b>{farm.telefone||'-'}</b></div><div><span>Veterinario/Apoio</span><b>{farm.veterinario_apoio||'-'}</b></div><div><span>Endereco</span><b>{farm.endereco||'-'}</b></div><div><span>Inicio do servico</span><b>{brDateTime(farm.servico_inicio_em)}</b></div><div><span>Fim do servico</span><b>{brDateTime(farm.servico_fim_em)}</b></div><div><span>Responsavel tecnico</span><b>{farm.servico_responsavel||'-'}</b></div></div></section>
     {points.length>0&&<section className="reportSection"><h2>Mapa técnico</h2><div className="reportMap"><MapContainer center={center} zoom={17} className="bigMap" scrollWheelZoom={false}><HybridLayers layer="hibrido"/><FitBounds points={points} trigger={points.length}/>{farmPoint&&<Marker position={farmPoint} icon={farmMarkerIcon(farm)}/>} {mapped.map(e=><Marker key={e.id} position={[Number(e.latitude),Number(e.longitude)]} icon={equipmentMarkerIcon(e)}/>)}</MapContainer></div></section>}
     <section className="reportSection"><h2>Equipamentos e coordenadas</h2>{equips.length?<div className="reportEquipmentList">{equips.slice(0,8).map((e,i)=><article key={e.id}><div className="reportEquipIndex">{i+1}</div><div><h3>{e.apelido||e.local_nome||e.tipo}</h3><p>{e.tipo} - {equipmentStatusLabel(e)}</p><dl><div><dt>Local</dt><dd>{e.local_nome||'-'}</dd></div><div><dt>Coordenadas</dt><dd>{e.latitude&&e.longitude?`${Number(e.latitude).toFixed(6)}, ${Number(e.longitude).toFixed(6)}`:'-'}</dd></div><div><dt>Raio</dt><dd>{e.tipo?.includes('4102')?`${Number(e.raio_metros)||75} m`:'-'}</dd></div></dl></div></article>)}</div>:<p className="sourceText">Nenhum equipamento registrado nesta fazenda.</p>}</section>
@@ -1558,6 +1666,9 @@ function RelatorioFazenda({farm,data}){
       ['Responsavel produtividade',farm.servico_responsavel||''],
       ['Colares previstos',farm.qtd_colares_prevista||0],
       ['Colares instalados',farm.qtd_colares_instalada||0],
+      ['Colares entregues ao cliente',farm.qtd_colares_entregue_cliente||0],
+      ['Colares restantes reais',collarRemaining(farm)],
+      ['Motivo dos restantes',farm.motivo_colares_restantes||''],
       ['Evidências',reportEvidencias.length],
       [],
       ['EQUIPAMENTOS'],
@@ -1623,9 +1734,9 @@ function RelatorioFazenda({farm,data}){
     const checkRows=checks.map(c=>`<tr><td>${safe(brDate(c.created_at))}</td><td>${safe(c.titulo)}</td><td>${safe(c.status)}</td><td>${safe(c.observacoes||'-')}</td></tr>`).join('');
     const evidenceRows=reportEvidencias.filter(e=>evidenceSrc(e)).slice(0,8).map(e=>`<figure style="margin:0;border:1px solid #dbe4ef;border-radius:12px;overflow:hidden;background:#f8fafc;break-inside:avoid"><img src="${safe(evidenceSrc(e))}" alt="${safe(e.descricao||e.categoria)}" style="width:100%;height:120px;object-fit:cover;display:block"><figcaption style="padding:7px 8px"><b style="display:block">${safe(e.categoria)}</b><span style="display:block;color:#64748b;font-size:9px;line-height:1.35">${safe(e.descricao||evidenceLinkedText(e,equips,visits))}</span></figcaption></figure>`).join('');
     const evidenceSectionHtml=evidenceRows?`<section><h2>Registro fotográfico da instalação</h2><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:7px">${evidenceRows}</div></section>`:'';
-    const predicted=num(farm.qtd_colares_prevista),installed=num(farm.qtd_colares_instalada),progress=predicted?Math.min(100,Math.round((installed/predicted)*100)):0;
+    const predicted=num(farm.qtd_colares_prevista),installed=collarInstalled(farm),delivered=collarDelivered(farm),handled=collarHandled(farm),progress=collarProgress(farm);
     const mappedCount=mapped.length,missingCoords=equips.filter(e=>!e.latitude||!e.longitude).length,pendingVisits=reportVisits.filter(v=>v.pendencias).length;
-    const executiveHtml=`<section class="section executive"><h2>Resumo executivo</h2><p>${safe(farm.observacoes||`Relatório ${reportScopeLabel.toLowerCase()} da fazenda ${farm.nome}. Status ${displayStatus}, ${installed} de ${predicted} colares instalados, ${equips.length} equipamento(s) cadastrado(s), ${mappedCount} com coordenadas e ${reportVisits.length} visita(s) no escopo.`)}</p><div class="execGrid"><div><span>Escopo</span><b>${safe(reportScopeLabel)}</b></div><div><span>Progresso de colares</span><b>${predicted?`${progress}%`:'-'}</b></div><div><span>Equipamentos mapeados</span><b>${mappedCount}/${equips.length}</b></div><div><span>Pendências em visitas</span><b>${opts.pend?pendingVisits:'-'}</b></div></div></section>`;
+    const executiveHtml=`<section class="section executive"><h2>Resumo executivo</h2><p>${safe(`Relatório ${reportScopeLabel.toLowerCase()} da fazenda ${farm.nome}. Status ${displayStatus}, ${installed} colares instalados, ${delivered} entregues ao cliente/reserva, ${handled} de ${predicted} colares atendidos, ${equips.length} equipamento(s) cadastrado(s), ${mappedCount} com coordenadas e ${reportVisits.length} visita(s) no escopo.`)}</p><div class="execGrid"><div><span>Escopo</span><b>${safe(reportScopeLabel)}</b></div><div><span>Progresso atendido</span><b>${predicted?`${progress}%`:'-'}</b></div><div><span>Equipamentos mapeados</span><b>${mappedCount}/${equips.length}</b></div><div><span>Pendências em visitas</span><b>${opts.pend?pendingVisits:'-'}</b></div></div></section>`;
     const attentionItems=[
       missingCoords?`${missingCoords} equipamento(s) sem coordenadas no mapa técnico.`:'',
       !farm.servico_inicio_em||!farm.servico_fim_em?'Início ou fim do serviço ainda não informado para produtividade.':'',
@@ -1635,12 +1746,12 @@ function RelatorioFazenda({farm,data}){
     const attentionHtml=attentionItems.length?`<section class="section attention"><h2>Pontos de atenção</h2><ul>${attentionItems.map(item=>`<li>${safe(item)}</li>`).join('')}</ul></section>`:'';
     const printPolish=`<style>@media screen{html{background:#475569}body{width:210mm;min-height:297mm;margin:18px auto!important;padding:13mm!important;background:#fff!important;box-shadow:0 24px 80px rgba(15,23,42,.35)}}@media print{html,body{width:auto!important;min-height:0!important;margin:0!important;padding:0!important;box-shadow:none!important;background:#fff!important}}body{counter-reset:sec;color:#0b1220;font-size:10.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.top{align-items:center;padding-bottom:9px;margin-bottom:10px}.brand img{width:32px;height:32px}.brand b{font-size:17px}.doccode{font-size:9.5px}.cover{display:grid;grid-template-columns:1fr auto;align-items:end;min-height:88px;margin:8px 0 10px;padding:13px 16px}.cover h1{font-size:23px;line-height:1.05;margin:6px 0 4px}.cover p{margin:0}.status{font-weight:800}.grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:8px 0}.box{min-height:42px;background:#fff;border-color:#cbd5e1;padding:6px 7px}.box b{font-size:9.4px}.box span{font-size:9.8px}.metrics{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:8px 0 10px}.metric{padding:7px 5px;background:#f0fdf4;border-color:#86efac}.metric b{font-size:18px;line-height:1.05}h2{font-size:13.5px;margin:11px 0 6px;color:#0f172a;display:flex;align-items:center;gap:7px}h2:before{counter-increment:sec;content:counter(sec);width:18px;height:18px;border-radius:6px;background:#dcfce7;color:#15803d;display:inline-grid;place-items:center;font-size:10px;font-weight:900}.section{margin-top:8px;break-inside:auto}.executive{background:#f8fafc;border:1px solid #dbe4ef;border-radius:12px;padding:9px 11px}.executive p{margin:3px 0 0;color:#334155}.execGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-top:7px}.execGrid div{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:6px}.execGrid span{display:block;color:#64748b;font-size:8.5px;font-weight:800;text-transform:uppercase}.execGrid b{display:block;margin-top:2px;font-size:12px}.attention{border:1px solid #fed7aa;background:#fff7ed;border-radius:12px;padding:8px 11px}.attention ul{margin:4px 0 0;padding-left:17px}.attention li{margin:2px 0}.mapBox{height:198px;margin-top:5px}.mapBox img{object-fit:fill!important}.mapKey{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}.mapKey div{padding:5px}.mapKey small{font-size:8px}table{font-size:9.2px}thead{display:table-header-group}th{font-size:9px;letter-spacing:.02em}th,td{padding:4px 5px}td small{font-size:8.4px}.visit article{padding:6px 8px;margin:5px 0}.signature{margin-top:26px}.footer{margin-top:12px}.cover,.grid,.metrics,.executive,.mapBox,.mapKey,.signature{break-inside:avoid}@media print{.mapBox{height:190px}.section{break-inside:auto}.mapSection{break-inside:auto}.footer{position:static}}</style>`;
     const technicalMapCss=`<style>.technicalMapPrint{isolation:isolate}.technicalMapPrint:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,23,42,.02),rgba(15,23,42,.10));pointer-events:none}.mapTechPin{--pin:#f59e0b;position:absolute;transform:translate(-50%,-92%);z-index:3;display:flex;flex-direction:column;align-items:center;gap:2px;filter:drop-shadow(0 3px 8px rgba(0,0,0,.42))}.mapTechPin i{position:relative;width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:var(--pin);color:#fff;border:2px solid #fff;font-size:14px;font-style:normal;font-weight:900;line-height:1}.mapTechPin i:after{content:"";position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid var(--pin)}.mapTechPin em{max-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(255,255,255,.95);border:1px solid #dbe4ef;border-radius:8px;padding:2px 6px;color:#0f172a;font-size:7.5px;font-style:normal;font-weight:900}.mapTechPin.farm{--pin:#e11d48}.mapTechPin.antenna{--pin:#16a34a}.mapTechPin.processor{--pin:#2563eb}.mapTechPin.other{--pin:#f59e0b}.mapStats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:6px}.mapStats span{border:1px solid #dbe4ef;background:#f8fafc;border-radius:9px;padding:5px 7px;color:#475569;font-size:8.5px}.mapStats b{display:block;color:#0f172a;font-size:11px}.mapKey{margin-top:6px}.mapKey b.farm{background:#e11d48}.mapKey b.antenna{background:#16a34a}.mapKey b.processor{background:#2563eb}.mapKey b.other{background:#f59e0b}@media print{.mapTechPin i{width:24px;height:24px;font-size:12px}.mapTechPin em{font-size:7px}.mapStats{break-inside:avoid}}</style>`;
-    const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório técnico - ${safe(farm.nome)}</title><style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;color:#0f172a;margin:0;background:#fff;font-size:11.5px;line-height:1.35}.top{display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid #0f172a;padding-bottom:12px;break-inside:avoid}.brand{display:flex;align-items:center;gap:10px}.brand img{width:40px;height:40px}.brand b{font-size:20px}.brand span{display:block;color:#16a34a;font-weight:800}.doccode{text-align:right;color:#64748b}.cover{margin:14px 0;padding:18px;border-radius:16px;background:linear-gradient(135deg,#0f172a,#14532d);color:#fff;break-inside:avoid}.cover small{letter-spacing:.15em;color:#86efac;font-weight:800}.cover h1{font-size:28px;margin:6px 0 3px}.status{display:inline-block;margin-top:8px;padding:6px 10px;border:1px solid #ffffff44;border-radius:999px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:12px 0}.box{border:1px solid #dbe4ef;border-radius:10px;padding:8px;background:#f8fafc}.box b,.box span{display:block}.box span{color:#475569;margin-top:2px}.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;break-inside:avoid}.metric{border:1px solid #bbf7d0;background:#f0fdf4;border-radius:10px;padding:10px;text-align:center}.metric b{font-size:21px;color:#15803d;display:block}h2{font-size:16px;margin:18px 0 7px;border-bottom:1px solid #dbe4ef;padding-bottom:5px}.section{break-inside:auto}.mapBox{position:relative;height:260px;border:1px solid #dbe4ef;border-radius:14px;overflow:hidden;background:#eef2f7;break-inside:avoid}.mapBox img{width:100%;height:100%;object-fit:fill;display:block}.mapPin{position:absolute;transform:translate(-50%,-50%);width:24px;height:24px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:900;border:2px solid #fff;box-shadow:0 3px 10px #0008;font-size:11px}.mapPin.farm{background:#e11d48}.mapPin.antenna{background:#16a34a}.mapPin.processor{background:#2563eb}.mapPin.other{background:#f59e0b}.mapKey{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:8px;break-inside:avoid}.mapKey div{border:1px solid #dbe4ef;border-radius:10px;padding:7px;display:grid;grid-template-columns:26px 1fr;column-gap:7px}.mapKey b{grid-row:1/3;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff}.mapKey b.farm{background:#e11d48}.mapKey b.antenna{background:#16a34a}.mapKey b.processor{background:#2563eb}.mapKey b.other{background:#f59e0b}.mapKey span{font-weight:800}.mapKey small{color:#64748b}table{width:100%;border-collapse:collapse;margin-top:7px;page-break-inside:auto}tr{break-inside:avoid;page-break-inside:avoid}th{background:#0f172a;color:#fff;text-align:left}th,td{padding:6px;border:1px solid #dbe4ef;vertical-align:top;font-size:10.5px}td small{display:block;color:#64748b;margin-top:2px}.visit article{border-left:4px solid #16a34a;background:#f8fafc;padding:8px 10px;margin:7px 0;break-inside:avoid}.visit h3{margin:0 0 3px}.visit p{margin:3px 0}.warn{background:#fffbeb;border-left:3px solid #f59e0b;padding:5px}.signature{display:grid;grid-template-columns:1fr 1fr;gap:46px;margin-top:42px;break-inside:avoid}.signature div{border-top:1px solid #334155;text-align:center;padding-top:7px;color:#64748b}.footer{margin-top:20px;border-top:1px solid #dbe4ef;padding-top:6px;color:#64748b;display:flex;justify-content:space-between;font-size:10px;break-inside:avoid}@media print{.noPrint{display:none}}</style></head><body><header class="top"><div class="brand"><img src="/logo-symbol.svg" alt=""><div><b>ControlTech</b><span>Assist</span></div></div><div class="doccode"><b>RELATÓRIO TÉCNICO</b><br>Emissão: ${safe(new Date().toLocaleString('pt-BR'))}<br>Versão ${APP_VERSION}</div></header><section class="cover"><small>INSTALAÇÃO E CAMPO</small><h1>${safe(farm.nome)}</h1><p>${safe(farm.cidade||'Cidade não informada')} / ${safe(getFarmUF(farm)||'-')}</p><span class="status">${safe(displayStatus)}</span></section><section class="grid"><div class="box"><b>Central</b><span>${safe(farm.central)}</span></div><div class="box"><b>Regional</b><span>${safe(farm.regional_nome)}</span></div><div class="box"><b>Veterinário/Apoio</b><span>${safe(farm.veterinario_apoio)}</span></div><div class="box"><b>Responsável</b><span>${safe(farm.responsavel)}</span></div><div class="box"><b>Telefone</b><span>${safe(farm.telefone)}</span></div><div class="box"><b>Endereço</b><span>${safe(farm.endereco)}</span></div><div class="box"><b>Inicio do servico</b><span>${safe(brDateTime(farm.servico_inicio_em))}</span></div><div class="box"><b>Fim do servico</b><span>${safe(brDateTime(farm.servico_fim_em))}</span></div><div class="box"><b>Responsavel tecnico</b><span>${safe(farm.servico_responsavel)}</span></div></section><section class="metrics"><div class="metric"><b>${num(farm.qtd_colares_prevista)}</b>Colares previstos</div><div class="metric"><b>${num(farm.qtd_colares_instalada)}</b>Colares instalados</div><div class="metric"><b>${equips.length}</b>Equipamentos</div><div class="metric"><b>${reportVisits.length}</b>Visitas</div><div class="metric"><b>${safe(serviceDurationLabel(farm))}</b>Duracao</div></section><section class="section"><h2>Resumo executivo</h2><p>${safe(farm.observacoes||'Instalação registrada no ControlTech Assist. Consulte os quadros abaixo para equipamentos, coordenadas, visitas e pendências.')}</p></section>${points.length?`<section class="section"><h2>Mapa técnico da instalação</h2><div class="mapBox"><img src="${mapImg}" alt="Mapa técnico">${markerHtml}</div><div class="mapKey">${mapKey}</div></section>`:''}${opts.equip?`<section><h2>Equipamentos e coordenadas</h2><table><thead><tr><th>#</th><th>Equipamento</th><th>Local</th><th>Coordenadas</th><th>Raio</th></tr></thead><tbody>${equipmentRows||'<tr><td colspan="5">Nenhum equipamento registrado.</td></tr>'}</tbody></table></section>`:''}${opts.visits?`<section><h2>Histórico de visitas</h2><div class="visit">${visitRows||'<p>Nenhuma visita registrada.</p>'}</div></section>`:''}${opts.evidencias?evidenceSectionHtml:''}${opts.checks?`<section><h2>Checklists</h2><table><thead><tr><th>Data</th><th>Checklist</th><th>Status</th><th>Observações</th></tr></thead><tbody>${checkRows||'<tr><td colspan="4">Nenhum checklist registrado.</td></tr>'}</tbody></table></section>`:''}<section class="signature"><div>Responsável técnico</div><div>Coordenação / Cliente</div></section><footer class="footer"><span>ControlTech Assist - Documento técnico de campo</span><span>${safe(farm.nome)}</span></footer><script>window.onload=()=>setTimeout(()=>window.print(),350)</script></body></html>`;
+    const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório técnico - ${safe(farm.nome)}</title><style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;color:#0f172a;margin:0;background:#fff;font-size:11.5px;line-height:1.35}.top{display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid #0f172a;padding-bottom:12px;break-inside:avoid}.brand{display:flex;align-items:center;gap:10px}.brand img{width:40px;height:40px}.brand b{font-size:20px}.brand span{display:block;color:#16a34a;font-weight:800}.doccode{text-align:right;color:#64748b}.cover{margin:14px 0;padding:18px;border-radius:16px;background:linear-gradient(135deg,#0f172a,#14532d);color:#fff;break-inside:avoid}.cover small{letter-spacing:.15em;color:#86efac;font-weight:800}.cover h1{font-size:28px;margin:6px 0 3px}.status{display:inline-block;margin-top:8px;padding:6px 10px;border:1px solid #ffffff44;border-radius:999px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:12px 0}.box{border:1px solid #dbe4ef;border-radius:10px;padding:8px;background:#f8fafc}.box b,.box span{display:block}.box span{color:#475569;margin-top:2px}.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;break-inside:avoid}.metric{border:1px solid #bbf7d0;background:#f0fdf4;border-radius:10px;padding:10px;text-align:center}.metric b{font-size:21px;color:#15803d;display:block}h2{font-size:16px;margin:18px 0 7px;border-bottom:1px solid #dbe4ef;padding-bottom:5px}.section{break-inside:auto}.mapBox{position:relative;height:260px;border:1px solid #dbe4ef;border-radius:14px;overflow:hidden;background:#eef2f7;break-inside:avoid}.mapBox img{width:100%;height:100%;object-fit:fill;display:block}.mapPin{position:absolute;transform:translate(-50%,-50%);width:24px;height:24px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:900;border:2px solid #fff;box-shadow:0 3px 10px #0008;font-size:11px}.mapPin.farm{background:#e11d48}.mapPin.antenna{background:#16a34a}.mapPin.processor{background:#2563eb}.mapPin.other{background:#f59e0b}.mapKey{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:8px;break-inside:avoid}.mapKey div{border:1px solid #dbe4ef;border-radius:10px;padding:7px;display:grid;grid-template-columns:26px 1fr;column-gap:7px}.mapKey b{grid-row:1/3;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff}.mapKey b.farm{background:#e11d48}.mapKey b.antenna{background:#16a34a}.mapKey b.processor{background:#2563eb}.mapKey b.other{background:#f59e0b}.mapKey span{font-weight:800}.mapKey small{color:#64748b}table{width:100%;border-collapse:collapse;margin-top:7px;page-break-inside:auto}tr{break-inside:avoid;page-break-inside:avoid}th{background:#0f172a;color:#fff;text-align:left}th,td{padding:6px;border:1px solid #dbe4ef;vertical-align:top;font-size:10.5px}td small{display:block;color:#64748b;margin-top:2px}.visit article{border-left:4px solid #16a34a;background:#f8fafc;padding:8px 10px;margin:7px 0;break-inside:avoid}.visit h3{margin:0 0 3px}.visit p{margin:3px 0}.warn{background:#fffbeb;border-left:3px solid #f59e0b;padding:5px}.signature{display:grid;grid-template-columns:1fr 1fr;gap:46px;margin-top:42px;break-inside:avoid}.signature div{border-top:1px solid #334155;text-align:center;padding-top:7px;color:#64748b}.footer{margin-top:20px;border-top:1px solid #dbe4ef;padding-top:6px;color:#64748b;display:flex;justify-content:space-between;font-size:10px;break-inside:avoid}@media print{.noPrint{display:none}}</style></head><body><header class="top"><div class="brand"><img src="/logo-symbol.svg" alt=""><div><b>ControlTech</b><span>Assist</span></div></div><div class="doccode"><b>RELATÓRIO TÉCNICO</b><br>Emissão: ${safe(new Date().toLocaleString('pt-BR'))}<br>Versão ${APP_VERSION}</div></header><section class="cover"><small>INSTALAÇÃO E CAMPO</small><h1>${safe(farm.nome)}</h1><p>${safe(farm.cidade||'Cidade não informada')} / ${safe(getFarmUF(farm)||'-')}</p><span class="status">${safe(displayStatus)}</span></section><section class="grid"><div class="box"><b>Central</b><span>${safe(farm.central)}</span></div><div class="box"><b>Regional</b><span>${safe(farm.regional_nome)}</span></div><div class="box"><b>Veterinário/Apoio</b><span>${safe(farm.veterinario_apoio)}</span></div><div class="box"><b>Responsável</b><span>${safe(farm.responsavel)}</span></div><div class="box"><b>Telefone</b><span>${safe(farm.telefone)}</span></div><div class="box"><b>Endereço</b><span>${safe(farm.endereco)}</span></div><div class="box"><b>Inicio do servico</b><span>${safe(brDateTime(farm.servico_inicio_em))}</span></div><div class="box"><b>Fim do servico</b><span>${safe(brDateTime(farm.servico_fim_em))}</span></div><div class="box"><b>Responsavel tecnico</b><span>${safe(farm.servico_responsavel)}</span></div></section><section class="metrics"><div class="metric"><b>${predicted}</b>Colares previstos</div><div class="metric"><b>${installed}</b>Instalados</div><div class="metric"><b>${delivered}</b>Entregues</div><div class="metric"><b>${equips.length}</b>Equipamentos</div><div class="metric"><b>${safe(serviceDurationLabel(farm))}</b>Duracao</div></section><section class="section"><h2>Resumo executivo</h2><p>${safe('Instalação registrada no ControlTech Assist. Dados restritos e credenciais não entram neste documento.')}</p></section>${points.length?`<section class="section"><h2>Mapa técnico da instalação</h2><div class="mapBox"><img src="${mapImg}" alt="Mapa técnico">${markerHtml}</div><div class="mapKey">${mapKey}</div></section>`:''}${opts.equip?`<section><h2>Equipamentos e coordenadas</h2><table><thead><tr><th>#</th><th>Equipamento</th><th>Local</th><th>Coordenadas</th><th>Raio</th></tr></thead><tbody>${equipmentRows||'<tr><td colspan="5">Nenhum equipamento registrado.</td></tr>'}</tbody></table></section>`:''}${opts.visits?`<section><h2>Histórico de visitas</h2><div class="visit">${visitRows||'<p>Nenhuma visita registrada.</p>'}</div></section>`:''}${opts.evidencias?evidenceSectionHtml:''}${opts.checks?`<section><h2>Checklists</h2><table><thead><tr><th>Data</th><th>Checklist</th><th>Status</th><th>Observações</th></tr></thead><tbody>${checkRows||'<tr><td colspan="4">Nenhum checklist registrado.</td></tr>'}</tbody></table></section>`:''}<section class="signature"><div>Responsável técnico</div><div>Coordenação / Cliente</div></section><footer class="footer"><span>ControlTech Assist - Documento técnico de campo</span><span>${safe(farm.nome)}</span></footer><script>window.onload=()=>setTimeout(()=>window.print(),350)</script></body></html>`;
     const polishedHtml=html.replace('</head>',`${printPolish}${technicalMapCss}</head>`).replace(/<section class="section"><h2>Resumo executivo<\/h2><p>[\s\S]*?<\/p><\/section>/,`${executiveHtml}${attentionHtml}`).replace(/<section class="section"><h2>Mapa técnico da instalação<\/h2>[\s\S]*?<\/section>/,technicalMapHtml).replaceAll('Inicio do servico','Início do serviço').replaceAll('Fim do servico','Fim do serviço').replaceAll('Responsavel tecnico','Responsável técnico').replaceAll('Duracao','Duração');
     const win=window.open('','_blank');if(!win){notify('Permita pop-ups para gerar o relatório.','error');return;}win.document.write(polishedHtml);win.document.close();
   };
   const share=async()=>{
-    const text=`RELATÓRIO TÉCNICO — ${farm.nome}\nEscopo: ${reportScopeLabel}\n${farm.cidade||''} / ${getFarmUF(farm)}\nCentral: ${farm.central||'-'}\nRegional: ${farm.regional_nome||'-'}\nStatus: ${displayStatus}\nServico: ${brDateTime(farm.servico_inicio_em)} ate ${brDateTime(farm.servico_fim_em)} (${serviceDurationLabel(farm)})\nColares: ${num(farm.qtd_colares_instalada)} / ${num(farm.qtd_colares_prevista)}\nEquipamentos: ${equips.length}\nEvidências: ${reportEvidencias.length}\nPendências: ${pendingCount}`;
+    const text=`RELATÓRIO TÉCNICO — ${farm.nome}\nEscopo: ${reportScopeLabel}\n${farm.cidade||''} / ${getFarmUF(farm)}\nCentral: ${farm.central||'-'}\nRegional: ${farm.regional_nome||'-'}\nStatus: ${displayStatus}\nServico: ${brDateTime(farm.servico_inicio_em)} ate ${brDateTime(farm.servico_fim_em)} (${serviceDurationLabel(farm)})\nColares: ${collarBreakdown(farm)}\nEquipamentos: ${equips.length}\nEvidências: ${reportEvidencias.length}\nPendências: ${pendingCount}`;
     try{if(navigator.share)await navigator.share({title:`Relatório técnico - ${farm.nome}`,text});else{await navigator.clipboard.writeText(text);notify('Resumo copiado para compartilhar.')}}catch{}
   };
   const optionControls=<div className="reportOptions compact">{reportOptions.map(([k,l,Icon,count])=><label className={`reportOption ${opts[k]?'active':''}`} key={k}><input type="checkbox" checked={opts[k]} onChange={()=>toggle(k)}/><span><Icon size={17}/><b>{l}</b><small>{count}</small></span></label>)}</div>;
@@ -1784,51 +1895,56 @@ function Relatorios({data}){
   const completed=farms.filter(f=>farmStatus(f)===FARM_STATUS_DONE||f.servico_fim_em);
   const completedInPeriod=serviceFarms.filter(f=>farmStatus(f)===FARM_STATUS_DONE||f.servico_fim_em);
   const inProgress=farms.filter(f=>f.servico_inicio_em&&!f.servico_fim_em);
+  const notStarted=farms.filter(f=>farmStatus(f)==='Não iniciada'&&!f.servico_inicio_em&&!f.servico_fim_em);
+  const operationalFarmIds=new Set(farms.filter(f=>!notStarted.some(n=>n.id===f.id)).map(f=>f.id));
   const pendingVisits=visitsInPeriod.filter(v=>v.pendencias);
   const missingGps=equips.filter(e=>!e.latitude||!e.longitude);
-  const noServiceDates=farms.filter(f=>!f.servico_inicio_em||!f.servico_fim_em);
-  const pendingFarms=farms.filter(f=>farmHasPending(f,data)||equips.some(e=>e.fazenda_id===f.id&&(!e.latitude||!e.longitude))||(!f.servico_inicio_em||!f.servico_fim_em));
-  const installed=farms.reduce((a,f)=>a+num(f.qtd_colares_instalada),0),planned=farms.reduce((a,f)=>a+num(f.qtd_colares_prevista),0);
-  const installedInPeriod=serviceFarms.reduce((a,f)=>a+num(f.qtd_colares_instalada),0);
-  const progress=planned?Math.round((installed/planned)*100):0;
+  const missingGpsOperational=missingGps.filter(e=>operationalFarmIds.has(e.fazenda_id));
+  const incompleteServiceDates=farms.filter(f=>(farmStatus(f)===FARM_STATUS_DONE||f.servico_fim_em)&&(!f.servico_inicio_em||!f.servico_fim_em));
+  const collarPendingFarms=farms.filter(collarHasPending);
+  const pendingFarms=farms.filter(f=>operationalFarmIds.has(f.id)&&(farmHasPending(f,data)||missingGpsOperational.some(e=>e.fazenda_id===f.id)||incompleteServiceDates.some(item=>item.id===f.id)));
+  const installed=farms.reduce((a,f)=>a+collarInstalled(f),0),delivered=farms.reduce((a,f)=>a+collarDelivered(f),0),handled=farms.reduce((a,f)=>a+collarHandled(f),0),planned=farms.reduce((a,f)=>a+num(f.qtd_colares_prevista),0);
+  const installedInPeriod=serviceFarms.reduce((a,f)=>a+collarInstalled(f),0);
+  const progress=planned?Math.round((handled/planned)*100):0;
   const totalUsefulHours=completedInPeriod.reduce((a,f)=>a+businessHoursBetween(f.servico_inicio_em,f.servico_fim_em,DEFAULT_WORKDAY),0);
   const reportTypes={geral:'Relatório geral',mensal:'Instalações mensais',produtividade:'Produtividade de campo',pendencias:'Pendências operacionais',central:'Resumo por central'};
-  const centralRows=CENTRAIS.map(c=>{const list=farms.filter(f=>c==='Outra / Não informado'?(!f.central||!CENTRAIS.slice(0,2).includes(f.central)):f.central===c);return {label:c,count:list.length,done:list.filter(f=>farmStatus(f)===FARM_STATUS_DONE||f.servico_fim_em).length,collars:list.reduce((a,f)=>a+num(f.qtd_colares_instalada),0)}}).filter(r=>r.count||central==='Todas');
+  const centralRows=CENTRAIS.map(c=>{const list=farms.filter(f=>c==='Outra / Não informado'?(!f.central||!CENTRAIS.slice(0,2).includes(f.central)):f.central===c);return {label:c,count:list.length,done:list.filter(f=>farmStatus(f)===FARM_STATUS_DONE||f.servico_fim_em).length,collars:list.reduce((a,f)=>a+collarInstalled(f),0),handled:list.reduce((a,f)=>a+collarHandled(f),0)}}).filter(r=>r.count||central==='Todas');
   const ownerMap={};completedInPeriod.forEach(f=>{const key=f.servico_responsavel||f.regional_nome||f.responsavel||'Não informado';ownerMap[key]=ownerMap[key]||{label:key,count:0,collars:0,hours:0};ownerMap[key].count+=1;ownerMap[key].collars+=num(f.qtd_colares_instalada);ownerMap[key].hours+=businessHoursBetween(f.servico_inicio_em,f.servico_fim_em,DEFAULT_WORKDAY);});
   const ownerRows=Object.values(ownerMap).sort((a,b)=>b.count-a.count).slice(0,5);
   const groupByMonth=(!range.start&&!range.end)||((range.end-range.start)/86400000)>45;
   const installGroups={};completedInPeriod.forEach(f=>{const d=parseDate(f.servico_fim_em||f.servico_inicio_em);if(!d)return;const key=groupByMonth?`${pad(d.getMonth()+1)}/${String(d.getFullYear()).slice(2)}`:d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});installGroups[key]=(installGroups[key]||0)+1;});
   const installRows=Object.entries(installGroups).map(([label,value])=>({label,value})).slice(-12);
   const actionItems=[
-    missingGps.length&&`${missingGps.length} equipamento(s) sem GPS`,
+    missingGpsOperational.length&&`${missingGpsOperational.length} equipamento(s) sem GPS em fazendas iniciadas`,
     pendingVisits.length&&`${pendingVisits.length} visita(s) com pendência no período`,
-    noServiceDates.length&&`${noServiceDates.length} fazenda(s) sem datas completas de serviço`,
+    collarPendingFarms.length&&`${collarPendingFarms.length} fazenda(s) com colares sem resolução`,
+    incompleteServiceDates.length&&`${incompleteServiceDates.length} fazenda(s) concluída(s) sem datas completas de serviço`,
     inProgress.length&&`${inProgress.length} serviço(s) em andamento`
   ].filter(Boolean);
-  const exportData=()=>{const rows=[['Relatório',reportTypes[reportType]],['Período',range.label],['Central',central],['Status',status],[],['Indicador','Valor'],['Fazendas cadastradas no filtro',farms.length],['Fazendas com movimento no período',activeFarms.length],['Serviços no período',serviceFarms.length],['Concluídas total',completed.length],['Colares instalados total',installed],['Colares instalados no período',installedInPeriod],['Colares previstos total',planned],['Visitas no período',visitsInPeriod.length],['Equipamentos',equips.length],['Equipamentos sem GPS',missingGps.length],[],['Fazenda','Central','Cidade','Status','Inicio','Fim','Duração','Colares instalados','Colares previstos','Equipamentos','Visitas no período','Pendências no período'],...farms.map(f=>{const farmEquips=equips.filter(e=>e.fazenda_id===f.id),farmVisits=visitsInPeriod.filter(v=>v.fazenda_id===f.id);return [f.nome,f.central,f.cidade,farmStatus(f),brDateTime(f.servico_inicio_em),brDateTime(f.servico_fim_em),serviceDurationLabel(f),f.qtd_colares_instalada,f.qtd_colares_prevista,farmEquips.length,farmVisits.length,farmVisits.filter(v=>v.pendencias).length]})];download('relatorio-gerencial.tsv',rows.map(r=>r.join(String.fromCharCode(9))).join(String.fromCharCode(10)));notify('Relatório gerencial exportado.');};
+  const exportData=()=>{const rows=[['Relatório',reportTypes[reportType]],['Período',range.label],['Central',central],['Status',status],[],['Indicador','Valor'],['Fazendas cadastradas no filtro',farms.length],['Fazendas não iniciadas',notStarted.length],['Fazendas com movimento no período',activeFarms.length],['Serviços no período',serviceFarms.length],['Concluídas total',completed.length],['Colares instalados total',installed],['Colares entregues total',delivered],['Colares atendidos total',handled],['Colares instalados no período',installedInPeriod],['Colares previstos total',planned],['Visitas no período',visitsInPeriod.length],['Equipamentos',equips.length],['Equipamentos sem GPS',missingGps.length],[],['Fazenda','Central','Cidade','Status','Inicio','Fim','Duração','Colares instalados','Colares entregues','Colares atendidos','Colares previstos','Restantes reais','Motivo restantes','Equipamentos','Visitas no período','Pendências no período'],...farms.map(f=>{const farmEquips=equips.filter(e=>e.fazenda_id===f.id),farmVisits=visitsInPeriod.filter(v=>v.fazenda_id===f.id);return [f.nome,f.central,f.cidade,farmStatus(f),brDateTime(f.servico_inicio_em),brDateTime(f.servico_fim_em),serviceDurationLabel(f),collarInstalled(f),collarDelivered(f),collarHandled(f),f.qtd_colares_prevista,collarRemaining(f),f.motivo_colares_restantes||'',farmEquips.length,farmVisits.length,farmVisits.filter(v=>v.pendencias).length]})];download('relatorio-gerencial.tsv',rows.map(r=>r.join(String.fromCharCode(9))).join(String.fromCharCode(10)));notify('Relatório gerencial exportado.');};
   const printReport=()=>{
     const safe=v=>String(v===undefined||v===null||String(v).trim()===''?'-':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const rows=serviceFarms.slice(0,28).map(f=>`<tr><td><b>${safe(f.nome)}</b><small>${safe(f.cidade||'Cidade não informada')}</small></td><td>${safe(f.central)}</td><td>${safe(farmStatus(f))}</td><td>${safe(brDate(f.servico_fim_em||f.servico_inicio_em))}</td><td>${num(f.qtd_colares_instalada)} / ${num(f.qtd_colares_prevista)}</td></tr>`).join('');
-    const centralTable=centralRows.map(r=>`<tr><td>${safe(r.label)}</td><td>${r.count}</td><td>${r.done}</td><td>${r.collars}</td></tr>`).join('');
-    const pendingRows=pendingFarms.slice(0,18).map(f=>`<tr><td><b>${safe(f.nome)}</b><small>${safe(f.cidade||'-')} • ${safe(f.central||'-')}</small></td><td>${safe(farmStatus(f))}</td><td>${equips.filter(e=>e.fazenda_id===f.id&&(!e.latitude||!e.longitude)).length}</td><td>${visitsInPeriod.filter(v=>v.fazenda_id===f.id&&v.pendencias).length}</td></tr>`).join('');
+    const rows=serviceFarms.slice(0,28).map(f=>`<tr><td><b>${safe(f.nome)}</b><small>${safe(f.cidade||'Cidade não informada')}</small></td><td>${safe(f.central)}</td><td>${safe(farmStatus(f))}</td><td>${safe(brDate(f.servico_fim_em||f.servico_inicio_em))}</td><td>${safe(collarBreakdown(f))}</td></tr>`).join('');
+    const centralTable=centralRows.map(r=>`<tr><td>${safe(r.label)}</td><td>${r.count}</td><td>${r.done}</td><td>${r.collars}</td><td>${r.handled}</td></tr>`).join('');
+    const pendingRows=pendingFarms.slice(0,18).map(f=>`<tr><td><b>${safe(f.nome)}</b><small>${safe(f.cidade||'-')} • ${safe(f.central||'-')}</small></td><td>${safe(farmStatus(f))}</td><td>${missingGpsOperational.filter(e=>e.fazenda_id===f.id).length}</td><td>${visitsInPeriod.filter(v=>v.fazenda_id===f.id&&v.pendencias).length}</td></tr>`).join('');
     const prodRows=ownerRows.map(r=>`<tr><td>${safe(r.label)}</td><td>${r.count}</td><td>${r.collars}</td><td>${r.hours?r.hours.toFixed(1):'-'} h</td></tr>`).join('');
     const showInstall=reportType==='geral'||reportType==='mensal';
     const showProd=reportType==='geral'||reportType==='produtividade';
     const showPending=reportType==='geral'||reportType==='pendencias';
     const showCentral=reportType==='geral'||reportType==='central';
-    const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${safe(reportTypes[reportType])}</title><style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;color:#0f172a;margin:0;font-size:11px;line-height:1.35;-webkit-print-color-adjust:exact;print-color-adjust:exact}.top{display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid #0f172a;padding-bottom:10px}.brand{display:flex;align-items:center;gap:10px}.brand img{width:34px;height:34px}.brand b{font-size:18px}.brand span{display:block;color:#16a34a;font-weight:900}.meta{text-align:right;color:#64748b}.cover{margin:12px 0;padding:16px;border-radius:16px;background:linear-gradient(135deg,#0f172a,#14532d);color:#fff}.cover small{color:#86efac;font-weight:900;letter-spacing:.12em}.cover h1{margin:6px 0 4px;font-size:26px}.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:10px 0}.metric{border:1px solid #bbf7d0;background:#f0fdf4;border-radius:10px;padding:8px;text-align:center}.metric b{display:block;color:#15803d;font-size:19px}h2{font-size:14px;margin:15px 0 7px;border-bottom:1px solid #dbe4ef;padding-bottom:5px}table{width:100%;border-collapse:collapse;margin-top:7px}th{background:#0f172a;color:#fff;text-align:left;font-size:9.5px}th,td{border:1px solid #dbe4ef;padding:6px;vertical-align:top}td small{display:block;color:#64748b;margin-top:2px}.attention{border:1px solid #fed7aa;background:#fff7ed;border-radius:12px;padding:9px 12px}.attention ul{margin:4px 0 0;padding-left:18px}.section{break-inside:auto}.footer{margin-top:16px;border-top:1px solid #dbe4ef;padding-top:6px;color:#64748b;display:flex;justify-content:space-between}</style></head><body><header class="top"><div class="brand"><img src="/logo-symbol.svg" alt=""><div><b>ControlTech</b><span>Assist</span></div></div><div class="meta"><b>RELATÓRIO GERENCIAL</b><br>${safe(new Date().toLocaleString('pt-BR'))}<br>Período: ${safe(range.label)}</div></header><section class="cover"><small>${safe(central==='Todas'?'TODAS AS CENTRAIS':central)}</small><h1>${safe(reportTypes[reportType])}</h1><p>Status: ${safe(status)} • ${farms.length} fazenda(s) cadastrada(s) no filtro • ${activeFarms.length} com movimento no período</p></section><section class="metrics"><div class="metric"><b>${farms.length}</b>Fazendas</div><div class="metric"><b>${serviceFarms.length}</b>Serviços</div><div class="metric"><b>${installed}</b>Colares total</div><div class="metric"><b>${visitsInPeriod.length}</b>Visitas</div><div class="metric"><b>${missingGps.length}</b>Sem GPS</div></section>${actionItems.length?`<section class="section attention"><h2>Pontos de atenção</h2><ul>${actionItems.map(i=>`<li>${safe(i)}</li>`).join('')}</ul></section>`:''}${showInstall?`<section class="section"><h2>Serviços e instalações no período</h2><table><thead><tr><th>Fazenda</th><th>Central</th><th>Status</th><th>Data de serviço</th><th>Colares</th></tr></thead><tbody>${rows||'<tr><td colspan="5">Sem serviços registrados no período.</td></tr>'}</tbody></table></section>`:''}${showCentral?`<section class="section"><h2>Resumo por central</h2><table><thead><tr><th>Central</th><th>Fazendas</th><th>Concluídas</th><th>Colares</th></tr></thead><tbody>${centralTable||'<tr><td colspan="4">Sem dados.</td></tr>'}</tbody></table></section>`:''}${showProd?`<section class="section"><h2>Produtividade por responsável</h2><table><thead><tr><th>Responsável</th><th>Fazendas</th><th>Colares</th><th>Horas úteis</th></tr></thead><tbody>${prodRows||'<tr><td colspan="4">Sem serviços finalizados no período.</td></tr>'}</tbody></table></section>`:''}${showPending?`<section class="section"><h2>Pendências operacionais</h2><table><thead><tr><th>Fazenda</th><th>Status</th><th>Sem GPS</th><th>Visitas pendentes</th></tr></thead><tbody>${pendingRows||'<tr><td colspan="4">Sem pendências no filtro.</td></tr>'}</tbody></table></section>`:''}<footer class="footer"><span>ControlTech Assist - Relatórios gerenciais</span><span>${safe(range.label)}</span></footer><script>window.onload=()=>setTimeout(()=>window.print(),300)</script></body></html>`;
+    const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${safe(reportTypes[reportType])}</title><style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;color:#0f172a;margin:0;font-size:11px;line-height:1.35;-webkit-print-color-adjust:exact;print-color-adjust:exact}.top{display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid #0f172a;padding-bottom:10px}.brand{display:flex;align-items:center;gap:10px}.brand img{width:34px;height:34px}.brand b{font-size:18px}.brand span{display:block;color:#16a34a;font-weight:900}.meta{text-align:right;color:#64748b}.cover{margin:12px 0;padding:16px;border-radius:16px;background:linear-gradient(135deg,#0f172a,#14532d);color:#fff}.cover small{color:#86efac;font-weight:900;letter-spacing:.12em}.cover h1{margin:6px 0 4px;font-size:26px}.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:10px 0}.metric{border:1px solid #bbf7d0;background:#f0fdf4;border-radius:10px;padding:8px;text-align:center}.metric b{display:block;color:#15803d;font-size:19px}h2{font-size:14px;margin:15px 0 7px;border-bottom:1px solid #dbe4ef;padding-bottom:5px}table{width:100%;border-collapse:collapse;margin-top:7px}th{background:#0f172a;color:#fff;text-align:left;font-size:9.5px}th,td{border:1px solid #dbe4ef;padding:6px;vertical-align:top}td small{display:block;color:#64748b;margin-top:2px}.attention{border:1px solid #fed7aa;background:#fff7ed;border-radius:12px;padding:9px 12px}.attention ul{margin:4px 0 0;padding-left:18px}.section{break-inside:auto}.footer{margin-top:16px;border-top:1px solid #dbe4ef;padding-top:6px;color:#64748b;display:flex;justify-content:space-between}</style></head><body><header class="top"><div class="brand"><img src="/logo-symbol.svg" alt=""><div><b>ControlTech</b><span>Assist</span></div></div><div class="meta"><b>RELATÓRIO GERENCIAL</b><br>${safe(new Date().toLocaleString('pt-BR'))}<br>Período: ${safe(range.label)}</div></header><section class="cover"><small>${safe(central==='Todas'?'TODAS AS CENTRAIS':central)}</small><h1>${safe(reportTypes[reportType])}</h1><p>Status: ${safe(status)} • ${farms.length} fazenda(s) cadastrada(s) no filtro • ${activeFarms.length} com movimento no período</p></section><section class="metrics"><div class="metric"><b>${farms.length}</b>Fazendas</div><div class="metric"><b>${serviceFarms.length}</b>Serviços</div><div class="metric"><b>${installed}</b>Instalados</div><div class="metric"><b>${handled}</b>Atendidos</div><div class="metric"><b>${missingGps.length}</b>Sem GPS</div></section>${actionItems.length?`<section class="section attention"><h2>Pontos de atenção</h2><ul>${actionItems.map(i=>`<li>${safe(i)}</li>`).join('')}</ul></section>`:''}${showInstall?`<section class="section"><h2>Serviços e instalações no período</h2><table><thead><tr><th>Fazenda</th><th>Central</th><th>Status</th><th>Data de serviço</th><th>Colares</th></tr></thead><tbody>${rows||'<tr><td colspan="5">Sem serviços registrados no período.</td></tr>'}</tbody></table></section>`:''}${showCentral?`<section class="section"><h2>Resumo por central</h2><table><thead><tr><th>Central</th><th>Fazendas</th><th>Concluídas</th><th>Instalados</th><th>Atendidos</th></tr></thead><tbody>${centralTable||'<tr><td colspan="5">Sem dados.</td></tr>'}</tbody></table></section>`:''}${showProd?`<section class="section"><h2>Produtividade por responsável</h2><table><thead><tr><th>Responsável</th><th>Fazendas</th><th>Colares</th><th>Horas úteis</th></tr></thead><tbody>${prodRows||'<tr><td colspan="4">Sem serviços finalizados no período.</td></tr>'}</tbody></table></section>`:''}${showPending?`<section class="section"><h2>Pendências operacionais</h2><table><thead><tr><th>Fazenda</th><th>Status</th><th>Sem GPS</th><th>Visitas pendentes</th></tr></thead><tbody>${pendingRows||'<tr><td colspan="4">Sem pendências no filtro.</td></tr>'}</tbody></table></section>`:''}<footer class="footer"><span>ControlTech Assist - Relatórios gerenciais</span><span>${safe(range.label)}</span></footer><script>window.onload=()=>setTimeout(()=>window.print(),300)</script></body></html>`;
     const win=window.open('','_blank');if(!win){notify('Permita pop-ups para imprimir o relatório.','error');return;}win.document.write(html);win.document.close();
   };
   const filterSummary=[range.label,central,status].filter(Boolean).join(' • ');
   return <div className="managerReports">
     <PageHead eyebrow="Relatórios" title="Relatórios gerenciais"><div className="reportFilterWrap"><button type="button" className={`btn light managerFilterBtn ${filtersOpen?'active':''}`} onClick={()=>setFiltersOpen(v=>!v)}><Filter size={18}/> Filtros</button>{filtersOpen&&<><button type="button" className="managerFilterBackdrop" aria-label="Fechar filtros" onClick={()=>setFiltersOpen(false)}/><div className="reportFilterMenu managerFilterMenu"><div className="reportOptionHead"><b>Filtros gerenciais</b><button type="button" onClick={()=>setFiltersOpen(false)} aria-label="Fechar filtros"><X size={16}/></button></div><Field label="Tipo de relatório"><select value={reportType} onChange={e=>setReportType(e.target.value)}>{Object.entries(reportTypes).map(([k,label])=><option key={k} value={k}>{label}</option>)}</select></Field><div className="grid2"><Field label="Período"><select value={period} onChange={e=>setPeriod(e.target.value)}><option value="todos">Todo histórico</option><option value="mes_atual">Mês atual</option><option value="mes_anterior">Mês anterior</option><option value="ultimos_30">Últimos 30 dias</option><option value="personalizado">Personalizado</option></select></Field><Field label="Central"><select value={central} onChange={e=>setCentral(e.target.value)}><option>Todas</option>{CENTRAIS.map(c=><option key={c}>{c}</option>)}</select></Field></div>{period==='personalizado'&&<div className="grid2"><Field label="Início"><input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)}/></Field><Field label="Fim"><input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)}/></Field></div>}<Field label="Status"><select value={status} onChange={e=>setStatus(e.target.value)}><option>Todos</option>{FARM_STATUS.map(s=><option key={s}>{s}</option>)}</select></Field></div></>}</div><button className="btn light" onClick={exportData}><Download size={18}/> Exportar</button><button className="btn primary" onClick={printReport}><Printer size={18}/> Imprimir</button></PageHead>
     <section className="managerHero"><div><span className="eyebrow">Central gerencial</span><h2><FileText size={24}/> {reportTypes[reportType]}</h2><p>{filterSummary}</p></div><div className="managerHeroScore"><b>{progress}%</b><span>progresso total</span></div></section>
-    <div className="managerKpis"><article><Building2 size={22}/><span>Fazendas cadastradas</span><b>{farms.length}</b><small>{completed.length} concluída(s) no total</small></article><article><Hash size={22}/><span>Colares instalados</span><b>{installed}</b><small>{planned} previsto(s)</small></article><article><CalendarDays size={22}/><span>Movimento no período</span><b>{activeFarms.length}</b><small>{visitsInPeriod.length} visita(s)</small></article><article><Cpu size={22}/><span>Equipamentos</span><b>{equips.length}</b><small>{missingGps.length} sem GPS</small></article></div>
+    <div className="managerKpis"><article><Building2 size={22}/><span>Fazendas cadastradas</span><b>{farms.length}</b><small>{notStarted.length} não iniciada(s) • {completed.length} concluída(s)</small></article><article><Milk size={22}/><span>Colares atendidos</span><b>{handled}</b><small>{installed} instalados • {delivered} entregues</small></article><article><CalendarDays size={22}/><span>Movimento no período</span><b>{activeFarms.length}</b><small>{visitsInPeriod.length} visita(s)</small></article><article><Cpu size={22}/><span>Equipamentos</span><b>{equips.length}</b><small>{missingGps.length} sem GPS</small></article></div>
     <div className="managerGrid">
       <section className="panel managerMainPanel"><div className="sectionTitle"><div><h2><BarChart3 size={20}/> Serviços no período</h2></div><span className="pill">{range.label}</span></div>{installRows.length?<ProductivityBars rows={installRows}/>:<Empty icon={BarChart3} title="Sem serviços finalizados" text="Nenhuma instalação finalizada dentro do período selecionado."/>}<div className="managerSummaryStrip"><div><span>Serviços</span><b>{serviceFarms.length}</b></div><div><span>Horas úteis</span><b>{totalUsefulHours?`${totalUsefulHours.toFixed(1)} h`:'-'}</b></div><div><span>Evidências</span><b>{evidencias.length}</b></div></div></section>
       <section className="panel managerSidePanel"><div className="sectionTitle"><div><h2><AlertTriangle size={20}/> Pontos de atenção</h2></div></div>{actionItems.length?<div className="managerActionList">{actionItems.map(item=><div key={item}><AlertTriangle size={16}/><span>{item}</span></div>)}</div>:<Empty icon={CheckCircle2} title="Sem alertas" text="Nenhuma pendência relevante no filtro."/>}</section>
-      <section className="panel managerMainPanel"><div className="sectionTitle"><div><h2><ClipboardList size={20}/> Fazendas no filtro</h2></div><span className="pill">{farms.length} cadastrada(s)</span></div>{farms.length?<div className="managerFarmRows">{farms.slice(0,8).map(f=>{const farmEquips=equips.filter(e=>e.fazenda_id===f.id),farmVisits=visitsInPeriod.filter(v=>v.fazenda_id===f.id);return <article key={f.id}><div><b>{f.nome}</b><span>{f.cidade||'Cidade não informada'} • {f.central||'Central não informada'}</span></div><div><strong>{farmStatus(f)}</strong><small>{num(f.qtd_colares_instalada)} / {num(f.qtd_colares_prevista)} colares • {farmEquips.length} equip. • {farmVisits.length} visita(s) no período</small></div></article>})}</div>:<Empty icon={Building2} title="Sem fazendas no filtro" text="Altere central ou status."/>}</section>
-      <section className="panel managerSidePanel"><div className="sectionTitle"><div><h2><ShieldCheck size={20}/> Por central</h2></div></div><div className="centralBreakdown">{centralRows.map(r=><div key={r.label}><span>{r.label}</span><b>{r.count}</b><small>{r.done} concluída(s) • {r.collars} colares</small></div>)}</div>{ownerRows.length>0&&<><div className="miniSectionTitle">Responsáveis no período</div><div className="centralBreakdown compact">{ownerRows.map(r=><div key={r.label}><span>{r.label}</span><b>{r.count}</b><small>{r.collars} colares • {r.hours.toFixed(1)} h</small></div>)}</div></>}</section>
+      <section className="panel managerMainPanel"><div className="sectionTitle"><div><h2><ClipboardList size={20}/> Fazendas no filtro</h2></div><span className="pill">{farms.length} cadastrada(s)</span></div>{farms.length?<div className="managerFarmRows">{farms.slice(0,8).map(f=>{const farmEquips=equips.filter(e=>e.fazenda_id===f.id),farmVisits=visitsInPeriod.filter(v=>v.fazenda_id===f.id);return <article key={f.id}><div><b>{f.nome}</b><span>{f.cidade||'Cidade não informada'} • {f.central||'Central não informada'}</span></div><div><strong>{farmStatus(f)}</strong><small>{collarBreakdown(f)} • {farmEquips.length} equip. • {farmVisits.length} visita(s) no período</small></div></article>})}</div>:<Empty icon={Building2} title="Sem fazendas no filtro" text="Altere central ou status."/>}</section>
+      <section className="panel managerSidePanel"><div className="sectionTitle"><div><h2><ShieldCheck size={20}/> Por central</h2></div></div><div className="centralBreakdown">{centralRows.map(r=><div key={r.label}><span>{r.label}</span><b>{r.count}</b><small>{r.done} concluída(s) • {r.handled} atendidos</small></div>)}</div>{ownerRows.length>0&&<><div className="miniSectionTitle">Responsáveis no período</div><div className="centralBreakdown compact">{ownerRows.map(r=><div key={r.label}><span>{r.label}</span><b>{r.count}</b><small>{r.collars} colares • {r.hours.toFixed(1)} h</small></div>)}</div></>}</section>
     </div>
   </div>
 }
