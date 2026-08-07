@@ -235,9 +235,32 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text unique,
   nome text,
+  empresa_acesso text default 'Urus',
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table public.profiles
+add column if not exists empresa_acesso text default 'Urus';
+
+update public.profiles
+set empresa_acesso = 'Urus'
+where empresa_acesso is null
+   or empresa_acesso = ''
+   or empresa_acesso not in ('Alta Genetics', 'Genex Brasil', 'Urus');
+
+alter table public.profiles
+alter column empresa_acesso set default 'Urus',
+alter column empresa_acesso set not null;
+
+do $$
+begin
+  alter table public.profiles
+    add constraint profiles_empresa_acesso_check
+    check (empresa_acesso in ('Alta Genetics', 'Genex Brasil', 'Urus'));
+exception
+  when duplicate_object then null;
+end $$;
 
 create table if not exists public.fazenda_membros (
   id uuid primary key default gen_random_uuid(),
@@ -313,10 +336,75 @@ as $$
   select public.farm_role(target_fazenda_id, target_user_id) = 'owner'
 $$;
 
+create or replace function public.user_empresa_acesso(target_user_id uuid default auth.uid())
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (
+      select p.empresa_acesso
+      from public.profiles p
+      where p.id = target_user_id
+      limit 1
+    ),
+    'Sem acesso'
+  )
+$$;
+
+create or replace function public.can_access_central(target_central text, target_user_id uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case
+    when target_user_id is null then false
+    when public.user_empresa_acesso(target_user_id) = 'Urus' then true
+    else coalesce(nullif(target_central, ''), 'Outra / Não informado') = public.user_empresa_acesso(target_user_id)
+  end
+$$;
+
+create or replace function public.can_view_fazenda(target_fazenda_id uuid, target_user_id uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.fazendas f
+    where f.id = target_fazenda_id
+      and public.can_access_central(f.central, target_user_id)
+  )
+$$;
+
+create or replace function public.can_write_fazenda(target_fazenda_id uuid, target_user_id uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.fazendas f
+    where f.id = target_fazenda_id
+      and public.farm_role(target_fazenda_id, target_user_id) in ('owner','admin')
+      and public.can_access_central(f.central, target_user_id)
+  )
+$$;
+
 grant execute on function public.farm_role(uuid, uuid) to authenticated;
 grant execute on function public.can_view_fazenda(uuid, uuid) to authenticated;
 grant execute on function public.can_write_fazenda(uuid, uuid) to authenticated;
 grant execute on function public.is_fazenda_owner(uuid, uuid) to authenticated;
+grant execute on function public.user_empresa_acesso(uuid) to authenticated;
+grant execute on function public.can_access_central(text, uuid) to authenticated;
 
 drop policy if exists "profiles_select_authenticated" on public.profiles;
 drop policy if exists "profiles_insert_own" on public.profiles;
@@ -343,9 +431,9 @@ drop policy if exists "fazendas_insert_owner" on public.fazendas;
 drop policy if exists "fazendas_update_admin" on public.fazendas;
 drop policy if exists "fazendas_delete_owner" on public.fazendas;
 create policy "fazendas_select_access" on public.fazendas for select using (public.can_view_fazenda(id));
-create policy "fazendas_insert_owner" on public.fazendas for insert with check (auth.uid() = user_id);
-create policy "fazendas_update_admin" on public.fazendas for update using (public.can_write_fazenda(id)) with check (public.can_write_fazenda(id));
-create policy "fazendas_delete_owner" on public.fazendas for delete using (auth.uid() = user_id);
+create policy "fazendas_insert_owner" on public.fazendas for insert with check (auth.uid() = user_id and public.can_access_central(central));
+create policy "fazendas_update_admin" on public.fazendas for update using (public.can_write_fazenda(id)) with check (public.can_write_fazenda(id) and public.can_access_central(central));
+create policy "fazendas_delete_owner" on public.fazendas for delete using (auth.uid() = user_id and public.can_access_central(central));
 
 drop policy if exists "equipamentos_select_own" on public.equipamentos;
 drop policy if exists "equipamentos_insert_own" on public.equipamentos;
@@ -528,6 +616,7 @@ as $$
 declare
   current_uid uuid := auth.uid();
   target_id uuid := coalesce(nullif(payload->>'id', '')::uuid, gen_random_uuid());
+  target_central text;
   existing public.fazendas;
   result public.fazendas;
 begin
@@ -540,6 +629,12 @@ begin
   where id = target_id;
 
   if not found then
+    target_central := nullif(payload->>'central', '');
+
+    if not public.can_access_central(target_central, current_uid) then
+      raise exception 'Sem permissao para salvar fazenda desta central.';
+    end if;
+
     insert into public.fazendas (
       id,
       user_id,
@@ -575,7 +670,7 @@ begin
       target_id,
       current_uid,
       coalesce(nullif(payload->>'nome', ''), 'Nova fazenda'),
-      nullif(payload->>'central', ''),
+      target_central,
       nullif(payload->>'regional_nome', ''),
       nullif(payload->>'veterinario_apoio', ''),
       nullif(payload->>'responsavel', ''),
@@ -604,15 +699,21 @@ begin
     )
     returning * into result;
   else
+    target_central := coalesce(nullif(payload->>'central', ''), existing.central);
+
     if existing.user_id is not null and not public.can_write_fazenda(target_id, current_uid) then
       raise exception 'Sem permissao para alterar esta fazenda.';
+    end if;
+
+    if not public.can_access_central(target_central, current_uid) then
+      raise exception 'Sem permissao para salvar fazenda desta central.';
     end if;
 
     update public.fazendas
     set
       user_id = coalesce(existing.user_id, current_uid),
       nome = coalesce(nullif(payload->>'nome', ''), existing.nome),
-      central = nullif(payload->>'central', ''),
+      central = target_central,
       regional_nome = nullif(payload->>'regional_nome', ''),
       veterinario_apoio = nullif(payload->>'veterinario_apoio', ''),
       responsavel = nullif(payload->>'responsavel', ''),

@@ -4451,18 +4451,20 @@ body,
 
 .farmCardProgress .milkMeter {
   position: relative;
-  height: 12px;
-  min-height: 12px;
-  max-height: 12px;
+  height: 11px;
+  min-height: 11px;
+  max-height: 11px;
   margin: 0;
   padding: 0;
   overflow: hidden;
-  border: 1px solid #dbeafe;
+  border: 1px solid #bfdbfe;
   border-radius: 999px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, .9), rgba(226, 238, 252, .88)),
-    linear-gradient(90deg, #eff6ff, #e0f2fe);
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, .08);
+    linear-gradient(180deg, rgba(255, 255, 255, .94), rgba(219, 234, 254, .86)),
+    linear-gradient(90deg, #eaf5ff, #dbeafe);
+  box-shadow:
+    inset 0 1px 2px rgba(15, 23, 42, .09),
+    0 1px 0 rgba(255, 255, 255, .82);
 }
 
 .farmCardProgress .milkMeter::before {
@@ -4470,21 +4472,21 @@ body,
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 18% 48%, rgba(255, 255, 255, .9) 0 2px, transparent 3px),
-    linear-gradient(100deg, transparent 0 25%, rgba(255, 255, 255, .7) 43%, transparent 62%);
-  opacity: .75;
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, .72), transparent);
+  opacity: .46;
   transform: translateX(-115%);
-  animation: milkTrackShine 3s ease-in-out infinite;
+  animation: milkTrackShine 4.2s ease-in-out infinite;
 }
 
 .farmCardProgress .milkMeter.milkEmpty::after {
   content: "";
   position: absolute;
-  inset: 0 auto 0 0;
-  width: 36px;
+  inset: 1px 2px;
   border-radius: inherit;
-  background: linear-gradient(90deg, transparent, rgba(125, 211, 252, .55), rgba(255, 255, 255, .85), transparent);
-  animation: milkEmptySweep 2.4s ease-in-out infinite;
+  background:
+    linear-gradient(90deg, rgba(147, 197, 253, .18), rgba(255, 255, 255, .72), rgba(147, 197, 253, .18));
+  opacity: .62;
+  animation: milkEmptyBreath 3.8s ease-in-out infinite;
 }
 
 .farmCardProgress .milkFill {
@@ -4494,28 +4496,44 @@ body,
   overflow: hidden;
   border-radius: inherit;
   background:
-    radial-gradient(circle at 18% 45%, rgba(255, 255, 255, .95) 0 2px, transparent 3px),
-    linear-gradient(90deg, #e0f2fe 0%, #bae6fd 38%, #f8fbff 70%, #93c5fd 100%);
-  box-shadow: 0 0 14px rgba(14, 165, 233, .24);
+    linear-gradient(90deg, #38bdf8 0%, #22d3ee 38%, #60a5fa 100%);
+  box-shadow:
+    0 0 12px rgba(14, 165, 233, .26),
+    inset 0 1px 0 rgba(255, 255, 255, .50);
   transition: width .45s ease;
 }
 
 .farmCardProgress .milkFill::before {
   content: "";
   position: absolute;
-  inset: -8px 0;
+  inset: -8px -28px;
   background:
-    radial-gradient(ellipse at 22% 50%, rgba(255, 255, 255, .72) 0 9%, transparent 10% 100%),
-    radial-gradient(ellipse at 58% 45%, rgba(255, 255, 255, .56) 0 7%, transparent 8% 100%),
-    repeating-linear-gradient(115deg, rgba(255, 255, 255, .34) 0 9px, rgba(125, 211, 252, .18) 9px 20px);
-  opacity: .8;
-  animation: milkCurrent 2.1s linear infinite;
+    radial-gradient(ellipse at 18% 50%, rgba(255, 255, 255, .88) 0 7%, transparent 8% 100%),
+    radial-gradient(ellipse at 54% 46%, rgba(255, 255, 255, .64) 0 6%, transparent 7% 100%),
+    repeating-linear-gradient(112deg, rgba(255, 255, 255, .48) 0 8px, rgba(255, 255, 255, .08) 8px 18px);
+  opacity: .68;
+  animation: milkCurrent 2.6s linear infinite;
+}
+
+.farmCardProgress .milkFill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, .65), transparent 48%, rgba(15, 23, 42, .10));
+  opacity: .72;
 }
 
 .farmCardProgress .milkMeter.complete .milkFill {
   background:
-    radial-gradient(circle at 18% 45%, rgba(255, 255, 255, .95) 0 2px, transparent 3px),
-    linear-gradient(90deg, #dff7ff 0%, #f8fbff 45%, #bfdbfe 100%);
+    linear-gradient(90deg, #0ea5e9 0%, #22d3ee 45%, #2563eb 100%);
+  box-shadow:
+    0 0 15px rgba(14, 165, 233, .32),
+    inset 0 1px 0 rgba(255, 255, 255, .52);
+}
+
+.farmCardProgress .milkMeter.complete .milkFill::before {
+  opacity: .66;
+  animation-duration: 3s;
 }
 
 @keyframes milkTrackShine {
@@ -4523,14 +4541,13 @@ body,
   55%, 100% { transform: translateX(115%); }
 }
 
-@keyframes milkEmptySweep {
-  0% { transform: translateX(-38px); opacity: 0; }
-  35% { opacity: .9; }
-  100% { transform: translateX(650px); opacity: 0; }
+@keyframes milkEmptyBreath {
+  0%, 100% { opacity: .28; transform: scaleX(.92); }
+  50% { opacity: .54; transform: scaleX(1); }
 }
 
 @keyframes milkCurrent {
-  to { transform: translateX(30px); }
+  to { transform: translateX(34px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -7636,6 +7653,17 @@ body,
 .authInput input {
   padding-block: 15px;
   font-weight: 800;
+}
+
+.authSelectInput select {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #0f172a;
+  padding-block: 15px;
+  font-weight: 800;
+  appearance: none;
 }
 
 .authSubmit {

@@ -183,6 +183,15 @@ const collarBreakdown = farm => {
   return delivered ? `${installed} instalados • ${delivered} entregues • ${planned} previstos` : `${installed} / ${planned || '-'}`;
 };
 const CENTRAIS = ['Alta Genetics', 'Genex Brasil', 'Outra / Não informado'];
+const EMPRESA_ACESSO = ['Alta Genetics', 'Genex Brasil', 'Urus'];
+const normalizeEmpresaAcesso = value => EMPRESA_ACESSO.includes(value) ? value : 'Urus';
+const allowedCentraisForAccess = value => {
+  const access = normalizeEmpresaAcesso(value);
+  return access === 'Urus' ? CENTRAIS : [access];
+};
+const currentEmpresaAcesso = data => normalizeEmpresaAcesso(data?.currentUser?.empresa_acesso || data?.currentProfile?.empresa_acesso);
+const allowedCentrais = data => data?.allowedCentrais?.length ? data.allowedCentrais : allowedCentraisForAccess(currentEmpresaAcesso(data));
+const canAccessCentralValue = (central, data) => currentEmpresaAcesso(data) === 'Urus' || (central || '') === currentEmpresaAcesso(data);
 const EQUIP_TYPES = ['VP8002 — Processador/Base', 'VP4102 — Antena', 'Outro equipamento'];
 const EQUIP_STATUS = ['Planejado', 'Instalado', 'Com problema', 'Removido'];
 const dateOnlyMs = value => value ? new Date(`${String(value).slice(0,10)}T00:00:00`).getTime() : 0;
@@ -280,6 +289,7 @@ const autoServiceStatus = (inicio, fim, fallback = 'Não iniciada') => {
 
 function useData(user, localMode=false){
   const [fazendas,setFazendas]=useState([]), [equipamentos,setEquipamentos]=useState([]), [visitas,setVisitas]=useState([]), [checklists,setChecklists]=useState([]), [diagnosticos,setDiagnosticos]=useState([]), [planejamentos,setPlanejamentos]=useState([]), [obstaculos,setObstaculos]=useState([]), [testesCobertura,setTestesCobertura]=useState([]), [evidencias,setEvidencias]=useState([]), [fazendaMembros,setFazendaMembros]=useState([]), [dadosRestritos,setDadosRestritos]=useState([]);
+  const [currentProfile,setCurrentProfile]=useState(null);
   const [loading,setLoading]=useState(false);
   const [dbStatus,setDbStatus]=useState({
     mode: supabase ? 'supabase' : 'local',
@@ -316,11 +326,38 @@ function useData(user, localMode=false){
     return signed || row;
   }
 
+  async function loadCurrentProfile(){
+    if(!cloud || !user?.id) return null;
+    const fallback = {
+      id: user.id,
+      email: String(user.email || '').trim().toLowerCase(),
+      nome: personName(user.user_metadata) || user.email?.split('@')[0] || 'Usuário',
+      empresa_acesso: normalizeEmpresaAcesso(user.user_metadata?.empresa_acesso)
+    };
+    const {data:profile,error} = await supabase.from('profiles').select('id,email,nome,empresa_acesso').eq('id',user.id).maybeSingle();
+    if(error){
+      console.warn('Perfil não carregado:', error.message);
+      return fallback;
+    }
+    if(!profile){
+      const {data:saved,error:upsertError}=await supabase.from('profiles').upsert({...fallback,updated_at:nowISO()},{onConflict:'id'}).select('id,email,nome,empresa_acesso').single();
+      if(upsertError){
+        console.warn('Perfil não criado:', upsertError.message);
+        return fallback;
+      }
+      return {...saved, empresa_acesso: normalizeEmpresaAcesso(saved?.empresa_acesso)};
+    }
+    return {...profile, empresa_acesso: normalizeEmpresaAcesso(profile.empresa_acesso)};
+  }
+
   useEffect(()=>{
     let alive = true;
     async function load(){
       setLoading(true);
       if(cloud){
+        const profile = await loadCurrentProfile();
+        if(!alive) return;
+        setCurrentProfile(profile);
         const tables = await Promise.all([
           supabase.from('fazendas').select('*').order('created_at',{ascending:false}),
           supabase.from('equipamentos').select('*').order('created_at',{ascending:false}),
@@ -341,13 +378,14 @@ function useData(user, localMode=false){
         setFazendas((tables[0].data||[]).map(normalizeFarmRow)); setEquipamentos(tables[1].data||[]); setVisitas(tables[2].data||[]); setChecklists(tables[3].data||[]); setDiagnosticos(tables[4].data||[]); setPlanejamentos(tables[5].data||[]); setObstaculos(tables[6].data||[]); setTestesCobertura(tables[7].data||[]);
         const evidenciasResult = await supabase.from('evidencias_fazenda').select('*').order('created_at',{ascending:false});
         if(!evidenciasResult.error)setEvidencias(await signEvidenceRows(evidenciasResult.data||[]));else{console.warn('Evidências não carregadas:',evidenciasResult.error.message);setEvidencias([]);}
-        const membros = await supabase.from('fazenda_membros').select('*, profiles:user_id(id,email,nome)').order('created_at',{ascending:true});
+        const membros = await supabase.from('fazenda_membros').select('*, profiles:user_id(id,email,nome,empresa_acesso)').order('created_at',{ascending:true});
         if(!membros.error)setFazendaMembros(membros.data||[]);else{console.warn('Compartilhamento não carregado:',membros.error.message);setFazendaMembros([]);}
         const restritos = await supabase.from('fazenda_dados_restritos').select('*').order('updated_at',{ascending:false});
         if(!restritos.error)setDadosRestritos(restritos.data||[]);else{console.warn('Dados restritos não carregados:',restritos.error.message);setDadosRestritos([]);}
         setOk();
       } else {
         setFazendas(loadLocal('cta_fazendas').map(normalizeFarmRow)); setEquipamentos(loadLocal('cta_equipamentos')); setVisitas(loadLocal('cta_visitas')); setChecklists(loadLocal('cta_checklists')); setDiagnosticos(loadLocal('cta_diagnosticos')); setPlanejamentos(loadLocal('cta_planejamentos')); setObstaculos(loadLocal('cta_obstaculos')); setTestesCobertura(loadLocal('cta_testes_cobertura')); setEvidencias(loadLocal('cta_evidencias')); setFazendaMembros([]); setDadosRestritos(loadLocal('cta_dados_restritos'));
+        setCurrentProfile(null);
         setDbStatus({mode:'local',connected:false,lastError: supabase ? 'Modo local de emergência ativado manualmente.' : 'Supabase não configurado no .env.local.', lastSync:new Date().toLocaleString('pt-BR'), details:{}});
       }
       setLoading(false);
@@ -565,12 +603,16 @@ function useData(user, localMode=false){
     if(!cloud){ notify('Compartilhamento exige Supabase ativo.','warning'); return {ok:false}; }
     const cleanEmail=String(email||'').trim().toLowerCase();
     if(!cleanEmail){ notify('Informe o e-mail do usuário.','warning'); return {ok:false}; }
-    const {data:profile,error:profileError}=await supabase.from('profiles').select('id,email,nome').eq('email',cleanEmail).maybeSingle();
+    const {data:profile,error:profileError}=await supabase.from('profiles').select('id,email,nome,empresa_acesso').eq('email',cleanEmail).maybeSingle();
     if(profileError){ notify(`Não foi possível buscar o usuário: ${profileError.message}`,'error'); return {ok:false,error:profileError}; }
     if(!profile){ notify('Usuário não encontrado. Ele precisa criar uma conta e entrar no app pelo menos uma vez.','warning'); return {ok:false}; }
     if(profile.id===farm.user_id){ notify('Este usuário já é o proprietário da fazenda.','warning'); return {ok:false}; }
+    if(!canAccessCentralValue(farm.central,{currentUser:profile})){
+      notify('Este usuário pertence a outra central e não pode acessar esta fazenda.','warning');
+      return {ok:false};
+    }
     const row={fazenda_id:farm.id,user_id:profile.id,role,created_by:user?.id,updated_at:nowISO()};
-    const {data:saved,error}=await supabase.from('fazenda_membros').upsert(row,{onConflict:'fazenda_id,user_id'}).select('*, profiles:user_id(id,email,nome)').single();
+    const {data:saved,error}=await supabase.from('fazenda_membros').upsert(row,{onConflict:'fazenda_id,user_id'}).select('*, profiles:user_id(id,email,nome,empresa_acesso)').single();
     if(error){ notify(`Não foi possível compartilhar: ${error.message}`,'error'); return {ok:false,error}; }
     setFazendaMembros(prev=>{const next=prev.filter(m=>!(m.fazenda_id===farm.id&&m.user_id===profile.id));return [...next,saved];});
     notify('Acesso liberado para a fazenda.');
@@ -578,7 +620,7 @@ function useData(user, localMode=false){
   }
   async function updateFarmMember(member, role){
     if(!cloud)return {ok:false};
-    const {data:saved,error}=await supabase.from('fazenda_membros').update({role,updated_at:nowISO()}).eq('id',member.id).select('*, profiles:user_id(id,email,nome)').single();
+    const {data:saved,error}=await supabase.from('fazenda_membros').update({role,updated_at:nowISO()}).eq('id',member.id).select('*, profiles:user_id(id,email,nome,empresa_acesso)').single();
     if(error){ notify(`Não foi possível alterar permissão: ${error.message}`,'error'); return {ok:false,error}; }
     setFazendaMembros(prev=>prev.map(m=>m.id===member.id?saved:m));
     notify('Permissão atualizada.');
@@ -593,9 +635,11 @@ function useData(user, localMode=false){
     notify('Acesso removido.');
     return {ok:true};
   }
+  const empresaAcesso = cloud ? normalizeEmpresaAcesso(currentProfile?.empresa_acesso || user?.user_metadata?.empresa_acesso) : 'Urus';
+  const currentUserProfile = user ? {id:user.id,email:user.email,nome:currentProfile?.nome || personName(user.user_metadata)||user.email?.split('@')[0]||'Usuário atual',empresa_acesso:empresaAcesso} : null;
   return {
     cloud, loading, dbStatus, testConnection,
-    userId:user?.id, currentUser:user ? {id:user.id,email:user.email,nome:personName(user.user_metadata)||user.email?.split('@')[0]||'Usuário atual'} : null, fazendas, equipamentos, visitas, checklists, diagnosticos, planejamentos, obstaculos, testesCobertura, evidencias, fazendaMembros, dadosRestritos,
+    userId:user?.id, currentUser:currentUserProfile, currentProfile, empresaAcesso, allowedCentrais:allowedCentraisForAccess(empresaAcesso), fazendas, equipamentos, visitas, checklists, diagnosticos, planejamentos, obstaculos, testesCobertura, evidencias, fazendaMembros, dadosRestritos,
     shareFarm, updateFarmMember, removeFarmMember, uploadEvidencias, saveEvidencia, delEvidencia, saveDadosRestritos,
     saveFazenda: r => upsert('fazendas', setFazendas, 'cta_fazendas', normalizeFarmRow(withExistingOwner(fazendas,r))),
     saveEquipamento: r => upsert('equipamentos', setEquipamentos, 'cta_equipamentos', withExistingOwner(equipamentos,r)),
@@ -773,7 +817,7 @@ function DairyVisual({compact=false}){
 }
 
 function Login({onUseLocal}){
-  const [name,setName]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[mode,setMode]=useState('login'),[msg,setMsg]=useState(''),[busy,setBusy]=useState(false);
+  const [name,setName]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[access,setAccess]=useState('Alta Genetics'),[mode,setMode]=useState('login'),[msg,setMsg]=useState(''),[busy,setBusy]=useState(false);
   const content={
     login:['Acesso seguro','Entrar no app','Use seu e-mail e senha para continuar.'],
     signup:['Criar conta','Novo acesso','Cadastre seu nome, e-mail e senha.'],
@@ -802,14 +846,15 @@ function Login({onUseLocal}){
         if(result.error) throw result.error;
         setMsg('Entrando...');
       } else {
+        const empresaAcesso = normalizeEmpresaAcesso(access);
         result = await supabase.auth.signUp({
           email: cleanEmail,
           password,
-          options: { emailRedirectTo: window.location.origin, data: { name: cleanName, nome: cleanName, full_name: cleanName } }
+          options: { emailRedirectTo: window.location.origin, data: { name: cleanName, nome: cleanName, full_name: cleanName, empresa_acesso: empresaAcesso } }
         });
         if(result.error) throw result.error;
         if(result.data?.user?.id){
-          const {error:profileError}=await supabase.from('profiles').upsert({id:result.data.user.id,email:cleanEmail,nome:cleanName,updated_at:nowISO()},{onConflict:'id'});
+          const {error:profileError}=await supabase.from('profiles').upsert({id:result.data.user.id,email:cleanEmail,nome:cleanName,empresa_acesso:empresaAcesso,updated_at:nowISO()},{onConflict:'id'});
           if(profileError) console.warn('Profile sync:',profileError.message);
         }
         setMsg('Cadastro criado. Se o Supabase pedir confirmação, verifique seu e-mail antes de entrar.');
@@ -824,6 +869,10 @@ function Login({onUseLocal}){
       {mode==='signup'&&<label className="authField">
         <span>Nome completo</span>
         <div className="authInput"><UserCheck size={18}/><input value={name} onChange={e=>setName(e.target.value)} type="text" required placeholder="David Costa" autoComplete="name"/></div>
+      </label>}
+      {mode==='signup'&&<label className="authField">
+        <span>Vínculo de acesso</span>
+        <div className="authInput authSelectInput"><ShieldCheck size={18}/><select value={access} onChange={e=>setAccess(e.target.value)}>{EMPRESA_ACESSO.map(item=><option key={item} value={item}>{item}</option>)}</select></div>
       </label>}
       <label className="authField">
         <span>E-mail</span>
@@ -923,14 +972,15 @@ function AccessBadge({access}){return <span className={`accessBadge ${access.rol
 function PermissionNotice(){return <div className="permissionNotice"><ShieldCheck size={18}/><span>Você está como visualizador. Pode consultar informações e relatórios, mas não alterar dados desta fazenda.</span></div>}
 
 
-function BrasilAtuacaoMap({fazendas,onOpen}){
+function BrasilAtuacaoMap({fazendas,onOpen,centrais=CENTRAIS}){
   const [geo,setGeo]=useState(null), [filter,setFilter]=useState('Todas'), [err,setErr]=useState('');
+  useEffect(()=>{if(filter!=='Todas'&&!centrais.includes(filter))setFilter('Todas');},[filter,centrais.join('|')]);
   useEffect(()=>{ let alive=true; fetch('https://servicodados.ibge.gov.br/api/v3/malhas/paises/BR?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=UF').then(r=>r.json()).then(g=>alive&&setGeo(g)).catch(()=>alive&&setErr('Não foi possível carregar a malha dos estados pelo IBGE. Os pontos continuam disponíveis no mapa.')); return()=>{alive=false}; },[]);
   const farms = fazendas.filter(f=>filter==='Todas'||(f.central||'Outra / Não informado')===filter);
   const statesActive = new Set(farms.map(getFarmUF).filter(Boolean));
   const styleFeature = (feature) => { const uf=getGeoUF(feature); const central=centralForUF(farms,uf); const active=statesActive.has(uf); return { color:'#ffffff', weight:1.2, fillColor: active ? (STATE_COLORS[central]||STATE_COLORS.mixed) : STATE_COLORS.none, fillOpacity: active ? .82 : .65 }; };
-  return <section className="panel coveragePanel"><div className="sectionTitle"><h2><Globe2 size={21}/> Mapa de atuação</h2><select value={filter} onChange={e=>setFilter(e.target.value)}><option>Todas</option>{CENTRAIS.map(c=><option key={c}>{c}</option>)}</select></div>
-    <div className="legend"><span><i style={{background:STATE_COLORS['Alta Genetics']}}/> Alta Genetics</span><span><i style={{background:STATE_COLORS['Genex Brasil']}}/> Genex Brasil</span><span><i style={{background:STATE_COLORS.mixed}}/> Mais de uma central</span><span><i style={{background:STATE_COLORS.none}}/> Sem atendimento</span></div>
+  return <section className="panel coveragePanel"><div className="sectionTitle"><h2><Globe2 size={21}/> Mapa de atuação</h2><select value={filter} onChange={e=>setFilter(e.target.value)}><option>Todas</option>{centrais.map(c=><option key={c}>{c}</option>)}</select></div>
+    <div className="legend">{centrais.map(c=><span key={c}><i style={{background:STATE_COLORS[c]||STATE_COLORS.mixed}}/> {c}</span>)}<span><i style={{background:STATE_COLORS.mixed}}/> Mais de uma central</span><span><i style={{background:STATE_COLORS.none}}/> Sem atendimento</span></div>
     <div className="brMap"><MapContainer center={[-15.8,-47.9]} zoom={4} minZoom={3} className="bigMap" scrollWheelZoom={false}>
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="OpenStreetMap" />
       {geo && <GeoJSON key={filter+fazendas.length} data={geo} style={styleFeature} onEachFeature={(feature,layer)=>{const uf=getGeoUF(feature); const count=farms.filter(f=>getFarmUF(f)===uf).length; layer.bindTooltip(`${uf || 'UF'} • ${count} fazenda(s)`);}} />}
@@ -969,6 +1019,8 @@ function Fazendas({data,onOpen}){
     try{const saved=localStorage.getItem(FARM_VIEW_KEY);return FARM_VIEW_MODES.some(([id])=>id===saved)?saved:'cards';}catch{return 'cards';}
   });
   useEffect(()=>{try{localStorage.setItem(FARM_VIEW_KEY,viewMode)}catch{}},[viewMode]);
+  const visibleCentrais=allowedCentrais(data);
+  useEffect(()=>{if(central!=='Todas'&&!visibleCentrais.includes(central))setCentral('Todas');},[central,visibleCentrais.join('|')]);
   const farmEquipments = (farm) => data.equipamentos.filter(e=>e.fazenda_id===farm.id);
   const farms=data.fazendas.filter(f=>{
     const equipmentText=farmEquipments(f).map(e=>[e.tipo,e.apelido,e.local_nome].join(' ')).join(' ');
@@ -988,9 +1040,12 @@ function Fazendas({data,onOpen}){
   };
   const centralOptions=[
     {value:'Todas',label:'Todas',count:data.fazendas.length,tone:'all'},
-    {value:'Alta Genetics',label:'Alta',count:data.fazendas.filter(f=>centralMatches(f,'Alta Genetics')).length,tone:'alta'},
-    {value:'Genex Brasil',label:'Genex',count:data.fazendas.filter(f=>centralMatches(f,'Genex Brasil')).length,tone:'genex'},
-    {value:'Outra / Não informado',label:'Outras',count:data.fazendas.filter(f=>centralMatches(f,'Outra / Não informado')).length,tone:'other'}
+    ...visibleCentrais.map(value=>({
+      value,
+      label:value==='Alta Genetics'?'Alta':value==='Genex Brasil'?'Genex':'Outras',
+      count:data.fazendas.filter(f=>centralMatches(f,value)).length,
+      tone:centralTone(value)
+    }))
   ];
   const quickOptions=[
     {id:'todos',label:'Todas',count:data.fazendas.length},
@@ -1058,12 +1113,12 @@ function Fazendas({data,onOpen}){
       {renderFarmResults()}
     </section>
 
-    <div className="fieldMapSecondary farmsMapPreview"><BrasilAtuacaoMap fazendas={data.fazendas} onOpen={onOpen}/></div>
+    <div className="fieldMapSecondary farmsMapPreview"><BrasilAtuacaoMap fazendas={data.fazendas} onOpen={onOpen} centrais={visibleCentrais}/></div>
     <button className="mobileFarmFab" onClick={()=>setModal(true)}><Plus size={22}/></button>
     {filtersOpen&&<div className="farmFilterSheetBackdrop" onClick={()=>setFiltersOpen(false)}>
       <aside className="farmFilterSheet" onClick={e=>e.stopPropagation()}>
         <header><div><span className="eyebrow">Filtros</span><h3>Refinar lista</h3></div><button type="button" onClick={()=>setFiltersOpen(false)}><X size={18}/></button></header>
-        <label>Central<select value={central} onChange={e=>setCentral(e.target.value)}><option>Todas</option>{CENTRAIS.map(c=><option key={c}>{c}</option>)}</select></label>
+        <label>Central<select value={central} onChange={e=>setCentral(e.target.value)}><option>Todas</option>{visibleCentrais.map(c=><option key={c}>{c}</option>)}</select></label>
         <label>Status<select value={status} onChange={e=>setStatus(e.target.value)}><option>Todos</option>{FARM_STATUS.map(s=><option key={s}>{s}</option>)}</select></label>
         <div className="farmSheetQuick farmSheetView"><span>Visualização</span><div>{FARM_VIEW_MODES.map(([id,label,Icon])=><button type="button" key={id} className={viewMode===id?'active':''} onClick={()=>setViewMode(id)}><span><Icon size={15}/>{label}</span></button>)}</div></div>
         <div className="farmSheetQuick"><span>Condição</span><div>{quickOptions.map(({id,label,count})=><button type="button" key={id} className={quick===id?'active':''} onClick={()=>setQuick(id)}>{label}<b>{count}</b></button>)}</div></div>
@@ -1160,9 +1215,11 @@ function FarmListItem({farm,data,onOpen}){
 function FazendaModal({farm={},data={},onClose,onSave}){
   const currentUserName=personName(data.currentUser);
   const initialResponsible=farm.servico_responsavel||(!farm.id?currentUserName:'');
+  const centralChoices=allowedCentrais(data);
+  const defaultCentral=!farm.id&&centralChoices.length===1?centralChoices[0]:'';
   const [ufs,setUfs]=useState([]),[cities,setCities]=useState([]),[loadingCities,setLoadingCities]=useState(false);
   const [tab,setTab]=useState('dados'),[focus,setFocus]=useState(null);
-  const [form,setForm]=useState({id:farm.id||uid(),nome:farm.nome||'',central:farm.central||'',regional_nome:farm.regional_nome||'',veterinario_apoio:farm.veterinario_apoio||'',responsavel:farm.responsavel||'',telefone:formatPhoneBR(farm.telefone||''),estado_uf:farm.estado_uf||parseUF(farm.cidade)||'',estado_nome:farm.estado_nome||'',cidade:farm.cidade?.replace(/\s*\/\s*[A-Z]{2}$/,'')||'',codigo_ibge_cidade:farm.codigo_ibge_cidade||'',latitude:farm.latitude||'',longitude:farm.longitude||'',localizacao_origem:farm.localizacao_origem||'',endereco:farm.endereco||'',qtd_colares_prevista:farm.qtd_colares_prevista||'',qtd_colares_instalada:farm.qtd_colares_instalada||'',qtd_colares_entregue_cliente:farm.qtd_colares_entregue_cliente||'',motivo_colares_restantes:farm.motivo_colares_restantes||'',observacoes_colares:farm.observacoes_colares||'',status:farmStatus(farm),servico_inicio_em:dateTimeInput(farm.servico_inicio_em),servico_fim_em:dateTimeInput(farm.servico_fim_em),servico_responsavel:initialResponsible,servico_observacoes:farm.servico_observacoes||'',observacoes:farm.observacoes||'',created_at:farm.created_at||nowISO()});
+  const [form,setForm]=useState({id:farm.id||uid(),nome:farm.nome||'',central:farm.central||defaultCentral,regional_nome:farm.regional_nome||'',veterinario_apoio:farm.veterinario_apoio||'',responsavel:farm.responsavel||'',telefone:formatPhoneBR(farm.telefone||''),estado_uf:farm.estado_uf||parseUF(farm.cidade)||'',estado_nome:farm.estado_nome||'',cidade:farm.cidade?.replace(/\s*\/\s*[A-Z]{2}$/,'')||'',codigo_ibge_cidade:farm.codigo_ibge_cidade||'',latitude:farm.latitude||'',longitude:farm.longitude||'',localizacao_origem:farm.localizacao_origem||'',endereco:farm.endereco||'',qtd_colares_prevista:farm.qtd_colares_prevista||'',qtd_colares_instalada:farm.qtd_colares_instalada||'',qtd_colares_entregue_cliente:farm.qtd_colares_entregue_cliente||'',motivo_colares_restantes:farm.motivo_colares_restantes||'',observacoes_colares:farm.observacoes_colares||'',status:farmStatus(farm),servico_inicio_em:dateTimeInput(farm.servico_inicio_em),servico_fim_em:dateTimeInput(farm.servico_fim_em),servico_responsavel:initialResponsible,servico_observacoes:farm.servico_observacoes||'',observacoes:farm.observacoes||'',created_at:farm.created_at||nowISO()});
   const set=(k,v)=>setForm(prev=>({...prev,[k]:v}));
   const cityListId=`city-options-${form.id}`;
   const normalizeCity=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
@@ -1190,6 +1247,7 @@ function FazendaModal({farm={},data={},onClose,onSave}){
   }
   const submit=e=>{
     e.preventDefault();
+    if(!canAccessCentralValue(form.central,data)){notify('Seu usuário não tem acesso para salvar fazenda nesta central.','error');return;}
     onSave({
       ...form,
       qtd_colares_prevista:num(form.qtd_colares_prevista),
@@ -1212,7 +1270,7 @@ function FazendaModal({farm={},data={},onClose,onSave}){
     <div className="editorTabs farmEditorTabs"><button type="button" className={tab==='dados'?'active':''} onClick={()=>setTab('dados')}><ClipboardPenLine size={17}/> Dados</button><button type="button" className={tab==='localizacao'?'active':''} onClick={()=>setTab('localizacao')}><MapPinned size={17}/> Localização {hasLocation&&<Check size={15}/>}</button></div>
     {tab==='dados'&&<div className="editorPane farmDataPane">
       <Field label="Nome da fazenda *" icon={Building2}><input value={form.nome} onChange={e=>set('nome',e.target.value)} required placeholder="Ex: Fazenda Santa Maria"/></Field>
-      <div className="grid2"><Field label="Central / empresa atendida" icon={ShieldCheck}><select value={form.central} onChange={e=>set('central',e.target.value)}><option value="">Selecione...</option>{CENTRAIS.map(c=><option key={c}>{c}</option>)}</select></Field><Field label="Nome do regional" icon={User}><input value={form.regional_nome} onChange={e=>set('regional_nome',e.target.value)} placeholder="Ex: nome do regional"/></Field></div>
+      <div className="grid2"><Field label="Central / empresa atendida" icon={ShieldCheck}><select value={form.central} onChange={e=>set('central',e.target.value)}><option value="">Selecione...</option>{centralChoices.map(c=><option key={c}>{c}</option>)}</select></Field><Field label="Nome do regional" icon={User}><input value={form.regional_nome} onChange={e=>set('regional_nome',e.target.value)} placeholder="Ex: nome do regional"/></Field></div>
       <Field label="Veterinário / apoio em campo" icon={Stethoscope}><input value={form.veterinario_apoio} onChange={e=>set('veterinario_apoio',e.target.value)} placeholder="Nome do veterinário, se estiver junto"/></Field>
       <div className="grid2"><Field label="Responsável da fazenda" icon={User}><input value={form.responsavel} onChange={e=>set('responsavel',e.target.value)} placeholder="Nome"/></Field><Field label="Telefone" icon={Phone}><input value={form.telefone} onChange={e=>set('telefone',formatPhoneBR(e.target.value))} placeholder="(00) 00000-0000" inputMode="tel"/></Field></div>
       <div className="grid2"><Field label="Estado" icon={MapPin}><select value={form.estado_uf} onChange={e=>{const uf=e.target.value; const st=ufs.find(u=>u.sigla===uf); setForm(prev=>({...prev,estado_uf:uf,estado_nome:st?.nome||UF_NAMES[uf]||'',cidade:'',codigo_ibge_cidade:'',latitude:'',longitude:'',localizacao_origem:''}));setFocus(STATE_CENTER[uf]||null);}}><option value="">Selecione o estado...</option>{ufs.map(u=><option key={u.id} value={u.sigla}>{u.nome} — {u.sigla}</option>)}</select></Field><Field label="Cidade" icon={MapPin}><div className="cityLookup"><input list={cityListId} value={form.cidade} onChange={e=>chooseCityByName(e.target.value)} disabled={!form.estado_uf||loadingCities} placeholder={!form.estado_uf?'Selecione o estado primeiro':loadingCities?'Carregando cidades...':'Digite para buscar a cidade'}/><Search size={16}/></div><datalist id={cityListId}>{cities.map(c=><option key={c.id} value={c.nome}/>)}</datalist></Field></div>
@@ -2095,6 +2153,8 @@ function ProductivityLineChart({rows,suffix=' h',decimals=1}){
 function Produtividade({data,onOpen}){
   const [year,setYear]=useState('Todos'),[month,setMonth]=useState('Todos'),[central,setCentral]=useState('Todas'),[resp,setResp]=useState('Todos');
   const [workStart,setWorkStart]=useState(DEFAULT_WORKDAY.start),[workEnd,setWorkEnd]=useState(DEFAULT_WORKDAY.end),[lunchMinutes,setLunchMinutes]=useState(DEFAULT_WORKDAY.lunchMinutes),[includeWeekends,setIncludeWeekends]=useState(false);
+  const visibleCentrais=allowedCentrais(data);
+  useEffect(()=>{if(central!=='Todas'&&!visibleCentrais.includes(central))setCentral('Todas');},[central,visibleCentrais.join('|')]);
   const workConfig={start:workStart||DEFAULT_WORKDAY.start,end:workEnd||DEFAULT_WORKDAY.end,lunchMinutes:num(lunchMinutes),includeWeekends};
   const concluded=data.fazendas.filter(f=>f.servico_inicio_em&&f.servico_fim_em&&serviceHours(f)>0);
   const years=[...new Set(concluded.map(f=>new Date(f.servico_fim_em).getFullYear()).filter(Boolean))].sort((a,b)=>b-a);
@@ -2139,7 +2199,7 @@ function Produtividade({data,onOpen}){
     <div className="statsGrid"><Stat icon={Building2} label="fazendas concluídas" value={farms.length}/><Stat icon={Clock} label="média por fazenda" value={avgLabel}/><Stat icon={Hash} label="colares/dia útil" value={collarsPerDay?collarsPerDay.toFixed(1):'-'} tone="green"/><Stat icon={PlayCircle} label="em andamento" value={inProgress.length}/></div>
     <section className="panel productivityFilters">
       <div className="sectionTitle"><div><h2><Filter size={20}/> Filtros</h2></div></div>
-      <div className="grid4"><Field label="Ano"><select value={year} onChange={e=>setYear(e.target.value)}><option>Todos</option>{years.map(y=><option key={y}>{y}</option>)}</select></Field><Field label="Mês"><select value={month} onChange={e=>setMonth(e.target.value)}><option>Todos</option>{monthNames.map((m,i)=><option key={m} value={i+1}>{m}</option>)}</select></Field><Field label="Central"><select value={central} onChange={e=>setCentral(e.target.value)}><option>Todas</option>{CENTRAIS.map(c=><option key={c}>{c}</option>)}</select></Field><Field label="Responsável"><select value={resp} onChange={e=>setResp(e.target.value)}><option>Todos</option>{responsaveis.map(r=><option key={r}>{r}</option>)}</select></Field></div>
+      <div className="grid4"><Field label="Ano"><select value={year} onChange={e=>setYear(e.target.value)}><option>Todos</option>{years.map(y=><option key={y}>{y}</option>)}</select></Field><Field label="Mês"><select value={month} onChange={e=>setMonth(e.target.value)}><option>Todos</option>{monthNames.map((m,i)=><option key={m} value={i+1}>{m}</option>)}</select></Field><Field label="Central"><select value={central} onChange={e=>setCentral(e.target.value)}><option>Todas</option>{visibleCentrais.map(c=><option key={c}>{c}</option>)}</select></Field><Field label="Responsável"><select value={resp} onChange={e=>setResp(e.target.value)}><option>Todos</option>{responsaveis.map(r=><option key={r}>{r}</option>)}</select></Field></div>
       <div className="workdayPanel">
         <div className="workdayIntro"><span className="eyebrow">Jornada usada no cálculo</span><h3>{workConfig.start} - {workConfig.end} • {dailyHours.toFixed(1)} h/dia</h3><p>Não é controle de ponto. É uma régua padrão para comparar fazendas de períodos diferentes sem contar noite, espera fora da jornada ou dias sem trabalho.</p></div>
         <Field label="Início"><input type="time" value={workStart} onChange={e=>setWorkStart(e.target.value)}/></Field>
@@ -2162,6 +2222,8 @@ function Relatorios({data}){
   const today=new Date(),pad=n=>String(n).padStart(2,'0');
   const [period,setPeriod]=useState('todos'),[central,setCentral]=useState('Todas'),[status,setStatus]=useState('Todos'),[reportType,setReportType]=useState('geral'),[filtersOpen,setFiltersOpen]=useState(false);
   const [customStart,setCustomStart]=useState(`${today.getFullYear()}-${pad(today.getMonth()+1)}-01`),[customEnd,setCustomEnd]=useState(todayInput());
+  const visibleCentrais=allowedCentrais(data);
+  useEffect(()=>{if(central!=='Todas'&&!visibleCentrais.includes(central))setCentral('Todas');},[central,visibleCentrais.join('|')]);
   const parseDate=v=>{if(!v)return null;const d=new Date(v);return Number.isNaN(d.getTime())?null:d;};
   const rangeFor=()=>{
     const startDay=d=>new Date(d.getFullYear(),d.getMonth(),d.getDate(),0,0,0,0);
@@ -2204,7 +2266,7 @@ function Relatorios({data}){
   const progress=planned?Math.round((handled/planned)*100):0;
   const totalUsefulHours=completedInPeriod.reduce((a,f)=>a+businessHoursBetween(f.servico_inicio_em,f.servico_fim_em,DEFAULT_WORKDAY),0);
   const reportTypes={geral:'Relatório geral',mensal:'Instalações mensais',produtividade:'Produtividade de campo',pendencias:'Pendências operacionais',central:'Resumo por central'};
-  const centralRows=CENTRAIS.map(c=>{const list=farms.filter(f=>c==='Outra / Não informado'?(!f.central||!CENTRAIS.slice(0,2).includes(f.central)):f.central===c);return {label:c,count:list.length,done:list.filter(f=>farmStatus(f)===FARM_STATUS_DONE||f.servico_fim_em).length,collars:list.reduce((a,f)=>a+collarInstalled(f),0),handled:list.reduce((a,f)=>a+collarHandled(f),0)}}).filter(r=>r.count||central==='Todas');
+  const centralRows=visibleCentrais.map(c=>{const list=farms.filter(f=>c==='Outra / Não informado'?(!f.central||!CENTRAIS.slice(0,2).includes(f.central)):f.central===c);return {label:c,count:list.length,done:list.filter(f=>farmStatus(f)===FARM_STATUS_DONE||f.servico_fim_em).length,collars:list.reduce((a,f)=>a+collarInstalled(f),0),handled:list.reduce((a,f)=>a+collarHandled(f),0)}}).filter(r=>r.count||central==='Todas');
   const ownerMap={};completedInPeriod.forEach(f=>{const key=f.servico_responsavel||f.regional_nome||f.responsavel||'Não informado';ownerMap[key]=ownerMap[key]||{label:key,count:0,collars:0,hours:0};ownerMap[key].count+=1;ownerMap[key].collars+=num(f.qtd_colares_instalada);ownerMap[key].hours+=businessHoursBetween(f.servico_inicio_em,f.servico_fim_em,DEFAULT_WORKDAY);});
   const ownerRows=Object.values(ownerMap).sort((a,b)=>b.count-a.count).slice(0,5);
   const groupByMonth=(!range.start&&!range.end)||((range.end-range.start)/86400000)>45;
@@ -2233,7 +2295,7 @@ function Relatorios({data}){
   };
   const filterSummary=[range.label,central,status].filter(Boolean).join(' • ');
   return <div className="managerReports">
-    <PageHead eyebrow="Relatórios" title="Relatórios gerenciais"><div className="reportFilterWrap"><button type="button" className={`btn light managerFilterBtn ${filtersOpen?'active':''}`} onClick={()=>setFiltersOpen(v=>!v)}><Filter size={18}/> Filtros</button>{filtersOpen&&<><button type="button" className="managerFilterBackdrop" aria-label="Fechar filtros" onClick={()=>setFiltersOpen(false)}/><div className="reportFilterMenu managerFilterMenu"><div className="reportOptionHead"><b>Filtros gerenciais</b><button type="button" onClick={()=>setFiltersOpen(false)} aria-label="Fechar filtros"><X size={16}/></button></div><Field label="Tipo de relatório"><select value={reportType} onChange={e=>setReportType(e.target.value)}>{Object.entries(reportTypes).map(([k,label])=><option key={k} value={k}>{label}</option>)}</select></Field><div className="grid2"><Field label="Período"><select value={period} onChange={e=>setPeriod(e.target.value)}><option value="todos">Todo histórico</option><option value="mes_atual">Mês atual</option><option value="mes_anterior">Mês anterior</option><option value="ultimos_30">Últimos 30 dias</option><option value="personalizado">Personalizado</option></select></Field><Field label="Central"><select value={central} onChange={e=>setCentral(e.target.value)}><option>Todas</option>{CENTRAIS.map(c=><option key={c}>{c}</option>)}</select></Field></div>{period==='personalizado'&&<div className="grid2"><Field label="Início"><input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)}/></Field><Field label="Fim"><input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)}/></Field></div>}<Field label="Status"><select value={status} onChange={e=>setStatus(e.target.value)}><option>Todos</option>{FARM_STATUS.map(s=><option key={s}>{s}</option>)}</select></Field></div></>}</div><button className="btn light" onClick={exportData}><Download size={18}/> Exportar</button><button className="btn primary" onClick={printReport}><Printer size={18}/> Imprimir</button></PageHead>
+    <PageHead eyebrow="Relatórios" title="Relatórios gerenciais"><div className="reportFilterWrap"><button type="button" className={`btn light managerFilterBtn ${filtersOpen?'active':''}`} onClick={()=>setFiltersOpen(v=>!v)}><Filter size={18}/> Filtros</button>{filtersOpen&&<><button type="button" className="managerFilterBackdrop" aria-label="Fechar filtros" onClick={()=>setFiltersOpen(false)}/><div className="reportFilterMenu managerFilterMenu"><div className="reportOptionHead"><b>Filtros gerenciais</b><button type="button" onClick={()=>setFiltersOpen(false)} aria-label="Fechar filtros"><X size={16}/></button></div><Field label="Tipo de relatório"><select value={reportType} onChange={e=>setReportType(e.target.value)}>{Object.entries(reportTypes).map(([k,label])=><option key={k} value={k}>{label}</option>)}</select></Field><div className="grid2"><Field label="Período"><select value={period} onChange={e=>setPeriod(e.target.value)}><option value="todos">Todo histórico</option><option value="mes_atual">Mês atual</option><option value="mes_anterior">Mês anterior</option><option value="ultimos_30">Últimos 30 dias</option><option value="personalizado">Personalizado</option></select></Field><Field label="Central"><select value={central} onChange={e=>setCentral(e.target.value)}><option>Todas</option>{visibleCentrais.map(c=><option key={c}>{c}</option>)}</select></Field></div>{period==='personalizado'&&<div className="grid2"><Field label="Início"><input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)}/></Field><Field label="Fim"><input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)}/></Field></div>}<Field label="Status"><select value={status} onChange={e=>setStatus(e.target.value)}><option>Todos</option>{FARM_STATUS.map(s=><option key={s}>{s}</option>)}</select></Field></div></>}</div><button className="btn light" onClick={exportData}><Download size={18}/> Exportar</button><button className="btn primary" onClick={printReport}><Printer size={18}/> Imprimir</button></PageHead>
     <section className="managerHero"><div><span className="eyebrow">Central gerencial</span><h2><FileText size={24}/> {reportTypes[reportType]}</h2><p>{filterSummary}</p></div><div className="managerHeroScore"><b>{progress}%</b><span>progresso total</span></div></section>
     <div className="managerKpis"><article><Building2 size={22}/><span>Fazendas cadastradas</span><b>{farms.length}</b><small>{notStarted.length} não iniciada(s) • {completed.length} concluída(s)</small></article><article><Milk size={22}/><span>Colares atendidos</span><b>{handled}</b><small>{installed} instalados • {delivered} entregues</small></article><article><CalendarDays size={22}/><span>Movimento no período</span><b>{activeFarms.length}</b><small>{visitsInPeriod.length} visita(s)</small></article><article><Cpu size={22}/><span>Equipamentos</span><b>{equips.length}</b><small>{missingGps.length} sem GPS</small></article></div>
     <div className="managerGrid">
