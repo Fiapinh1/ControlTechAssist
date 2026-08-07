@@ -16,11 +16,13 @@ import {
   Image as ImageIcon, Camera, Upload, Eye, EyeOff, Link2, Milk, Mail
 } from 'lucide-react';
 import './styles.css';
+import holsteinCowSvg from './assets/holstein-cow.svg';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
 const APP_VERSION = '3.0.0';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
+const FARM_VIEW_KEY = 'cta_farm_view_mode';
 const readAppContext = () => {
   try { return JSON.parse(localStorage.getItem(APP_CONTEXT_KEY) || '{}') || {}; } catch { return {}; }
 };
@@ -753,16 +755,19 @@ function PasswordField({label,value,onChange,placeholder,autoComplete}){
   </label>
 }
 
+function HolsteinCowIllustration(){
+  return <div className="holsteinCowStage">
+    <img className="holsteinCowSvg" src={holsteinCowSvg} alt="" draggable="false"/>
+    <span className="holsteinCollarSignal one"/>
+    <span className="holsteinCollarSignal two"/>
+    <span className="holsteinCowShadow"/>
+  </div>
+}
+
 function DairyVisual({compact=false}){
   return <div className={compact?'dairyVisual compact':'dairyVisual'} aria-hidden="true">
     <div className="dairyOrbit"><span/><span/><span/></div>
-    <div className="dairyCow">
-      <span className="cowSpot one"/><span className="cowSpot two"/><span className="cowSpot three"/>
-      <span className="cowEar left"/><span className="cowEar right"/>
-      <span className="cowHead"><span className="cowEye"/><span className="cowMuzzle"/></span>
-      <span className="cowLeg front"/><span className="cowLeg back"/>
-      <span className="smartCollar"><Wifi size={compact?12:15}/></span>
-    </div>
+    <HolsteinCowIllustration/>
     <div className="milkSurface"><span/><span/><span/></div>
   </div>
 }
@@ -770,9 +775,9 @@ function DairyVisual({compact=false}){
 function Login({onUseLocal}){
   const [name,setName]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[mode,setMode]=useState('login'),[msg,setMsg]=useState(''),[busy,setBusy]=useState(false);
   const content={
-    login:['Acesso seguro','Entrar no ControlTech Assist','Controle colares, instalações, mapas e visitas em uma rotina única de campo.'],
-    signup:['Criar conta','Começar no ControlTech Assist','Crie seu acesso para registrar fazendas leiteiras, liberar equipe e gerar relatórios técnicos.'],
-    forgot:['Recuperar senha','Recuperar acesso','Informe seu e-mail para receber um link seguro de redefinição de senha.']
+    login:['Acesso seguro','Entrar no app','Use seu e-mail e senha para continuar.'],
+    signup:['Criar conta','Novo acesso','Cadastre seu nome, e-mail e senha.'],
+    forgot:['Recuperar senha','Recuperar acesso','Informe seu e-mail para receber o link de redefinição.']
   }[mode];
   const changeMode=(next)=>{setMsg('');setMode(next)};
   const submit=async(e)=>{
@@ -815,10 +820,6 @@ function Login({onUseLocal}){
     } finally { setBusy(false); }
   };
   return <AuthShell eyebrow={content[0]} title={content[1]} desc={content[2]}>
-    {mode!=='forgot'&&<div className="authModeTabs">
-      <button type="button" className={mode==='login'?'active':''} onClick={()=>changeMode('login')}>Entrar</button>
-      <button type="button" className={mode==='signup'?'active':''} onClick={()=>changeMode('signup')}>Criar conta</button>
-    </div>}
     <form onSubmit={submit} className="authForm">
       {mode==='signup'&&<label className="authField">
         <span>Nome completo</span>
@@ -831,28 +832,32 @@ function Login({onUseLocal}){
       {mode!=='forgot'&&<PasswordField label="Senha" value={password} onChange={e=>setPassword(e.target.value)} placeholder="mínimo 6 caracteres" autoComplete={mode==='login'?'current-password':'new-password'}/>}
       <button className="btn primary authSubmit" disabled={busy}>{busy?'Aguarde...':mode==='login'?'Entrar no app':mode==='signup'?'Criar minha conta':'Enviar link de recuperação'}</button>
     </form>
-    <div className="authLinks">
-      {mode==='forgot'?<button type="button" className="linkBtn" onClick={()=>changeMode('login')}>Voltar para entrar</button>:<button type="button" className="linkBtn" onClick={()=>changeMode('forgot')}>Esqueci minha senha</button>}
-      <button type="button" className="linkBtn dangerText localModeBtn" onClick={onUseLocal}>Usar modo local de emergência</button>
+    <div className="authSecondaryActions">
+      {mode==='login'&&<>
+        <button type="button" onClick={()=>changeMode('forgot')}>Esqueci minha senha</button>
+        <span/>
+        <button type="button" onClick={()=>changeMode('signup')}>Criar conta</button>
+      </>}
+      {mode==='signup'&&<button type="button" onClick={()=>changeMode('login')}>Já tenho conta</button>}
+      {mode==='forgot'&&<button type="button" onClick={()=>changeMode('login')}>Voltar para entrar</button>}
     </div>
+    <button type="button" className="authEmergencyLink" onClick={onUseLocal}>Modo local de emergência</button>
     {msg&&<div className="notice authNotice">{msg}</div>}
   </AuthShell>
 }
 
 function AuthShell({eyebrow,title,desc,children}){
-  const features=[['Colares',Milk,'Acompanhamento de instalados, entregues e progresso real.'],['Mapa técnico',MapPinned,'Pontos de fazenda, antenas e bases em visão híbrida.'],['Campo',Stethoscope,'Visitas, pendências, evidências e suporte.'],['Relatórios',FileText,'PDF técnico e indicadores gerenciais.']];
   return <div className="loginPage authPage">
     <div className="authBackdrop" aria-hidden="true"><i/><i/><i/></div>
     <div className="authShell">
       <aside className="authAside">
-        <div className="authAsideTop"><Logo/><span className="authSecureChip"><ShieldCheck size={16}/> Operação protegida</span></div>
-        <DairyVisual/>
+        <div className="authAsideTop"><Logo/></div>
         <div className="authHeroCopy">
-          <span className="eyebrow">Tecnologia no leite</span>
-          <h1>Colares inteligentes, fazendas e suporte em uma rotina visual.</h1>
-          <p>Uma entrada mais direta para acompanhar instalações em vacas de leite, com dados técnicos prontos para o campo e para a coordenação.</p>
+          <span className="eyebrow">AgTech leiteira</span>
+          <h1>Colares inteligentes no campo, dados prontos para decisão.</h1>
+          <p>Controle técnico para implantação, visitas, mapas e relatórios em fazendas de leite.</p>
         </div>
-        <div className="authFeatureGrid">{features.map(([label,Icon,text])=><div className="authFeature" key={label}><Icon size={18}/><b>{label}</b><span>{text}</span></div>)}</div>
+        <DairyVisual/>
       </aside>
       <section className="loginCard authCard">
         <div className="authCardBrand"><Logo/></div>
@@ -952,9 +957,18 @@ const centralMatches = (farm, value) => {
 };
 const farmHasPending = (farm, data) => farmStatus(farm) === 'Com pendência' || collarHasPending(farm) || data.visitas.some(v => v.fazenda_id === farm.id && v.pendencias);
 const latestFarmVisit = (farm, data) => data.visitas.filter(v => v.fazenda_id === farm.id).sort((a,b) => String(b.data_visita || '').localeCompare(String(a.data_visita || '')))[0];
+const FARM_VIEW_MODES = [
+  ['cards','Cards',Layers],
+  ['lista','Lista',ClipboardList],
+  ['carrossel','Carrossel',Sparkles]
+];
 
 function Fazendas({data,onOpen}){
   const [q,setQ]=useState(''),[modal,setModal]=useState(false),[central,setCentral]=useState('Todas'),[status,setStatus]=useState('Todos'),[quick,setQuick]=useState('todos'),[filtersOpen,setFiltersOpen]=useState(false);
+  const [viewMode,setViewMode]=useState(()=>{
+    try{const saved=localStorage.getItem(FARM_VIEW_KEY);return FARM_VIEW_MODES.some(([id])=>id===saved)?saved:'cards';}catch{return 'cards';}
+  });
+  useEffect(()=>{try{localStorage.setItem(FARM_VIEW_KEY,viewMode)}catch{}},[viewMode]);
   const farmEquipments = (farm) => data.equipamentos.filter(e=>e.fazenda_id===farm.id);
   const farms=data.fazendas.filter(f=>{
     const equipmentText=farmEquipments(f).map(e=>[e.tipo,e.apelido,e.local_nome].join(' ')).join(' ');
@@ -987,6 +1001,12 @@ function Fazendas({data,onOpen}){
   const resetFilters=()=>{setQ('');setCentral('Todas');setStatus('Todos');setQuick('todos')};
   const hasActiveFilters=Boolean(q)||central!=='Todas'||status!=='Todos'||quick!=='todos';
   const saveFarm=async(r)=>{const result=await data.saveFazenda(r);if(result.ok)setModal(false)};
+  const renderFarmResults=()=>{
+    if(farms.length===0) return <><Empty title="Nenhuma fazenda encontrada" text="Altere os filtros ou cadastre uma nova fazenda."/>{data.cloud&&data.fazendas.length===0&&<AccountDataNotice userId={data.userId}/>}</>;
+    if(viewMode==='lista') return <div className="farmListView">{farms.map(f=><FarmListItem key={f.id} farm={f} data={data} onOpen={()=>onOpen(f.id)}/>)}</div>;
+    if(viewMode==='carrossel') return <div className="farmCarouselView">{farms.map(f=><FarmCard key={f.id} farm={f} data={data} onOpen={()=>onOpen(f.id)}/>)}</div>;
+    return <div className="farmGrid finderGrid farmGridModern">{farms.map(f=><FarmCard key={f.id} farm={f} data={data} onOpen={()=>onOpen(f.id)}/>)}</div>;
+  };
   return <div className="farmsHome">
     <section className="farmsHeroHome">
       <div className="farmsHeroCopy">
@@ -1011,6 +1031,9 @@ function Fazendas({data,onOpen}){
         <Search size={19}/>
         <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar fazenda, cidade, responsável ou equipamento" />
       </div>
+      <div className="farmViewSwitcher" role="group" aria-label="Modo de visualização">
+        {FARM_VIEW_MODES.map(([id,label,Icon])=><button type="button" key={id} className={viewMode===id?'active':''} aria-pressed={viewMode===id} title={label} onClick={()=>setViewMode(id)}><Icon size={16}/><span>{label}</span></button>)}
+      </div>
       <button type="button" className={`farmFilterButton ${hasActiveFilters?'active':''}`} aria-expanded={filtersOpen} onClick={()=>setFiltersOpen(true)}>
         <Filter size={18}/><span>Filtros</span>{hasActiveFilters&&<b />}
       </button>
@@ -1031,12 +1054,8 @@ function Fazendas({data,onOpen}){
     <section className="farmResultsPanel">
       <div className="farmResultsHeader">
         <div><span className="eyebrow">Localizar fazenda</span><h2>{farms.length} resultado(s)</h2></div>
-        <div className="farmDesktopFilters">
-          <select value={status} onChange={e=>setStatus(e.target.value)}><option>Todos</option>{FARM_STATUS.map(s=><option key={s}>{s}</option>)}</select>
-          <button className="btn light" onClick={resetFilters} disabled={!hasActiveFilters}>Limpar</button>
-        </div>
       </div>
-      {farms.length===0?<><Empty title="Nenhuma fazenda encontrada" text="Altere os filtros ou cadastre uma nova fazenda."/>{data.cloud&&data.fazendas.length===0&&<AccountDataNotice userId={data.userId}/>}</>:<div className="farmGrid finderGrid farmGridModern">{farms.map(f=><FarmCard key={f.id} farm={f} data={data} onOpen={()=>onOpen(f.id)}/>)}</div>}
+      {renderFarmResults()}
     </section>
 
     <div className="fieldMapSecondary farmsMapPreview"><BrasilAtuacaoMap fazendas={data.fazendas} onOpen={onOpen}/></div>
@@ -1046,6 +1065,7 @@ function Fazendas({data,onOpen}){
         <header><div><span className="eyebrow">Filtros</span><h3>Refinar lista</h3></div><button type="button" onClick={()=>setFiltersOpen(false)}><X size={18}/></button></header>
         <label>Central<select value={central} onChange={e=>setCentral(e.target.value)}><option>Todas</option>{CENTRAIS.map(c=><option key={c}>{c}</option>)}</select></label>
         <label>Status<select value={status} onChange={e=>setStatus(e.target.value)}><option>Todos</option>{FARM_STATUS.map(s=><option key={s}>{s}</option>)}</select></label>
+        <div className="farmSheetQuick farmSheetView"><span>Visualização</span><div>{FARM_VIEW_MODES.map(([id,label,Icon])=><button type="button" key={id} className={viewMode===id?'active':''} onClick={()=>setViewMode(id)}><span><Icon size={15}/>{label}</span></button>)}</div></div>
         <div className="farmSheetQuick"><span>Condição</span><div>{quickOptions.map(({id,label,count})=><button type="button" key={id} className={quick===id?'active':''} onClick={()=>setQuick(id)}>{label}<b>{count}</b></button>)}</div></div>
         <div className="farmSheetActions"><button className="btn light" onClick={resetFilters}>Limpar filtros</button><button className="btn primary" onClick={()=>setFiltersOpen(false)}>Aplicar</button></div>
       </aside>
@@ -1096,6 +1116,47 @@ function FarmCard({farm,data,onOpen}){
     <footer><span>Última visita: {lastVisit?brDate(lastVisit.data_visita):'sem visita'}</span><b>Abrir <ChevronLeft className="rotate" size={16}/></b></footer>
   </article>
 }
+
+function FarmListItem({farm,data,onOpen}){
+  const access=farmAccess(farm,data);
+  const equips=data.equipamentos.filter(e=>e.fazenda_id===farm.id);
+  const planned=num(farm.qtd_colares_prevista), installed=collarInstalled(farm), handled=collarHandled(farm);
+  const pct=collarProgress(farm);
+  const displayStatus=farmStatus(farm);
+  const tone=centralTone(farm.central);
+  const lastVisit=latestFarmVisit(farm,data);
+  const hasGps=Boolean(farm.latitude&&farm.longitude);
+  const pending=farmHasPending(farm,data);
+  const peopleLine=[farm.responsavel,farm.regional_nome].filter(Boolean).join(' • ')||'Responsável não informado';
+  return <button type="button" className={`farmListItem central-${tone}`} onClick={onOpen}>
+    <span className="farmListAccent" />
+    <span className={`farmListIcon ${tone}`}><Building2 size={20}/></span>
+    <span className="farmListMain">
+      <b>{farm.nome}</b>
+      <small><MapPin size={14}/>{farm.cidade||'Cidade não informada'}{getFarmUF(farm)?` / ${getFarmUF(farm)}`:''}</small>
+      <small><User size={14}/>{peopleLine}</small>
+    </span>
+    <span className="farmListProgress">
+      <span><Milk size={14}/> Colares</span>
+      <b>{handled} / {planned}</b>
+      <i><em style={{width:`${Math.min(pct,100)}%`}} /></i>
+      <small>{installed} instalado(s){collarDelivered(farm)>0?` • ${collarDelivered(farm)} entregue(s)`:''}</small>
+    </span>
+    <span className="farmListBadges">
+      <span className={`centralPill ${tone}`}>{centralDisplay(farm.central)}</span>
+      <span className={`status ${statusTone(displayStatus)}`}>{displayStatus}</span>
+      <span className={hasGps?'farmMiniPill ok':'farmMiniPill warn'}><LocateFixed size={13}/>{hasGps?'GPS':'Sem GPS'}</span>
+      <span className="farmMiniPill"><Cpu size={13}/>{equips.length}</span>
+      {pending&&<span className="farmMiniPill warn"><AlertTriangle size={13}/>Pendência</span>}
+      {access.isShared&&<span className="farmMiniPill ok">Compartilhada</span>}
+    </span>
+    <span className="farmListFoot">
+      <small>Última visita: {lastVisit?brDate(lastVisit.data_visita):'sem visita'}</small>
+      <b>Abrir <ChevronLeft className="rotate" size={16}/></b>
+    </span>
+  </button>
+}
+
 function FazendaModal({farm={},data={},onClose,onSave}){
   const currentUserName=personName(data.currentUser);
   const initialResponsible=farm.servico_responsavel||(!farm.id?currentUserName:'');
