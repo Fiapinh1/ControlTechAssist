@@ -13,7 +13,7 @@ import {
   ClipboardX, CircleAlert, Cable, Zap, Settings, Clock, Check, PlayCircle, Info,
   ClipboardPenLine, LifeBuoy, FileDown, Antenna, Gauge, ScanLine, Globe2, Filter, LocateFixed, Printer, Share2,
   BrickWall, Trees, Mountain, Warehouse, Signal, SignalLow, SignalZero, CloudOff, RefreshCw, Copy, UserCheck,
-  Image as ImageIcon, Camera, Upload, Eye, Link2, Milk
+  Image as ImageIcon, Camera, Upload, Eye, EyeOff, Link2, Milk, Mail
 } from 'lucide-react';
 import './styles.css';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
@@ -739,20 +739,50 @@ function translateAuthError(message=''){
   return message || 'Não foi possível concluir a ação.';
 }
 
+function PasswordField({label,value,onChange,placeholder,autoComplete}){
+  const [visible,setVisible]=useState(false);
+  return <label className="authField">
+    <span>{label}</span>
+    <div className="authInput authPasswordInput">
+      <ShieldCheck size={18}/>
+      <input value={value} onChange={onChange} type={visible?'text':'password'} required placeholder={placeholder} autoComplete={autoComplete}/>
+      <button type="button" className="authReveal" onClick={()=>setVisible(v=>!v)} aria-label={visible?'Ocultar senha':'Mostrar senha'}>
+        {visible?<EyeOff size={18}/>:<Eye size={18}/>}
+      </button>
+    </div>
+  </label>
+}
+
+function DairyVisual({compact=false}){
+  return <div className={compact?'dairyVisual compact':'dairyVisual'} aria-hidden="true">
+    <div className="dairyOrbit"><span/><span/><span/></div>
+    <div className="dairyCow">
+      <span className="cowSpot one"/><span className="cowSpot two"/><span className="cowSpot three"/>
+      <span className="cowEar left"/><span className="cowEar right"/>
+      <span className="cowHead"><span className="cowEye"/><span className="cowMuzzle"/></span>
+      <span className="cowLeg front"/><span className="cowLeg back"/>
+      <span className="smartCollar"><Wifi size={compact?12:15}/></span>
+    </div>
+    <div className="milkSurface"><span/><span/><span/></div>
+  </div>
+}
+
 function Login({onUseLocal}){
-  const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[mode,setMode]=useState('login'),[msg,setMsg]=useState(''),[busy,setBusy]=useState(false);
+  const [name,setName]=useState(''),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[mode,setMode]=useState('login'),[msg,setMsg]=useState(''),[busy,setBusy]=useState(false);
   const content={
-    login:['Acesso seguro','Entrar no ControlTech Assist','Acesse suas fazendas, mapas técnicos, visitas e relatórios em um ambiente único.'],
-    signup:['Criar conta','Começar no ControlTech Assist','Crie seu acesso para cadastrar fazendas e liberar visualização para sua equipe.'],
+    login:['Acesso seguro','Entrar no ControlTech Assist','Controle colares, instalações, mapas e visitas em uma rotina única de campo.'],
+    signup:['Criar conta','Começar no ControlTech Assist','Crie seu acesso para registrar fazendas leiteiras, liberar equipe e gerar relatórios técnicos.'],
     forgot:['Recuperar senha','Recuperar acesso','Informe seu e-mail para receber um link seguro de redefinição de senha.']
   }[mode];
+  const changeMode=(next)=>{setMsg('');setMode(next)};
   const submit=async(e)=>{
     e.preventDefault();
     setMsg('');
     setBusy(true);
     try{
       if(!supabase) throw new Error('Supabase não configurado.');
-      const cleanEmail = email.trim();
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanName = name.trim().replace(/\s+/g,' ');
       let result;
       if(mode==='forgot'){
         result = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo: window.location.origin });
@@ -760,14 +790,23 @@ function Login({onUseLocal}){
         setMsg('Enviamos um link para redefinir sua senha. Abra o e-mail neste mesmo navegador ou no domínio do app.');
         return;
       }
+      if(mode==='signup' && cleanName.length < 3) throw new Error('Informe seu nome completo para criar a conta.');
       if(password.length < 6) throw new Error('A senha precisa ter pelo menos 6 caracteres.');
       if(mode==='login'){
         result = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
         if(result.error) throw result.error;
         setMsg('Entrando...');
       } else {
-        result = await supabase.auth.signUp({ email: cleanEmail, password, options: { emailRedirectTo: window.location.origin } });
+        result = await supabase.auth.signUp({
+          email: cleanEmail,
+          password,
+          options: { emailRedirectTo: window.location.origin, data: { name: cleanName, nome: cleanName, full_name: cleanName } }
+        });
         if(result.error) throw result.error;
+        if(result.data?.user?.id){
+          const {error:profileError}=await supabase.from('profiles').upsert({id:result.data.user.id,email:cleanEmail,nome:cleanName,updated_at:nowISO()},{onConflict:'id'});
+          if(profileError) console.warn('Profile sync:',profileError.message);
+        }
         setMsg('Cadastro criado. Se o Supabase pedir confirmação, verifique seu e-mail antes de entrar.');
       }
     } catch(err){
@@ -775,12 +814,54 @@ function Login({onUseLocal}){
       setMsg(translateAuthError(err?.message));
     } finally { setBusy(false); }
   };
-  return <AuthShell eyebrow={content[0]} title={content[1]} desc={content[2]}>{mode!=='forgot'&&<div className="authModeTabs"><button type="button" className={mode==='login'?'active':''} onClick={()=>{setMsg('');setMode('login')}}>Entrar</button><button type="button" className={mode==='signup'?'active':''} onClick={()=>{setMsg('');setMode('signup')}}>Criar conta</button></div>}<form onSubmit={submit} className="authForm"><label className="authField"><span>E-mail</span><div className="authInput"><User size={18}/><input value={email} onChange={e=>setEmail(e.target.value)} type="email" required placeholder="seu@email.com" autoComplete="email"/></div></label>{mode!=='forgot'&&<label className="authField"><span>Senha</span><div className="authInput"><ShieldCheck size={18}/><input value={password} onChange={e=>setPassword(e.target.value)} type="password" required placeholder="mínimo 6 caracteres" autoComplete={mode==='login'?'current-password':'new-password'}/></div></label>}<button className="btn primary authSubmit" disabled={busy}>{busy?'Aguarde...':mode==='login'?'Entrar no app':mode==='signup'?'Criar minha conta':'Enviar link de recuperação'}</button></form><div className="authLinks">{mode==='forgot'?<button className="linkBtn" onClick={()=>{setMsg('');setMode('login')}}>Voltar para entrar</button>:<button className="linkBtn" onClick={()=>{setMsg('');setMode('forgot')}}>Esqueci minha senha</button>}<button type="button" className="linkBtn dangerText localModeBtn" onClick={onUseLocal}>Usar modo local de emergência</button></div>{msg&&<div className="notice authNotice">{msg}</div>}</AuthShell>
+  return <AuthShell eyebrow={content[0]} title={content[1]} desc={content[2]}>
+    {mode!=='forgot'&&<div className="authModeTabs">
+      <button type="button" className={mode==='login'?'active':''} onClick={()=>changeMode('login')}>Entrar</button>
+      <button type="button" className={mode==='signup'?'active':''} onClick={()=>changeMode('signup')}>Criar conta</button>
+    </div>}
+    <form onSubmit={submit} className="authForm">
+      {mode==='signup'&&<label className="authField">
+        <span>Nome completo</span>
+        <div className="authInput"><UserCheck size={18}/><input value={name} onChange={e=>setName(e.target.value)} type="text" required placeholder="David Costa" autoComplete="name"/></div>
+      </label>}
+      <label className="authField">
+        <span>E-mail</span>
+        <div className="authInput"><Mail size={18}/><input value={email} onChange={e=>setEmail(e.target.value)} type="email" required placeholder="david.costa@empresa.com" autoComplete="email"/></div>
+      </label>
+      {mode!=='forgot'&&<PasswordField label="Senha" value={password} onChange={e=>setPassword(e.target.value)} placeholder="mínimo 6 caracteres" autoComplete={mode==='login'?'current-password':'new-password'}/>}
+      <button className="btn primary authSubmit" disabled={busy}>{busy?'Aguarde...':mode==='login'?'Entrar no app':mode==='signup'?'Criar minha conta':'Enviar link de recuperação'}</button>
+    </form>
+    <div className="authLinks">
+      {mode==='forgot'?<button type="button" className="linkBtn" onClick={()=>changeMode('login')}>Voltar para entrar</button>:<button type="button" className="linkBtn" onClick={()=>changeMode('forgot')}>Esqueci minha senha</button>}
+      <button type="button" className="linkBtn dangerText localModeBtn" onClick={onUseLocal}>Usar modo local de emergência</button>
+    </div>
+    {msg&&<div className="notice authNotice">{msg}</div>}
+  </AuthShell>
 }
 
 function AuthShell({eyebrow,title,desc,children}){
-  const features=[['Fazendas',MapPinned,'Cadastro, status e responsáveis por operação.'],['Campo',Stethoscope,'Visitas, checklists e diagnóstico técnico.'],['Equipamentos',Cpu,'VP8002, VP4102, antenas e coordenadas.'],['Acesso',ShieldCheck,'Compartilhamento com permissões por fazenda.']];
-  return <div className="loginPage authPage"><div className="authShell"><aside className="authAside"><Logo/><div className="authHeroCopy"><span className="eyebrow">Operação técnica</span><h1>Controle de campo com dados, mapa e relatório no mesmo lugar.</h1><p>Um painel pensado para assistência técnica em fazendas, instalação de equipamentos e acompanhamento de visitas.</p></div><div className="authFeatureGrid">{features.map(([label,Icon,text])=><div className="authFeature" key={label}><Icon size={18}/><b>{label}</b><span>{text}</span></div>)}</div><div className="authTrust"><ShieldCheck size={18}/><span>Dados protegidos por conta e acesso liberado por fazenda.</span></div></aside><section className="loginCard authCard"><div className="authCardBrand"><Logo/></div><div className="authCardHead"><span>{eyebrow}</span><h2>{title}</h2><p>{desc}</p></div>{children}</section></div></div>
+  const features=[['Colares',Milk,'Acompanhamento de instalados, entregues e progresso real.'],['Mapa técnico',MapPinned,'Pontos de fazenda, antenas e bases em visão híbrida.'],['Campo',Stethoscope,'Visitas, pendências, evidências e suporte.'],['Relatórios',FileText,'PDF técnico e indicadores gerenciais.']];
+  return <div className="loginPage authPage">
+    <div className="authBackdrop" aria-hidden="true"><i/><i/><i/></div>
+    <div className="authShell">
+      <aside className="authAside">
+        <div className="authAsideTop"><Logo/><span className="authSecureChip"><ShieldCheck size={16}/> Operação protegida</span></div>
+        <DairyVisual/>
+        <div className="authHeroCopy">
+          <span className="eyebrow">Tecnologia no leite</span>
+          <h1>Colares inteligentes, fazendas e suporte em uma rotina visual.</h1>
+          <p>Uma entrada mais direta para acompanhar instalações em vacas de leite, com dados técnicos prontos para o campo e para a coordenação.</p>
+        </div>
+        <div className="authFeatureGrid">{features.map(([label,Icon,text])=><div className="authFeature" key={label}><Icon size={18}/><b>{label}</b><span>{text}</span></div>)}</div>
+      </aside>
+      <section className="loginCard authCard">
+        <div className="authCardBrand"><Logo/></div>
+        <div className="authCardDairy"><DairyVisual compact/></div>
+        <div className="authCardHead"><span>{eyebrow}</span><h2>{title}</h2><p>{desc}</p></div>
+        {children}
+      </section>
+    </div>
+  </div>
 }
 
 function PasswordRecovery({onDone}){
@@ -798,7 +879,7 @@ function PasswordRecovery({onDone}){
     }catch(err){ setMsg(translateAuthError(err?.message)); }
     finally{ setBusy(false); }
   };
-  return <AuthShell eyebrow="Recuperação de acesso" title="Definir nova senha" desc="Crie uma senha nova para voltar ao ControlTech Assist com segurança."><form onSubmit={submit} className="authForm"><label className="authField"><span>Nova senha</span><div className="authInput"><ShieldCheck size={18}/><input value={password} onChange={e=>setPassword(e.target.value)} type="password" required placeholder="mínimo 6 caracteres" autoComplete="new-password"/></div></label><label className="authField"><span>Confirmar senha</span><div className="authInput"><ShieldCheck size={18}/><input value={confirm} onChange={e=>setConfirm(e.target.value)} type="password" required placeholder="repita a nova senha" autoComplete="new-password"/></div></label><button className="btn primary authSubmit" disabled={busy}>{busy?'Salvando...':'Atualizar senha'}</button></form>{msg&&<div className="notice authNotice">{msg}</div>}</AuthShell>
+  return <AuthShell eyebrow="Recuperação de acesso" title="Definir nova senha" desc="Crie uma senha nova para voltar ao ControlTech Assist com segurança."><form onSubmit={submit} className="authForm"><PasswordField label="Nova senha" value={password} onChange={e=>setPassword(e.target.value)} placeholder="mínimo 6 caracteres" autoComplete="new-password"/><PasswordField label="Confirmar senha" value={confirm} onChange={e=>setConfirm(e.target.value)} placeholder="repita a nova senha" autoComplete="new-password"/><button className="btn primary authSubmit" disabled={busy}>{busy?'Salvando...':'Atualizar senha'}</button></form>{msg&&<div className="notice authNotice">{msg}</div>}</AuthShell>
 }
 
 function SupabaseSetup({onUseLocal}){
@@ -930,7 +1011,7 @@ function Fazendas({data,onOpen}){
         <Search size={19}/>
         <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar fazenda, cidade, responsável ou equipamento" />
       </div>
-      <button className={`farmFilterButton ${hasActiveFilters?'active':''}`} onClick={()=>setFiltersOpen(true)}>
+      <button type="button" className={`farmFilterButton ${hasActiveFilters?'active':''}`} aria-expanded={filtersOpen} onClick={()=>setFiltersOpen(true)}>
         <Filter size={18}/><span>Filtros</span>{hasActiveFilters&&<b />}
       </button>
     </section>
@@ -1455,7 +1536,38 @@ function EquipModal({farm,data,equip={},onClose,onSave}){
   <div className="stickyFormActions"><button type="button" className="btn light" onClick={onClose}>Cancelar</button><button className="btn primary"><Save size={18}/> Salvar equipamento</button></div></form>{photoOpen&&equip.id&&<EvidenceUploadModal farm={farm} data={data} equipamento={form} onClose={()=>setPhotoOpen(false)}/>} {pendingLocation&&<div className="confirmOverlay"><div className="confirmCard"><div className="confirmIcon"><AlertTriangle/></div><h3>Confirmar mudança de localização?</h3><p>Confira as coordenadas. A posição anterior será substituída somente após confirmar e salvar.</p><div className="coordinateCompare"><div><span>Local atual</span><b>{originalLat?.toFixed(6)}, {originalLng?.toFixed(6)}</b></div><Navigation size={20}/><div><span>Novo local</span><b>{pendingLocation[0].toFixed(6)}, {pendingLocation[1].toFixed(6)}</b></div></div><div className="confirmActions"><button type="button" className="btn light" onClick={()=>setPendingLocation(null)}>Manter localização atual</button><button type="button" className="btn warning" onClick={confirmLocation}>Usar nova localização</button></div></div></div>}</Modal>
 }
 function FarmLocationPicker({farm,lat,lng,onPick,focus}){const latNum=Number(lat),lngNum=Number(lng),hasCoords=lat!==''&&lng!==''&&Number.isFinite(latNum)&&Number.isFinite(lngNum);const center=hasCoords?[latNum,lngNum]:farmLatLng(farm);function Clicker(){useMapEvents({click(e){onPick(e.latlng.lat,e.latlng.lng)}});return null;}return <MapContainer center={center} zoom={hasCoords?17:13} className="map"><HybridLayers layer="hibrido"/><RecenterMap position={focus}/>{hasCoords&&<Marker position={[latNum,lngNum]} icon={farmMarkerIcon(farm)}/>}<Clicker/></MapContainer>}
-function MapPicker({farm,lat,lng,onPick,radius=0,equip={},focus,others=[]}){const farmPoint=farm?.latitude&&farm?.longitude?[Number(farm.latitude),Number(farm.longitude)]:null, currentPoint=lat&&lng?[Number(lat),Number(lng)]:null, otherPoints=others.map(item=>[Number(item.latitude),Number(item.longitude)]).filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1])), center=currentPoint||farmPoint||otherPoints[0]||[-19.7483,-47.9319], fitPoints=[farmPoint,currentPoint,...otherPoints].filter(Boolean), fitTrigger=`${Boolean(farmPoint)}-${Boolean(currentPoint)}-${otherPoints.length}`; function Clicker(){useMapEvents({click(e){onPick(e.latlng.lat,e.latlng.lng)}}); return null;} return <MapContainer center={center} zoom={currentPoint?17:13} className="map"><HybridLayers layer="hibrido"/><RecenterMap position={focus}/><FitBounds points={fitPoints} trigger={fitTrigger}/>{farmPoint&&<Marker position={farmPoint} icon={farmMarkerIcon(farm)}><Popup><b>{farm.nome}</b><br/>Localização da fazenda</Popup></Marker>}{others.map(item=><Marker key={item.id} position={[Number(item.latitude),Number(item.longitude)]} icon={equipmentMarkerIcon(item,{ghost:true})}><Popup><b>{item.apelido||item.tipo}</b><br/>{item.local_nome||'Outro equipamento da fazenda'}</Popup></Marker>)}{currentPoint&&<><Marker position={currentPoint} icon={equipmentMarkerIcon(equip)}/>{radius>0&&<Circle center={currentPoint} radius={radius} pathOptions={{color:'#22c55e',fillColor:'#22c55e',fillOpacity:.16,weight:2}}/>}</>}<Clicker/></MapContainer>}
+function MapPicker({farm,lat,lng,onPick,radius=0,equip={},focus,others=[]}){
+  const farmPoint=farm?.latitude&&farm?.longitude?[Number(farm.latitude),Number(farm.longitude)]:null;
+  const currentPoint=lat&&lng?[Number(lat),Number(lng)]:null;
+  const otherPoints=others.map(item=>[Number(item.latitude),Number(item.longitude)]).filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
+  const center=currentPoint||farmPoint||otherPoints[0]||[-19.7483,-47.9319];
+  const fitPoints=[farmPoint,currentPoint,...otherPoints].filter(Boolean);
+  const fitTrigger=`${Boolean(farmPoint)}-${Boolean(currentPoint)}-${otherPoints.length}`;
+  const usePoint=(point)=>onPick(point[0],point[1]);
+  function Clicker(){useMapEvents({click(e){onPick(e.latlng.lat,e.latlng.lng)}}); return null;}
+  return <MapContainer center={center} zoom={currentPoint?17:13} className="map">
+    <HybridLayers layer="hibrido"/>
+    <RecenterMap position={focus}/>
+    <FitBounds points={fitPoints} trigger={fitTrigger}/>
+    {farmPoint&&<Marker position={farmPoint} icon={farmMarkerIcon(farm)}>
+      <Popup>
+        <b>{farm.nome}</b><br/>Localização da fazenda
+        <button className="popupBtn secondary" type="button" onClick={()=>usePoint(farmPoint)}>Usar este ponto</button>
+      </Popup>
+    </Marker>}
+    {others.map(item=>{
+      const point=[Number(item.latitude),Number(item.longitude)];
+      return <Marker key={item.id} position={point} icon={equipmentMarkerIcon(item,{ghost:true})}>
+        <Popup>
+          <b>{item.apelido||item.tipo}</b><br/>{item.local_nome||'Outro equipamento da fazenda'}
+          <button className="popupBtn secondary" type="button" onClick={()=>usePoint(point)}>Usar este ponto</button>
+        </Popup>
+      </Marker>;
+    })}
+    {currentPoint&&<><Marker position={currentPoint} icon={equipmentMarkerIcon(equip)}/>{radius>0&&<Circle center={currentPoint} radius={radius} pathOptions={{color:'#22c55e',fillColor:'#22c55e',fillOpacity:.16,weight:2}}/>}</>}
+    <Clicker/>
+  </MapContainer>
+}
 function SearchMapControl({onSelect,placeholder='Pesquisar cidade, endereço ou local...'}){
   const [q,setQ]=useState(''),[results,setResults]=useState([]),[busy,setBusy]=useState(false),[err,setErr]=useState('');
   const search=async()=>{if(!q.trim())return;setBusy(true);setErr('');try{const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=br&limit=6&addressdetails=1&q=${encodeURIComponent(q)}`);if(!r.ok)throw new Error('Falha na busca');const j=await r.json();setResults(j);}catch(e){setErr('Não foi possível pesquisar agora. Você ainda pode navegar manualmente no mapa.');}finally{setBusy(false)}};
@@ -1732,8 +1844,12 @@ function RelatorioFazenda({farm,data}){
     download(`${farm.nome}-relatorio-tecnico.tsv`,rows.map(r=>r.join('\t')).join('\n'));
     notify('Arquivo TSV gerado.');
   };
-  const printReport=()=>{
+  const printReport=async()=>{
     const safe=v=>String(v===undefined||v===null||String(v).trim()===''?'-':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const win=window.open('','_blank');
+    if(!win){notify('Permita pop-ups para gerar o relatório.','error');return;}
+    win.document.write('<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Gerando relatório...</title><style>body{font-family:Inter,Arial,sans-serif;margin:40px;color:#0f172a}.loader{max-width:360px;border:1px solid #dbe4ef;border-radius:18px;padding:22px;background:#f8fafc}b{display:block;font-size:18px;margin-bottom:6px}span{color:#64748b}</style></head><body><div class="loader"><b>Gerando relatório...</b><span>Preparando mapa técnico para impressão.</span></div></body></html>');
+    win.document.close();
     const points=[
       ...(farm.latitude&&farm.longitude?[{kind:'farm',label:farm.nome,lat:Number(farm.latitude),lng:Number(farm.longitude)}]:[]),
       ...mapped.map((e,i)=>({kind:e.tipo?.includes('4102')?'antenna':e.tipo?.includes('8002')?'processor':'other',label:e.apelido||e.local_nome||e.tipo,lat:Number(e.latitude),lng:Number(e.longitude),index:i+1}))
@@ -1764,17 +1880,89 @@ function RelatorioFazenda({farm,data}){
       }
       bbox=[minX,minY,maxX,maxY];
     }
-    const mapImg=bbox?`https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${bbox.map(n=>n.toFixed(2)).join(',')}&bboxSR=3857&imageSR=3857&size=${mapWidth},${mapHeight}&format=png&f=image`:'';
+    const tileProject=(point,zoom)=>{
+      const scale=256*Math.pow(2,zoom);
+      const lat=Math.max(-85.05112878,Math.min(85.05112878,point.lat));
+      const sin=Math.sin(lat*Math.PI/180);
+      return {x:((point.lng+180)/360)*scale,y:(0.5-Math.log((1+sin)/(1-sin))/(4*Math.PI))*scale};
+    };
+    const buildTileMap=()=>{
+      if(!points.length)return null;
+      const minZoom=3,maxZoom=18,pad=54;
+      let zoom=minZoom,projectedPoints=[];
+      for(let z=maxZoom;z>=minZoom;z--){
+        const pp=points.map(p=>({...p,...tileProject(p,z)}));
+        const xs=pp.map(p=>p.x),ys=pp.map(p=>p.y);
+        const spanX=Math.max(...xs)-Math.min(...xs),spanY=Math.max(...ys)-Math.min(...ys);
+        if(points.length===1||(spanX<=mapWidth-pad*2&&spanY<=mapHeight-pad*2)){zoom=z;projectedPoints=pp;break;}
+        if(z===minZoom)projectedPoints=pp;
+      }
+      const xs=projectedPoints.map(p=>p.x),ys=projectedPoints.map(p=>p.y);
+      const centerX=(Math.min(...xs)+Math.max(...xs))/2,centerY=(Math.min(...ys)+Math.max(...ys))/2;
+      const originX=centerX-mapWidth/2,originY=centerY-mapHeight/2;
+      const tileCount=Math.pow(2,zoom),maxTile=tileCount-1;
+      const firstX=Math.floor(originX/256),lastX=Math.floor((originX+mapWidth)/256);
+      const firstY=Math.floor(originY/256),lastY=Math.floor((originY+mapHeight)/256);
+      const tiles=[];
+      for(let tx=firstX;tx<=lastX;tx++){
+        const wrappedX=((tx%tileCount)+tileCount)%tileCount;
+        for(let ty=firstY;ty<=lastY;ty++){
+          if(ty<0||ty>maxTile)continue;
+          tiles.push({
+            url:`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${zoom}/${ty}/${wrappedX}`,
+            leftPx:tx*256-originX,
+            topPx:ty*256-originY,
+            left:((tx*256-originX)/mapWidth)*100,
+            top:((ty*256-originY)/mapHeight)*100,
+            width:(256/mapWidth)*100,
+            height:(256/mapHeight)*100
+          });
+        }
+      }
+      return {tiles,points:projectedPoints.map(p=>({...p,screenX:p.x-originX,screenY:p.y-originY}))};
+    };
+    const tileMap=buildTileMap();
+    const blobToDataUrl=blob=>new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob);});
+    const loadImage=src=>new Promise((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=reject;img.src=src;});
+    const buildTileRaster=async()=>{
+      if(!tileMap?.tiles?.length)return '';
+      try{
+        const canvas=document.createElement('canvas');
+        canvas.width=mapWidth;
+        canvas.height=mapHeight;
+        const ctx=canvas.getContext('2d');
+        ctx.fillStyle='#dbe4ef';
+        ctx.fillRect(0,0,mapWidth,mapHeight);
+        await Promise.all(tileMap.tiles.map(async t=>{
+          try{
+            const res=await fetch(t.url,{mode:'cors',cache:'force-cache'});
+            if(!res.ok)return;
+            const img=await loadImage(await blobToDataUrl(await res.blob()));
+            ctx.drawImage(img,t.leftPx,t.topPx,256,256);
+          }catch{}
+        }));
+        return canvas.toDataURL('image/jpeg',.9);
+      }catch{return '';}
+    };
+    const mapRaster=await buildTileRaster();
+    let mapBaseHtml=mapRaster?`<img class="mapRaster" src="${mapRaster}" alt="Mapa técnico">`:'';
+    if(!mapBaseHtml){
+      mapBaseHtml=tileMap?.tiles?.length?`<div class="mapTileLayer">${tileMap.tiles.map(t=>`<img src="${t.url}" alt="" loading="eager" referrerpolicy="no-referrer" style="left:${t.left}%;top:${t.top}%;width:${t.width}%;height:${t.height}%">`).join('')}</div>`:'';
+    }
+    const mapImg='';
     const mapSymbol=p=>p.kind==='farm'?'F':p.kind==='antenna'?'A':p.kind==='processor'?'B':'O';
-    const markerHtml=bbox?projected.map(p=>{
-      const x=((p.mx-bbox[0])/(bbox[2]-bbox[0]))*100;
-      const y=((bbox[3]-p.my)/(bbox[3]-bbox[1]))*100;
+    const farmPrintGlyph='<svg class="farm-glyph" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.2 12 6l8 5.2V20H4z"/><path d="M8 20v-5.2h8V20"/><path d="M8.6 11.5h6.8"/><path d="M10.2 8.9h3.6"/></svg>';
+    const markerPoints=tileMap?.points||[];
+    const markerHtml=markerPoints.map(p=>{
+      const x=(p.screenX/mapWidth)*100;
+      const y=(p.screenY/mapHeight)*100;
       const label=String(p.label||'').replace(/^Fazenda\s+/i,'').slice(0,16);
-      return `<span class="mapTechPin ${p.kind}" style="left:${x}%;top:${y}%"><i>${mapSymbol(p)}</i><em>${safe(label||p.label)}</em></span>`;
-    }).join(''):'';
+      if(p.kind==='farm')return `<span class="printMapMarker farm" style="left:${x}%;top:${y}%"><span class="farm-marker farm-location">${farmPrintGlyph}</span><b>${safe(label||p.label)}</b></span>`;
+      return `<span class="printMapMarker equipment" style="left:${x}%;top:${y}%"><span class="equipment-marker ${p.kind==='antenna'?'antenna':p.kind==='processor'?'processor':'other'}"><span>${mapSymbol(p)}</span></span><b>${safe(label||p.label)}</b></span>`;
+    }).join('');
     const mapKey=points.map(p=>`<div><b class="${p.kind}">${mapSymbol(p)}</b><span>${safe(p.label)}</span><small>${p.lat.toFixed(6)}, ${p.lng.toFixed(6)}</small></div>`).join('');
     const mapStatsHtml=points.length?`<div class="mapStats"><span><b>${mapped.length}</b> item(ns) mapeado(s)</span><span><b>${equips.length-mapped.length}</b> sem coordenada</span><span><b>${points.length}</b> ponto(s) no mapa</span></div>`:'';
-    const technicalMapHtml=points.length?`<section class="section mapSection"><h2>Mapa técnico da instalação</h2><div class="mapBox technicalMapPrint"><img src="${mapImg}" alt="Mapa técnico">${markerHtml}</div>${mapStatsHtml}<div class="mapKey">${mapKey}</div></section>`:'';
+    const technicalMapHtml=points.length?`<section class="section mapSection"><h2>Mapa técnico da instalação</h2><div class="mapBox technicalMapPrint">${mapBaseHtml}${markerHtml}</div>${mapStatsHtml}<div class="mapKey">${mapKey}</div></section>`:'';
     const equipmentRows=equips.map((e,i)=>`<tr><td>${i+1}</td><td><b>${safe(e.apelido||e.local_nome||e.tipo)}</b><small>${safe(e.tipo)} - ${safe(equipmentStatusLabel(e))}</small></td><td>${safe(e.local_nome)}</td><td>${e.latitude&&e.longitude?`${Number(e.latitude).toFixed(6)}, ${Number(e.longitude).toFixed(6)}`:'-'}</td><td>${e.tipo?.includes('4102')?`${Number(e.raio_metros)||75} m`:'-'}</td></tr>`).join('');
     const visitRows=reportVisits.map(v=>`<article><h3>${safe(brDate(v.data_visita))} - ${safe(v.tipo)}</h3><p>${safe(v.resumo||'Sem resumo.')}</p>${opts.pend&&v.pendencias?`<p class="warn"><b>Pendências:</b> ${safe(v.pendencias)}</p>`:''}${v.solucao?`<p><b>Solução:</b> ${safe(v.solucao)}</p>`:''}</article>`).join('');
     const checkRows=checks.map(c=>`<tr><td>${safe(brDate(c.created_at))}</td><td>${safe(c.titulo)}</td><td>${safe(c.status)}</td><td>${safe(c.observacoes||'-')}</td></tr>`).join('');
@@ -1791,10 +1979,11 @@ function RelatorioFazenda({farm,data}){
     ].filter(Boolean);
     const attentionHtml=attentionItems.length?`<section class="section attention"><h2>Pontos de atenção</h2><ul>${attentionItems.map(item=>`<li>${safe(item)}</li>`).join('')}</ul></section>`:'';
     const printPolish=`<style>@media screen{html{background:#475569}body{width:210mm;min-height:297mm;margin:18px auto!important;padding:13mm!important;background:#fff!important;box-shadow:0 24px 80px rgba(15,23,42,.35)}}@media print{html,body{width:auto!important;min-height:0!important;margin:0!important;padding:0!important;box-shadow:none!important;background:#fff!important}}body{counter-reset:sec;color:#0b1220;font-size:10.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}.top{align-items:center;padding-bottom:9px;margin-bottom:10px}.brand img{width:32px;height:32px}.brand b{font-size:17px}.doccode{font-size:9.5px}.cover{display:grid;grid-template-columns:1fr auto;align-items:end;min-height:88px;margin:8px 0 10px;padding:13px 16px}.cover h1{font-size:23px;line-height:1.05;margin:6px 0 4px}.cover p{margin:0}.status{font-weight:800}.grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:8px 0}.box{min-height:42px;background:#fff;border-color:#cbd5e1;padding:6px 7px}.box b{font-size:9.4px}.box span{font-size:9.8px}.metrics{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:8px 0 10px}.metric{padding:7px 5px;background:#f0fdf4;border-color:#86efac}.metric b{font-size:18px;line-height:1.05}h2{font-size:13.5px;margin:11px 0 6px;color:#0f172a;display:flex;align-items:center;gap:7px}h2:before{counter-increment:sec;content:counter(sec);width:18px;height:18px;border-radius:6px;background:#dcfce7;color:#15803d;display:inline-grid;place-items:center;font-size:10px;font-weight:900}.section{margin-top:8px;break-inside:auto}.executive{background:#f8fafc;border:1px solid #dbe4ef;border-radius:12px;padding:9px 11px}.executive p{margin:3px 0 0;color:#334155}.execGrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin-top:7px}.execGrid div{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:6px}.execGrid span{display:block;color:#64748b;font-size:8.5px;font-weight:800;text-transform:uppercase}.execGrid b{display:block;margin-top:2px;font-size:12px}.attention{border:1px solid #fed7aa;background:#fff7ed;border-radius:12px;padding:8px 11px}.attention ul{margin:4px 0 0;padding-left:17px}.attention li{margin:2px 0}.mapBox{height:198px;margin-top:5px}.mapBox img{object-fit:fill!important}.mapKey{grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}.mapKey div{padding:5px}.mapKey small{font-size:8px}table{font-size:9.2px}thead{display:table-header-group}th{font-size:9px;letter-spacing:.02em}th,td{padding:4px 5px}td small{font-size:8.4px}.visit article{padding:6px 8px;margin:5px 0}.signature{margin-top:26px}.footer{margin-top:12px}.cover,.grid,.metrics,.executive,.mapBox,.mapKey,.signature{break-inside:avoid}@media print{.mapBox{height:190px}.section{break-inside:auto}.mapSection{break-inside:auto}.footer{position:static}}</style>`;
-    const technicalMapCss=`<style>.technicalMapPrint{isolation:isolate}.technicalMapPrint:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,23,42,.02),rgba(15,23,42,.10));pointer-events:none}.mapTechPin{--pin:#f59e0b;position:absolute;transform:translate(-50%,-92%);z-index:3;display:flex;flex-direction:column;align-items:center;gap:2px;filter:drop-shadow(0 3px 8px rgba(0,0,0,.42))}.mapTechPin i{position:relative;width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:var(--pin);color:#fff;border:2px solid #fff;font-size:14px;font-style:normal;font-weight:900;line-height:1}.mapTechPin i:after{content:"";position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid var(--pin)}.mapTechPin em{max-width:88px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(255,255,255,.95);border:1px solid #dbe4ef;border-radius:8px;padding:2px 6px;color:#0f172a;font-size:7.5px;font-style:normal;font-weight:900}.mapTechPin.farm{--pin:#e11d48}.mapTechPin.antenna{--pin:#16a34a}.mapTechPin.processor{--pin:#2563eb}.mapTechPin.other{--pin:#f59e0b}.mapStats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:6px}.mapStats span{border:1px solid #dbe4ef;background:#f8fafc;border-radius:9px;padding:5px 7px;color:#475569;font-size:8.5px}.mapStats b{display:block;color:#0f172a;font-size:11px}.mapKey{margin-top:6px}.mapKey b.farm{background:#e11d48}.mapKey b.antenna{background:#16a34a}.mapKey b.processor{background:#2563eb}.mapKey b.other{background:#f59e0b}@media print{.mapTechPin i{width:24px;height:24px;font-size:12px}.mapTechPin em{font-size:7px}.mapStats{break-inside:avoid}}</style>`;
+    const technicalMapCss=`<style>.technicalMapPrint{isolation:isolate}.mapRaster{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:fill!important;display:block!important}.mapTileLayer{position:absolute;inset:0;overflow:hidden;background:#dbe4ef}.mapTileLayer img{position:absolute!important;display:block!important;max-width:none!important;object-fit:fill!important;border:0!important;margin:0!important;padding:0!important}.technicalMapPrint:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,23,42,.02),rgba(15,23,42,.10));pointer-events:none}.printMapMarker{position:absolute;transform:translate(-50%,-92%);z-index:3;display:flex;flex-direction:column;align-items:center;gap:2px;filter:drop-shadow(0 3px 8px rgba(0,0,0,.42))}.printMapMarker>b{display:inline-block;max-width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:rgba(255,255,255,.96);border:1px solid #dbe4ef;border-radius:8px;padding:2px 6px;color:#0f172a;font-size:7.4px;line-height:1;font-weight:900}.printMapMarker .equipment-marker{width:27px;height:27px;border-radius:11px 11px 11px 4px;transform:rotate(-45deg);display:grid;place-items:center;border:2px solid #fff;box-shadow:0 7px 18px #0f172a66}.printMapMarker .equipment-marker>span{transform:rotate(45deg);font-size:13px;font-weight:900;color:#fff}.printMapMarker .equipment-marker.antenna{background:linear-gradient(135deg,#16a34a,#22c55e)}.printMapMarker .equipment-marker.processor{background:linear-gradient(135deg,#0f172a,#2563eb)}.printMapMarker .equipment-marker.other{background:linear-gradient(135deg,#f59e0b,#f97316)}.printMapMarker .farm-marker{width:30px;height:30px;border-radius:12px 12px 12px 4px;transform:rotate(-45deg);display:grid;place-items:center;border:2px solid #fff;box-shadow:0 7px 18px #0f172a66;background:linear-gradient(135deg,#0f172a,#0f766e)}.printMapMarker .farm-glyph{width:17px;height:17px;transform:rotate(45deg);fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.mapStats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin-top:6px}.mapStats span{border:1px solid #dbe4ef;background:#f8fafc;border-radius:9px;padding:5px 7px;color:#475569;font-size:8.5px}.mapStats b{display:block;color:#0f172a;font-size:11px}.mapKey{margin-top:6px}.mapKey b.farm{background:#0f766e}.mapKey b.antenna{background:#16a34a}.mapKey b.processor{background:#2563eb}.mapKey b.other{background:#f59e0b}@media print{.printMapMarker .equipment-marker{width:24px;height:24px}.printMapMarker .equipment-marker>span{font-size:12px}.printMapMarker .farm-marker{width:27px;height:27px}.printMapMarker .farm-glyph{width:15px;height:15px}.printMapMarker>b{font-size:7px}.mapStats{break-inside:avoid}}</style>`;
+    const printReadyScript=`<script>(()=>{const printNow=()=>setTimeout(()=>window.print(),650);const imgs=Array.from(document.images||[]);if(!imgs.length){printNow();return;}let pending=imgs.filter(img=>!img.complete).length;if(!pending){printNow();return;}let printed=false;const finish=()=>{if(printed)return;printed=true;printNow();};const done=()=>{pending-=1;if(pending<=0)finish();};imgs.forEach(img=>{if(img.complete)return;img.addEventListener('load',done,{once:true});img.addEventListener('error',done,{once:true});});setTimeout(finish,5200);})()</script>`;
     const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório técnico - ${safe(farm.nome)}</title><style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;color:#0f172a;margin:0;background:#fff;font-size:11.5px;line-height:1.35}.top{display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid #0f172a;padding-bottom:12px;break-inside:avoid}.brand{display:flex;align-items:center;gap:10px}.brand img{width:40px;height:40px}.brand b{font-size:20px}.brand span{display:block;color:#16a34a;font-weight:800}.doccode{text-align:right;color:#64748b}.cover{margin:14px 0;padding:18px;border-radius:16px;background:linear-gradient(135deg,#0f172a,#14532d);color:#fff;break-inside:avoid}.cover small{letter-spacing:.15em;color:#86efac;font-weight:800}.cover h1{font-size:28px;margin:6px 0 3px}.status{display:inline-block;margin-top:8px;padding:6px 10px;border:1px solid #ffffff44;border-radius:999px}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:12px 0}.box{border:1px solid #dbe4ef;border-radius:10px;padding:8px;background:#f8fafc}.box b,.box span{display:block}.box span{color:#475569;margin-top:2px}.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;break-inside:avoid}.metric{border:1px solid #bbf7d0;background:#f0fdf4;border-radius:10px;padding:10px;text-align:center}.metric b{font-size:21px;color:#15803d;display:block}h2{font-size:16px;margin:18px 0 7px;border-bottom:1px solid #dbe4ef;padding-bottom:5px}.section{break-inside:auto}.mapBox{position:relative;height:260px;border:1px solid #dbe4ef;border-radius:14px;overflow:hidden;background:#eef2f7;break-inside:avoid}.mapBox img{width:100%;height:100%;object-fit:fill;display:block}.mapPin{position:absolute;transform:translate(-50%,-50%);width:24px;height:24px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:900;border:2px solid #fff;box-shadow:0 3px 10px #0008;font-size:11px}.mapPin.farm{background:#e11d48}.mapPin.antenna{background:#16a34a}.mapPin.processor{background:#2563eb}.mapPin.other{background:#f59e0b}.mapKey{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-top:8px;break-inside:avoid}.mapKey div{border:1px solid #dbe4ef;border-radius:10px;padding:7px;display:grid;grid-template-columns:26px 1fr;column-gap:7px}.mapKey b{grid-row:1/3;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff}.mapKey b.farm{background:#e11d48}.mapKey b.antenna{background:#16a34a}.mapKey b.processor{background:#2563eb}.mapKey b.other{background:#f59e0b}.mapKey span{font-weight:800}.mapKey small{color:#64748b}table{width:100%;border-collapse:collapse;margin-top:7px;page-break-inside:auto}tr{break-inside:avoid;page-break-inside:avoid}th{background:#0f172a;color:#fff;text-align:left}th,td{padding:6px;border:1px solid #dbe4ef;vertical-align:top;font-size:10.5px}td small{display:block;color:#64748b;margin-top:2px}.visit article{border-left:4px solid #16a34a;background:#f8fafc;padding:8px 10px;margin:7px 0;break-inside:avoid}.visit h3{margin:0 0 3px}.visit p{margin:3px 0}.warn{background:#fffbeb;border-left:3px solid #f59e0b;padding:5px}.signature{display:grid;grid-template-columns:1fr 1fr;gap:46px;margin-top:42px;break-inside:avoid}.signature div{border-top:1px solid #334155;text-align:center;padding-top:7px;color:#64748b}.footer{margin-top:20px;border-top:1px solid #dbe4ef;padding-top:6px;color:#64748b;display:flex;justify-content:space-between;font-size:10px;break-inside:avoid}@media print{.noPrint{display:none}}</style></head><body><header class="top"><div class="brand"><img src="/logo-symbol.svg" alt=""><div><b>ControlTech</b><span>Assist</span></div></div><div class="doccode"><b>RELATÓRIO TÉCNICO</b><br>Emissão: ${safe(new Date().toLocaleString('pt-BR'))}<br>Versão ${APP_VERSION}</div></header><section class="cover"><small>INSTALAÇÃO E CAMPO</small><h1>${safe(farm.nome)}</h1><p>${safe(farm.cidade||'Cidade não informada')} / ${safe(getFarmUF(farm)||'-')}</p><span class="status">${safe(displayStatus)}</span></section><section class="grid"><div class="box"><b>Central</b><span>${safe(farm.central)}</span></div><div class="box"><b>Regional</b><span>${safe(farm.regional_nome)}</span></div><div class="box"><b>Veterinário/Apoio</b><span>${safe(farm.veterinario_apoio)}</span></div><div class="box"><b>Responsável</b><span>${safe(farm.responsavel)}</span></div><div class="box"><b>Telefone</b><span>${safe(farm.telefone)}</span></div><div class="box"><b>Endereço</b><span>${safe(farm.endereco)}</span></div><div class="box"><b>Inicio do servico</b><span>${safe(brDateTime(farm.servico_inicio_em))}</span></div><div class="box"><b>Fim do servico</b><span>${safe(brDateTime(farm.servico_fim_em))}</span></div><div class="box"><b>Responsavel tecnico</b><span>${safe(farm.servico_responsavel)}</span></div></section><section class="metrics"><div class="metric"><b>${predicted}</b>Colares previstos</div><div class="metric"><b>${installed}</b>Instalados</div><div class="metric"><b>${delivered}</b>Entregues</div><div class="metric"><b>${equips.length}</b>Equipamentos</div><div class="metric"><b>${safe(serviceDurationLabel(farm))}</b>Duracao</div></section><section class="section"><h2>Resumo executivo</h2><p>${safe('Instalação registrada no ControlTech Assist. Dados restritos e credenciais não entram neste documento.')}</p></section>${points.length?`<section class="section"><h2>Mapa técnico da instalação</h2><div class="mapBox"><img src="${mapImg}" alt="Mapa técnico">${markerHtml}</div><div class="mapKey">${mapKey}</div></section>`:''}${opts.equip?`<section><h2>Equipamentos e coordenadas</h2><table><thead><tr><th>#</th><th>Equipamento</th><th>Local</th><th>Coordenadas</th><th>Raio</th></tr></thead><tbody>${equipmentRows||'<tr><td colspan="5">Nenhum equipamento registrado.</td></tr>'}</tbody></table></section>`:''}${opts.visits?`<section><h2>Histórico de visitas</h2><div class="visit">${visitRows||'<p>Nenhuma visita registrada.</p>'}</div></section>`:''}${opts.evidencias?evidenceSectionHtml:''}${opts.checks?`<section><h2>Checklists</h2><table><thead><tr><th>Data</th><th>Checklist</th><th>Status</th><th>Observações</th></tr></thead><tbody>${checkRows||'<tr><td colspan="4">Nenhum checklist registrado.</td></tr>'}</tbody></table></section>`:''}<section class="signature"><div>Responsável técnico</div><div>Coordenação / Cliente</div></section><footer class="footer"><span>ControlTech Assist - Documento técnico de campo</span><span>${safe(farm.nome)}</span></footer><script>window.onload=()=>setTimeout(()=>window.print(),350)</script></body></html>`;
-    const polishedHtml=html.replace('</head>',`${printPolish}${technicalMapCss}</head>`).replace(/<section class="section"><h2>Resumo executivo<\/h2><p>[\s\S]*?<\/p><\/section>/,`${executiveHtml}${attentionHtml}`).replace(/<section class="section"><h2>Mapa técnico da instalação<\/h2>[\s\S]*?<\/section>/,technicalMapHtml).replaceAll('Inicio do servico','Início do serviço').replaceAll('Fim do servico','Fim do serviço').replaceAll('Responsavel tecnico','Responsável técnico').replaceAll('Duracao','Duração');
-    const win=window.open('','_blank');if(!win){notify('Permita pop-ups para gerar o relatório.','error');return;}win.document.write(polishedHtml);win.document.close();
+    const polishedHtml=html.replace('<script>window.onload=()=>setTimeout(()=>window.print(),350)</script>',printReadyScript).replace('</head>',`${printPolish}${technicalMapCss}</head>`).replace(/<section class="section"><h2>Resumo executivo<\/h2><p>[\s\S]*?<\/p><\/section>/,`${executiveHtml}${attentionHtml}`).replace(/<section class="section"><h2>Mapa técnico da instalação<\/h2>[\s\S]*?<\/section>/,technicalMapHtml).replaceAll('Inicio do servico','Início do serviço').replaceAll('Fim do servico','Fim do serviço').replaceAll('Responsavel tecnico','Responsável técnico').replaceAll('Duracao','Duração');
+    win.document.open();win.document.write(polishedHtml);win.document.close();
   };
   const share=async()=>{
     const text=`RELATÓRIO TÉCNICO — ${farm.nome}\nEscopo: ${reportScopeLabel}\n${farm.cidade||''} / ${getFarmUF(farm)}\nCentral: ${farm.central||'-'}\nRegional: ${farm.regional_nome||'-'}\nStatus: ${displayStatus}\nServico: ${brDateTime(farm.servico_inicio_em)} ate ${brDateTime(farm.servico_fim_em)} (${serviceDurationLabel(farm)})\nColares: ${collarBreakdown(farm)}\nEquipamentos: ${equips.length}\nEvidências: ${reportEvidencias.length}\nPendências: ${pendingCount}`;
