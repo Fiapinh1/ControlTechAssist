@@ -6097,6 +6097,256 @@ body,
   color: #0f172a;
 }
 
+/* V3.27: marcadores profissionais e lista lateral do mapa */
+.professional-equipment-marker-wrap {
+  background: transparent !important;
+  border: 0 !important;
+  text-align: center;
+  width: 62px !important;
+  height: 54px !important;
+}
+
+.professional-equipment-marker-wrap .equipment-marker.equipment-marker-pro {
+  position: relative;
+  width: 34px !important;
+  height: 34px !important;
+  margin: 0 auto;
+  border: 2px solid #fff !important;
+  border-radius: 15px 15px 15px 5px !important;
+  display: grid;
+  place-items: center;
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, .34),
+    inset 0 1px 0 rgba(255, 255, 255, .22) !important;
+}
+
+.professional-equipment-marker-wrap .equipment-marker.equipment-marker-pro.antenna {
+  background: linear-gradient(135deg, #059669 0%, #22c55e 100%) !important;
+}
+
+.professional-equipment-marker-wrap .equipment-marker.equipment-marker-pro.processor {
+  background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%) !important;
+}
+
+.professional-equipment-marker-wrap .equipment-marker.equipment-marker-pro.other {
+  background: linear-gradient(135deg, #c2410c 0%, #f59e0b 100%) !important;
+}
+
+.professional-equipment-marker-wrap .equipment-marker.equipment-marker-pro.ghost {
+  background: linear-gradient(135deg, #64748b 0%, #94a3b8 100%) !important;
+}
+
+.professional-equipment-marker-wrap .equipment-marker-icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform: rotate(45deg);
+}
+
+.professional-equipment-marker-wrap.stacked .equipment-marker.equipment-marker-pro {
+  box-shadow:
+    0 10px 24px rgba(15, 23, 42, .34),
+    0 0 0 5px rgba(255, 255, 255, .36),
+    0 0 0 8px rgba(15, 23, 42, .12) !important;
+}
+
+.professional-equipment-marker-wrap .equipment-marker.equipment-marker-pro em {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 950;
+  line-height: 1;
+  transform: rotate(45deg);
+  box-shadow: 0 4px 10px rgba(15, 23, 42, .28);
+}
+
+.professional-equipment-marker-wrap > b {
+  max-width: 86px !important;
+  margin-top: 3px !important;
+  padding: 3px 7px !important;
+  border: 1px solid rgba(226, 232, 240, .9);
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, .96) !important;
+  color: #0f172a !important;
+  font-size: 9.5px !important;
+  font-weight: 950;
+  letter-spacing: 0;
+  box-shadow: 0 7px 16px rgba(15, 23, 42, .18) !important;
+}
+
+.operationalMapPanel .mapPointList {
+  font-family: inherit;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.98)),
+    radial-gradient(circle at 100% 0, rgba(34, 197, 94, .08), transparent 34%);
+}
+
+.operationalMapPanel .mapPointHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.operationalMapPanel .mapPointHeader h3 {
+  margin: 0;
+  font-size: 17px;
+  letter-spacing: -.02em;
+}
+
+.operationalMapPanel .mapPointHeader span {
+  min-width: 42px;
+  min-height: 28px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.operationalMapPanel .mapPointList button.mapPointItem {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  min-height: 66px;
+  padding: 10px 56px 10px 10px;
+  border-color: #dbe4ef;
+  border-radius: 17px;
+  background: #fff;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, .035);
+}
+
+.operationalMapPanel .mapPointList button.mapPointItem:hover {
+  border-color: #bbf7d0;
+  background: #f8fffb;
+  box-shadow: 0 14px 28px rgba(15, 23, 42, .08);
+}
+
+.operationalMapPanel .mapPointList button.mapPointItem.farm {
+  padding-right: 10px;
+}
+
+.operationalMapPanel .mapPointList button > .mapPointIcon {
+  position: static;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #dbe4ef;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: #f8fafc;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .82);
+}
+
+.mapPointIcon.farm {
+  background: linear-gradient(135deg, #0f172a, #0f766e) !important;
+  color: #fff !important;
+  border-color: rgba(15, 118, 110, .35) !important;
+}
+
+.mapPointIcon.antenna {
+  background: #ecfdf5 !important;
+  color: #059669 !important;
+  border-color: #bbf7d0 !important;
+}
+
+.mapPointIcon.processor {
+  background: #eff6ff !important;
+  color: #2563eb !important;
+  border-color: #bfdbfe !important;
+}
+
+.mapPointIcon.other {
+  background: #fff7ed !important;
+  color: #c2410c !important;
+  border-color: #fed7aa !important;
+}
+
+.mapPointItem > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.mapPointItem strong {
+  min-width: 0;
+  color: #0f172a;
+  font-size: 15px;
+  font-weight: 950;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operationalMapPanel .mapPointList .mapPointItem div span {
+  min-width: 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.operationalMapPanel .mapPointList .mapPointItem em {
+  right: 10px;
+  min-width: 44px;
+  padding: 7px 9px;
+  background: #f1f5f9;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  font-size: 11px;
+  font-weight: 950;
+  box-shadow: none;
+}
+
+.operationalMapPanel .mapPointList .mapPointItem em:hover {
+  background: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
+}
+
+@media (max-width: 700px) {
+  .professional-equipment-marker-wrap .equipment-marker.equipment-marker-pro {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .professional-equipment-marker-wrap .equipment-marker-icon {
+    width: 17px;
+    height: 17px;
+  }
+
+  .operationalMapPanel .mapPointList button.mapPointItem {
+    grid-template-columns: 34px minmax(0, 1fr) auto;
+    min-height: 62px;
+    padding-left: 9px;
+  }
+
+  .operationalMapPanel .mapPointList button > .mapPointIcon {
+    width: 34px;
+    height: 34px;
+    border-radius: 13px;
+  }
+}
+
 /* V3.23: relatorios gerenciais */
 .managerReports {
   display: grid;
@@ -7865,5 +8115,376 @@ body,
   .authAside .holsteinCowStage,
   .compact .holsteinCowStage {
     animation: none;
+  }
+}
+
+/* UX polish: actionable alerts, equipment desktop cards, clean evidence filters */
+.execAlerts button {
+  border: 0;
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: rgba(255, 247, 237, .92);
+  color: #9a3412;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 900;
+  text-align: left;
+  transition: transform .16s ease, background .16s ease, box-shadow .16s ease;
+}
+
+.execAlerts button:hover {
+  transform: translateY(-1px);
+  background: #ffedd5;
+  box-shadow: 0 8px 18px rgba(154, 52, 18, .12);
+}
+
+.execAlerts button svg {
+  flex: 0 0 auto;
+}
+
+.equipmentEvidenceCard {
+  grid-template-columns: 52px minmax(0, 1fr) !important;
+  align-items: start !important;
+  gap: 14px !important;
+}
+
+.equipmentEvidenceCard .equipCardBody,
+.equipmentEvidenceCard .equipTitleRow,
+.equipmentEvidenceCard h3,
+.equipmentEvidenceCard p,
+.equipmentEvidenceCard span,
+.equipmentEvidenceCard small {
+  min-width: 0;
+}
+
+.equipmentEvidenceCard h3,
+.equipmentEvidenceCard p,
+.equipmentEvidenceCard span {
+  overflow-wrap: anywhere;
+}
+
+.equipmentEvidenceCard .equipTitleRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.equipmentEvidenceCard .equipBadges {
+  max-width: 150px;
+}
+
+.equipmentEvidenceCard .equipCardActions {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  padding-top: 10px;
+  border-top: 1px solid #eef2f7;
+}
+
+.evidenceFilterWrap {
+  position: relative;
+}
+
+.evidenceFilterButton.active {
+  background: #0f172a;
+  color: #fff;
+  border-color: #0f172a;
+}
+
+.evidenceFilterMenu {
+  position: absolute;
+  z-index: 35;
+  top: calc(100% + 10px);
+  right: 0;
+  width: min(360px, calc(100vw - 34px));
+  border: 1px solid #dbe4ef;
+  border-radius: 20px;
+  padding: 12px;
+  background: rgba(255, 255, 255, .98);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, .18);
+}
+
+.evidenceMenuFilters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  overflow: visible;
+}
+
+.evidenceMenuFilters button,
+.evidenceMenuGroups button {
+  width: 100%;
+}
+
+.evidenceMenuGroups {
+  display: grid;
+  gap: 7px;
+  max-height: 210px;
+  overflow: auto;
+}
+
+.evidenceMenuGroups button {
+  border: 1px solid #dbe4ef;
+  border-radius: 14px;
+  padding: 9px;
+  background: #fff;
+  color: #0f172a;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  font-weight: 900;
+}
+
+.evidenceMenuGroups span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evidenceMenuGroups b {
+  min-width: 24px;
+  border-radius: 999px;
+  padding: 3px 6px;
+  background: #ecfdf5;
+  color: #047857;
+  text-align: center;
+  font-size: 11px;
+}
+
+.evidenceActiveFilter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 14px;
+  padding: 7px 10px;
+  border: 1px solid #dbe4ef;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.evidenceActiveFilter b {
+  min-width: 22px;
+  border-radius: 999px;
+  padding: 2px 6px;
+  background: #ecfdf5;
+  color: #047857;
+  text-align: center;
+}
+
+.evidenceGalleryPanel .evidenceContent {
+  gap: 7px;
+}
+
+.evidenceGalleryPanel .evidenceContent small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 700px) {
+  .execAlerts button {
+    white-space: nowrap;
+    width: auto;
+  }
+
+  .equipmentEvidenceCard .equipBadges {
+    max-width: 118px;
+  }
+
+  .equipmentEvidenceCard .equipCardActions {
+    justify-content: stretch;
+  }
+
+  .evidenceFilterMenu {
+    position: fixed;
+    left: 14px;
+    right: 14px;
+    top: auto;
+    bottom: 86px;
+    width: auto;
+  }
+
+  .evidenceMenuFilters {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Evidências: filtro com acabamento mais próximo dos painéis principais */
+.evidenceFilterButton {
+  position: relative;
+  background: linear-gradient(180deg, #fff, #f8fafc);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9);
+}
+
+.evidenceFilterButton::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, .14);
+}
+
+.evidenceFilterButton.active::after {
+  background: #86efac;
+  box-shadow: 0 0 0 3px rgba(134, 239, 172, .18);
+}
+
+.evidenceFilterMenu {
+  overflow: hidden;
+  padding: 10px;
+  border-color: rgba(203, 213, 225, .92);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.98)),
+    radial-gradient(circle at 100% 0, rgba(34, 197, 94, .14), transparent 36%);
+  backdrop-filter: blur(18px);
+}
+
+.evidenceFilterMenu::before {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: 18px;
+  width: 14px;
+  height: 14px;
+  border-left: 1px solid rgba(203, 213, 225, .92);
+  border-top: 1px solid rgba(203, 213, 225, .92);
+  background: #fff;
+  transform: rotate(45deg);
+}
+
+.evidenceFilterMenu .popoverTitle {
+  position: relative;
+  margin: 0 0 10px;
+  padding: 12px;
+  border-radius: 16px;
+  color: #fff;
+  background:
+    radial-gradient(circle at 100% 0, rgba(34, 197, 94, .22), transparent 34%),
+    linear-gradient(135deg, #0f172a, #134e4a);
+}
+
+.evidenceFilterMenu .popoverTitle span {
+  color: #a7f3d0;
+  letter-spacing: .12em;
+}
+
+.evidenceFilterMenu .popoverTitle button {
+  background: rgba(255, 255, 255, .12);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, .14);
+}
+
+.evidenceMenuFilters button {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: 48px;
+  padding: 11px 12px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff, #f8fafc);
+  color: #334155;
+  text-align: left;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .82);
+}
+
+.evidenceMenuFilters button svg,
+.evidenceMenuGroups button svg {
+  color: #16a34a;
+}
+
+.evidenceMenuFilters button.active {
+  border-color: #0f172a;
+  background:
+    radial-gradient(circle at 100% 0, rgba(34, 197, 94, .20), transparent 34%),
+    linear-gradient(135deg, #0f172a, #111827);
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, .16);
+}
+
+.evidenceMenuFilters button.active svg {
+  color: #86efac;
+}
+
+.evidenceMenuFilters button span {
+  background: #eef2ff;
+  color: #334155;
+}
+
+.evidenceMenuFilters button.active span {
+  background: rgba(255, 255, 255, .16);
+  color: #fff;
+}
+
+.evidenceFilterMenu .reportFilterDivider {
+  margin: 12px 0 9px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.evidenceMenuGroups::before {
+  content: "Vínculos com fotos";
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.evidenceMenuGroups button {
+  min-height: 44px;
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, .04);
+}
+
+.evidenceMenuGroups button:hover,
+.evidenceMenuFilters button:hover {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.evidenceMenuFilters button.active:hover {
+  border-color: #0f172a;
+  background:
+    radial-gradient(circle at 100% 0, rgba(34, 197, 94, .20), transparent 34%),
+    linear-gradient(135deg, #0f172a, #111827);
+}
+
+@media (max-width: 700px) {
+  .evidenceFilterMenu {
+    padding: 11px;
+    border-radius: 24px 24px 18px 18px;
+    box-shadow: 0 -18px 56px rgba(15, 23, 42, .26);
+  }
+
+  .evidenceFilterMenu::before {
+    display: none;
+  }
+
+  .evidenceFilterMenu::after {
+    content: "";
+    display: block;
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    width: 42px;
+    height: 4px;
+    border-radius: 999px;
+    background: #cbd5e1;
+    transform: translateX(-50%);
+  }
+
+  .evidenceFilterMenu .popoverTitle {
+    margin-top: 8px;
   }
 }
