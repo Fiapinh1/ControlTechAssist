@@ -10458,3 +10458,196 @@ textarea {
     overscroll-behavior-x: contain;
   }
 }
+
+/* V3.37: ajustes de identidade, boas-vindas e exclusao personalizada */
+.farmsHeroActions {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: end;
+  align-content: center;
+  gap: 10px;
+}
+
+.farmsUserGreeting {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 240px;
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid rgba(255,255,255,.17);
+  border-radius: 999px;
+  background: rgba(255,255,255,.10);
+  color: rgba(226,232,240,.92);
+  font-size: 13px;
+  font-weight: 800;
+  backdrop-filter: blur(14px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
+}
+
+.farmsUserGreeting b {
+  color: #fff;
+  font-weight: 900;
+}
+
+.farmsHeroActions .farmsNewDesktop {
+  width: 100%;
+}
+
+.fieldRadar .heroBrandLogo {
+  width: 54px;
+  height: 54px;
+  padding: 7px !important;
+  overflow: hidden;
+  background: linear-gradient(145deg, rgba(255,255,255,.88), rgba(230,247,255,.62)) !important;
+  border: 1px solid rgba(255,255,255,.65);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.74),
+    0 16px 34px rgba(2,6,23,.26);
+}
+
+.fieldRadar .heroBrandLogo img {
+  width: 86%;
+  height: 86%;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 10px rgba(15,23,42,.20));
+}
+
+.fieldRadar .heroBrandLogo.brand-alta img,
+.fieldRadar .heroBrandLogo.brand-genex img,
+.fieldRadar .heroBrandLogo.brand-urus img {
+  width: 80%;
+  height: 80%;
+}
+
+.deleteModalBackdrop {
+  background: rgba(2,6,23,.60);
+  backdrop-filter: blur(12px);
+}
+
+.deleteConfirmModal {
+  position: relative;
+  width: min(480px, calc(100vw - 32px));
+  padding: 28px;
+  border: 1px solid rgba(226,232,240,.92);
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at top left, rgba(254,226,226,.92), transparent 34%),
+    linear-gradient(180deg, #fff, #f8fafc);
+  box-shadow: 0 34px 90px rgba(2,6,23,.36);
+}
+
+.deleteModalClose {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: #475569;
+  background: #f1f5f9;
+}
+
+.deleteConfirmIcon {
+  width: 58px;
+  height: 58px;
+  margin-bottom: 16px;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  color: #dc2626;
+  background: linear-gradient(145deg, #fff1f2, #fee2e2);
+  border: 1px solid #fecaca;
+}
+
+.deleteConfirmModal h2 {
+  margin: 6px 0 8px;
+  color: #0f172a;
+  font-size: 28px;
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.deleteConfirmModal p {
+  max-width: 390px;
+  margin: 0 0 18px;
+  color: #475569;
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+.deleteImpactList {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0 22px;
+}
+
+.deleteImpactList span {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 15px;
+  background: rgba(255,255,255,.78);
+  color: #334155;
+  font-weight: 850;
+}
+
+.deleteImpactList svg {
+  color: #dc2626;
+}
+
+.deleteConfirmActions {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 10px;
+}
+
+.btn.deleteDanger {
+  color: #fff;
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+  box-shadow: 0 16px 32px rgba(220,38,38,.24);
+}
+
+.btn.deleteDanger:hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 720px) {
+  .farmsHeroActions {
+    display: none;
+  }
+
+  .fieldRadar .heroBrandLogo {
+    width: 46px;
+    height: 46px;
+    padding: 6px !important;
+  }
+
+  .deleteModalBackdrop {
+    align-items: end !important;
+    place-items: end center;
+    padding: 0 12px 14px !important;
+  }
+
+  .deleteConfirmModal {
+    width: 100%;
+    padding: 24px 18px 18px;
+    border-radius: 26px;
+  }
+
+  .deleteConfirmModal h2 {
+    padding-right: 42px;
+    font-size: 24px;
+  }
+
+  .deleteConfirmActions {
+    grid-template-columns: 1fr;
+  }
+}

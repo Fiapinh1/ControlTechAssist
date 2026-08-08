@@ -22,7 +22,7 @@ import genexLogo from '../LOGO_GENEX.png';
 import urusLogo from '../LOGO_URUS.png';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
-const APP_VERSION = '3.0.0';
+const APP_VERSION = '3.0.4';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
 const FARM_VIEW_KEY = 'cta_farm_view_mode';
@@ -558,9 +558,7 @@ function useData(user, localMode=false){
   }
   async function deleteFazenda(farmOrId){
     const id = typeof farmOrId === 'string' ? farmOrId : farmOrId?.id;
-    const name = typeof farmOrId === 'string' ? 'esta fazenda' : (farmOrId?.nome || 'esta fazenda');
     if(!id)return {ok:false};
-    if(!confirm(`Excluir ${name}? Esta acao remove a fazenda e os registros vinculados.`)) return {ok:false};
     const evidencePaths = evidencias.filter(item=>item.fazenda_id===id&&item.arquivo_path).map(item=>item.arquivo_path);
     if(cloud){
       const { error } = await supabase.from('fazendas').delete().eq('id',id);
@@ -1216,6 +1214,7 @@ function Fazendas({data,onOpen}){
   ];
   const resetFilters=()=>{setQ('');setCentral('Todas');setStatus('Todos');setQuick('todos')};
   const hasActiveFilters=Boolean(q)||central!=='Todas'||status!=='Todos'||quick!=='todos';
+  const greetingName=(personName(data.currentUser)||'Usuário').trim().split(/\s+/).slice(0,2).join(' ');
   const saveFarm=async(r)=>{const result=await data.saveFazenda(r);if(result.ok)setModal(false)};
   const renderFarmResults=()=>{
     if(farms.length===0) return <><Empty title="Nenhuma fazenda encontrada" text="Altere os filtros ou cadastre uma nova fazenda."/>{data.cloud&&data.fazendas.length===0&&<AccountDataNotice userId={data.userId}/>}</>;
@@ -1239,7 +1238,10 @@ function Fazendas({data,onOpen}){
         <div className="fieldRadar"><BrandLogoMark brand={data.empresaAcesso} className="heroBrandLogo"/><i /><i /></div>
         <div className="fieldLines"><span /><span /><span /></div>
       </div>
-      <button className="btn primary farmsNewDesktop" onClick={()=>setModal(true)}><Plus size={18}/> Nova fazenda</button>
+      <div className="farmsHeroActions">
+        <span className="farmsUserGreeting">Olá, <b>{greetingName}</b></span>
+        <button className="btn primary farmsNewDesktop" onClick={()=>setModal(true)}><Plus size={18}/> Nova fazenda</button>
+      </div>
     </section>
 
     <section className="farmsCommandBar">
@@ -1561,6 +1563,7 @@ function ServiceModal({farm,data,mode='adjust',pendingEquips=[],onClose,onSave})
 
 function FazendaDetalhe({farm,data,onBack}){
   const [tab,setTab]=useState('resumo'),[edit,setEdit]=useState(false),[equipModal,setEquipModal]=useState(null),[visitModal,setVisitModal]=useState(false),[serviceModal,setServiceModal]=useState(null);
+  const [deleteConfirm,setDeleteConfirm]=useState(false),[deletingFarm,setDeletingFarm]=useState(false);
   const access=farmAccess(farm,data);
   const equips=data.equipamentos.filter(e=>e.fazenda_id===farm.id), visits=data.visitas.filter(v=>v.fazenda_id===farm.id), checks=data.checklists.filter(c=>c.fazenda_id===farm.id), diags=data.diagnosticos.filter(d=>d.fazenda_id===farm.id), evidencias=(data.evidencias||[]).filter(e=>e.fazenda_id===farm.id);
   const tabs=[['resumo','Resumo',Building2],['checklists','Checklists',ClipboardCheck],['equipamentos','Equipamentos',Cpu],['mapa','Mapa técnico',MapIcon],['visitas','Visitas',CalendarDays],['evidencias','Evidências',ImageIcon],['relatorio','Relatório',FileText],access.canEdit&&['restrito','Restrito',ShieldCheck],access.canManageAccess&&['acessos','Acessos',UserCheck]].filter(Boolean);
@@ -1571,7 +1574,13 @@ function FazendaDetalhe({farm,data,onBack}){
   const goTab=id=>{setTab(id);setTimeout(()=>document.querySelector('.farmTabs')?.scrollIntoView({behavior:'smooth',block:'start'}),80);};
   const openVisitModal=()=>{if(openVisit)notify(`Já existe uma visita aberta desde ${brDate(openVisit.data_visita)}. Você pode continuar nela ou registrar uma nova visita.`,'warning');setVisitModal(true);};
   const openEquipmentFromMap=equip=>{if(!access.canEdit)return;setTab('equipamentos');setEquipModal(equip);};
-  const deleteFarm=async()=>{if(!canDeleteFarm)return;const result=await data.delFazenda(farm);if(result.ok)onBack();};
+  const deleteFarm=async()=>{
+    if(!canDeleteFarm||deletingFarm)return;
+    setDeletingFarm(true);
+    const result=await data.delFazenda(farm);
+    setDeletingFarm(false);
+    if(result.ok){setDeleteConfirm(false);onBack();}
+  };
   const saveVisitFromDetail=async(row)=>{const clean={...row,status:row.status || (row.iniciada_em&&!row.finalizada_em?VISIT_STATUS_OPEN:visitHasPending(row)?VISIT_STATUS_PENDING:VISIT_STATUS_DONE),updated_at:nowISO()};const result=await data.saveVisita(clean);if(result.ok)setVisitModal(false);return result;};
   const startService=async()=>{
     if(!access.canEdit)return;
@@ -1622,7 +1631,7 @@ function FazendaDetalhe({farm,data,onBack}){
       {tab==='resumo'&&<div className="farmHeroIconActions">
         {access.canEdit&&<button type="button" aria-label="Editar fazenda" title="Editar fazenda" onClick={()=>setEdit(true)}><Pencil size={18}/></button>}
         {farm.latitude&&farm.longitude?<button type="button" aria-label="Abrir rota" title="Abrir rota" onClick={()=>openMaps(farm.latitude,farm.longitude)}><Navigation size={18}/></button>:<button type="button" aria-label="Abrir mapa" title="Abrir mapa" onClick={()=>setTab('mapa')}><MapPinned size={18}/></button>}
-        {canDeleteFarm&&<button type="button" className="dangerHeroAction" aria-label="Excluir fazenda" title="Excluir fazenda" onClick={deleteFarm}><Trash2 size={18}/></button>}
+        {canDeleteFarm&&<button type="button" className="dangerHeroAction" aria-label="Excluir fazenda" title="Excluir fazenda" onClick={()=>setDeleteConfirm(true)}><Trash2 size={18}/></button>}
       </div>}
     </section>
     {!access.canEdit&&<PermissionNotice/>}
@@ -1630,9 +1639,31 @@ function FazendaDetalhe({farm,data,onBack}){
     {tab==='resumo'&&<FarmExecutiveSummary farm={farm} visits={visits} checks={checks} diags={diags} equips={equips} evidencias={evidencias} canEdit={access.canEdit} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)} onAdjustService={()=>setServiceModal('adjust')} onNewVisit={openVisitModal} onOpenMap={()=>setTab('mapa')} onNavigate={goTab}/>}
     {tab==='checklists'&&<ChecklistsFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='equipamentos'&&<EquipamentosFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={()=>setEquipModal({})}/>} {tab==='mapa'&&<MapaFazenda farm={farm} data={data} canEdit={access.canEdit} onEditEquip={openEquipmentFromMap}/>} {tab==='visitas'&&<VisitasFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={openVisitModal}/>} {tab==='evidencias'&&<EvidenciasFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='relatorio'&&<RelatorioFazenda farm={farm} data={data}/>} {tab==='restrito'&&access.canEdit&&<DadosRestritosFazenda farm={farm} data={data}/>} {tab==='acessos'&&<AcessosFazenda farm={farm} data={data} access={access}/>}
     <FarmBottomNav farm={farm} tabs={tabs} tab={tab} setTab={setTab} onBack={onBack} access={access} serviceActive={serviceActive} serviceDone={serviceDone} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)} onNewVisit={openVisitModal}/>
-    {edit&&access.canEdit&&<FazendaModal farm={farm} data={data} onClose={()=>setEdit(false)} onSave={async(r)=>{const result=await data.saveFazenda(r);if(result.ok)setEdit(false)}}/>}{serviceModal&&access.canEdit&&<ServiceModal farm={farm} data={data} mode={serviceModal} pendingEquips={equips.filter(isEquipmentPendingInstall)} onClose={()=>setServiceModal(null)} onSave={saveService}/>} {equipModal&&access.canEdit&&<EquipModal farm={farm} data={data} equip={equipModal} onClose={()=>setEquipModal(null)} onSave={async(r)=>{const result=await data.saveEquipamento(r);if(result.ok)setEquipModal(null)}}/>}{visitModal&&access.canEdit&&<VisitModal farm={farm} onClose={()=>setVisitModal(false)} onSave={saveVisitFromDetail}/>}
+    {edit&&access.canEdit&&<FazendaModal farm={farm} data={data} onClose={()=>setEdit(false)} onSave={async(r)=>{const result=await data.saveFazenda(r);if(result.ok)setEdit(false)}}/>}{serviceModal&&access.canEdit&&<ServiceModal farm={farm} data={data} mode={serviceModal} pendingEquips={equips.filter(isEquipmentPendingInstall)} onClose={()=>setServiceModal(null)} onSave={saveService}/>} {equipModal&&access.canEdit&&<EquipModal farm={farm} data={data} equip={equipModal} onClose={()=>setEquipModal(null)} onSave={async(r)=>{const result=await data.saveEquipamento(r);if(result.ok)setEquipModal(null)}}/>}{visitModal&&access.canEdit&&<VisitModal farm={farm} onClose={()=>setVisitModal(false)} onSave={saveVisitFromDetail}/>} {deleteConfirm&&<DeleteFarmModal farm={farm} busy={deletingFarm} onCancel={()=>setDeleteConfirm(false)} onConfirm={deleteFarm}/>}
   </div>
 }
+
+function DeleteFarmModal({farm,busy=false,onCancel,onConfirm}){
+  return <div className="modalBackdrop deleteModalBackdrop">
+    <section className="deleteConfirmModal" role="dialog" aria-modal="true" aria-labelledby="deleteFarmTitle">
+      <button type="button" className="deleteModalClose" aria-label="Fechar" onClick={onCancel} disabled={busy}><X size={18}/></button>
+      <div className="deleteConfirmIcon"><Trash2 size={25}/></div>
+      <span className="eyebrow">Exclusão de fazenda</span>
+      <h2 id="deleteFarmTitle">Excluir {farm?.nome||'esta fazenda'}?</h2>
+      <p>Esta ação remove a fazenda e todos os registros vinculados ao dossiê técnico.</p>
+      <div className="deleteImpactList">
+        <span><Building2 size={16}/> Dados da fazenda</span>
+        <span><Cpu size={16}/> Equipamentos, visitas e evidências</span>
+        <span><ShieldCheck size={16}/> Acessos e registros restritos</span>
+      </div>
+      <div className="deleteConfirmActions">
+        <button type="button" className="btn light" onClick={onCancel} disabled={busy}>Cancelar</button>
+        <button type="button" className="btn deleteDanger" onClick={onConfirm} disabled={busy}><Trash2 size={17}/> {busy?'Excluindo...':'Excluir fazenda'}</button>
+      </div>
+    </section>
+  </div>
+}
+
 function ServiceControl({farm,canEdit,onStart,onFinish,onEdit}){const active=Boolean(farm.servico_inicio_em&&!farm.servico_fim_em), done=Boolean(farm.servico_inicio_em&&farm.servico_fim_em); const status=farmStatus(farm); return <div className={`serviceControl ${active?'active':done?'done':''}`}><div className="serviceLead"><span className="eyebrow">Produtividade</span><h2><Clock size={20}/> Serviço da fazenda</h2></div><div className="serviceFacts"><div><span>Situação</span><b>{status}</b></div><div><span>Início</span><b>{brDateTime(farm.servico_inicio_em)}</b></div><div><span>Fim</span><b>{brDateTime(farm.servico_fim_em)}</b></div><div><span>Duração</span><b>{serviceDurationLabel(farm)}</b></div></div><div className="serviceActions">{canEdit&&!farm.servico_inicio_em&&<button className="btn primary" onClick={onStart}><PlayCircle size={17}/> Iniciar serviço</button>}{canEdit&&active&&<button className="btn primary" onClick={onFinish}><CheckCircle2 size={17}/> Finalizar serviço</button>}{canEdit&&<button className="btn light" onClick={onEdit}><Pencil size={17}/> Ajustar datas</button>}</div>{farm.servico_observacoes&&<p className="serviceNote">{farm.servico_observacoes}</p>}</div>}
 function DadosRestritosFazenda({farm,data}){
   const existing=(data.dadosRestritos||[]).find(item=>item.fazenda_id===farm.id)||{};
