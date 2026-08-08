@@ -430,10 +430,11 @@ drop policy if exists "fazendas_select_access" on public.fazendas;
 drop policy if exists "fazendas_insert_owner" on public.fazendas;
 drop policy if exists "fazendas_update_admin" on public.fazendas;
 drop policy if exists "fazendas_delete_owner" on public.fazendas;
+drop policy if exists "fazendas_delete_admin" on public.fazendas;
 create policy "fazendas_select_access" on public.fazendas for select using (public.can_view_fazenda(id));
 create policy "fazendas_insert_owner" on public.fazendas for insert with check (auth.uid() = user_id and public.can_access_central(central));
 create policy "fazendas_update_admin" on public.fazendas for update using (public.can_write_fazenda(id)) with check (public.can_write_fazenda(id) and public.can_access_central(central));
-create policy "fazendas_delete_owner" on public.fazendas for delete using (auth.uid() = user_id and public.can_access_central(central));
+create policy "fazendas_delete_admin" on public.fazendas for delete using ((public.can_write_fazenda(id) or public.is_app_admin()) and public.can_access_central(central));
 
 drop policy if exists "equipamentos_select_own" on public.equipamentos;
 drop policy if exists "equipamentos_insert_own" on public.equipamentos;

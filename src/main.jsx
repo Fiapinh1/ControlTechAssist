@@ -556,6 +556,36 @@ function useData(user, localMode=false){
     setter(prev => { const next=prev.filter(x=>x.id!==id); if(!cloud) saveLocal(key,next); return next; });
     return {ok:true};
   }
+  async function deleteFazenda(farmOrId){
+    const id = typeof farmOrId === 'string' ? farmOrId : farmOrId?.id;
+    const name = typeof farmOrId === 'string' ? 'esta fazenda' : (farmOrId?.nome || 'esta fazenda');
+    if(!id)return {ok:false};
+    if(!confirm(`Excluir ${name}? Esta acao remove a fazenda e os registros vinculados.`)) return {ok:false};
+    const evidencePaths = evidencias.filter(item=>item.fazenda_id===id&&item.arquivo_path).map(item=>item.arquivo_path);
+    if(cloud){
+      const { error } = await supabase.from('fazendas').delete().eq('id',id);
+      if(error){
+        setError(`Erro ao remover fazenda: ${error.message}`, error);
+        notify(`Nao foi possivel remover a fazenda: ${error.message}`,'error');
+        return {ok:false,error};
+      }
+      if(evidencePaths.length) await supabase.storage.from(EVIDENCE_BUCKET).remove(evidencePaths).catch(()=>{});
+      setOk();
+    }
+    setFazendas(prev=>{const next=prev.filter(row=>row.id!==id); if(!cloud) saveLocal('cta_fazendas',next); return next;});
+    setEquipamentos(prev=>{const next=prev.filter(row=>row.fazenda_id!==id); if(!cloud) saveLocal('cta_equipamentos',next); return next;});
+    setVisitas(prev=>{const next=prev.filter(row=>row.fazenda_id!==id); if(!cloud) saveLocal('cta_visitas',next); return next;});
+    setChecklists(prev=>{const next=prev.filter(row=>row.fazenda_id!==id); if(!cloud) saveLocal('cta_checklists',next); return next;});
+    setDiagnosticos(prev=>{const next=prev.map(row=>row.fazenda_id===id?{...row,fazenda_id:null}:row); if(!cloud) saveLocal('cta_diagnosticos',next); return next;});
+    setPlanejamentos(prev=>{const next=prev.filter(row=>row.fazenda_id!==id); if(!cloud) saveLocal('cta_planejamentos',next); return next;});
+    setObstaculos(prev=>{const next=prev.filter(row=>row.fazenda_id!==id); if(!cloud) saveLocal('cta_obstaculos',next); return next;});
+    setTestesCobertura(prev=>{const next=prev.filter(row=>row.fazenda_id!==id); if(!cloud) saveLocal('cta_testes_cobertura',next); return next;});
+    setEvidencias(prev=>{const next=prev.filter(row=>row.fazenda_id!==id); if(!cloud) saveLocal('cta_evidencias',next); return next;});
+    setFazendaMembros(prev=>prev.filter(row=>row.fazenda_id!==id));
+    setDadosRestritos(prev=>{const next=prev.filter(row=>row.fazenda_id!==id); if(!cloud) saveLocal('cta_dados_restritos',next); return next;});
+    notify('Fazenda excluida.');
+    return {ok:true};
+  }
   const withExistingOwner = (list, row) => ({...row, user_id:list.find(x=>x.id===row.id)?.user_id || row.user_id || user?.id});
   const cleanEvidenceForDb = (row) => {
     const {url, ...clean} = row;
@@ -779,7 +809,7 @@ function useData(user, localMode=false){
     savePlanejamento: r => upsert('planejamentos_antena', setPlanejamentos, 'cta_planejamentos', withExistingOwner(planejamentos,r)),
     saveObstaculo: r => upsert('obstaculos_cobertura', setObstaculos, 'cta_obstaculos', withExistingOwner(obstaculos,r)),
     saveTesteCobertura: r => upsert('testes_cobertura', setTestesCobertura, 'cta_testes_cobertura', withExistingOwner(testesCobertura,r)),
-    delFazenda: id => remove('fazendas', setFazendas, 'cta_fazendas', id),
+    delFazenda: deleteFazenda,
     delEquipamento: id => remove('equipamentos', setEquipamentos, 'cta_equipamentos', id),
     delVisita: id => remove('visitas', setVisitas, 'cta_visitas', id),
     delChecklist: id => remove('checklists_fazenda', setChecklists, 'cta_checklists', id),
@@ -1535,11 +1565,13 @@ function FazendaDetalhe({farm,data,onBack}){
   const equips=data.equipamentos.filter(e=>e.fazenda_id===farm.id), visits=data.visitas.filter(v=>v.fazenda_id===farm.id), checks=data.checklists.filter(c=>c.fazenda_id===farm.id), diags=data.diagnosticos.filter(d=>d.fazenda_id===farm.id), evidencias=(data.evidencias||[]).filter(e=>e.fazenda_id===farm.id);
   const tabs=[['resumo','Resumo',Building2],['checklists','Checklists',ClipboardCheck],['equipamentos','Equipamentos',Cpu],['mapa','Mapa técnico',MapIcon],['visitas','Visitas',CalendarDays],['evidencias','Evidências',ImageIcon],['relatorio','Relatório',FileText],access.canEdit&&['restrito','Restrito',ShieldCheck],access.canManageAccess&&['acessos','Acessos',UserCheck]].filter(Boolean);
   const serviceActive=Boolean(farm.servico_inicio_em&&!farm.servico_fim_em), serviceDone=Boolean(farm.servico_inicio_em&&farm.servico_fim_em), compactHero=tab!=='resumo';
+  const canDeleteFarm=access.role==='owner'||access.role==='admin'||data.isAppAdmin;
   const currentResponsible=personName(data.currentUser);
   const openVisit=visits.find(isOpenVisit);
   const goTab=id=>{setTab(id);setTimeout(()=>document.querySelector('.farmTabs')?.scrollIntoView({behavior:'smooth',block:'start'}),80);};
   const openVisitModal=()=>{if(openVisit)notify(`Já existe uma visita aberta desde ${brDate(openVisit.data_visita)}. Você pode continuar nela ou registrar uma nova visita.`,'warning');setVisitModal(true);};
   const openEquipmentFromMap=equip=>{if(!access.canEdit)return;setTab('equipamentos');setEquipModal(equip);};
+  const deleteFarm=async()=>{if(!canDeleteFarm)return;const result=await data.delFazenda(farm);if(result.ok)onBack();};
   const saveVisitFromDetail=async(row)=>{const clean={...row,status:row.status || (row.iniciada_em&&!row.finalizada_em?VISIT_STATUS_OPEN:visitHasPending(row)?VISIT_STATUS_PENDING:VISIT_STATUS_DONE),updated_at:nowISO()};const result=await data.saveVisita(clean);if(result.ok)setVisitModal(false);return result;};
   const startService=async()=>{
     if(!access.canEdit)return;
@@ -1590,6 +1622,7 @@ function FazendaDetalhe({farm,data,onBack}){
       {tab==='resumo'&&<div className="farmHeroIconActions">
         {access.canEdit&&<button type="button" aria-label="Editar fazenda" title="Editar fazenda" onClick={()=>setEdit(true)}><Pencil size={18}/></button>}
         {farm.latitude&&farm.longitude?<button type="button" aria-label="Abrir rota" title="Abrir rota" onClick={()=>openMaps(farm.latitude,farm.longitude)}><Navigation size={18}/></button>:<button type="button" aria-label="Abrir mapa" title="Abrir mapa" onClick={()=>setTab('mapa')}><MapPinned size={18}/></button>}
+        {canDeleteFarm&&<button type="button" className="dangerHeroAction" aria-label="Excluir fazenda" title="Excluir fazenda" onClick={deleteFarm}><Trash2 size={18}/></button>}
       </div>}
     </section>
     {!access.canEdit&&<PermissionNotice/>}
