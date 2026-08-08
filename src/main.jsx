@@ -17,12 +17,16 @@ import {
 } from 'lucide-react';
 import './styles.css';
 import appLogo from './assets/brand/controltech-logo.png';
+import altaLogo from '../LOGO_ALTA.png';
+import genexLogo from '../LOGO_GENEX.png';
+import urusLogo from '../LOGO_URUS.png';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
 const APP_VERSION = '3.0.0';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
 const FARM_VIEW_KEY = 'cta_farm_view_mode';
+const BRAND_LOGOS = { alta: altaLogo, genex: genexLogo, urus: urusLogo };
 const readAppContext = () => {
   try { return JSON.parse(localStorage.getItem(APP_CONTEXT_KEY) || '{}') || {}; } catch { return {}; }
 };
@@ -1116,8 +1120,9 @@ function brandThemeKey(value) {
 }
 function BrandLogoMark({brand,className='',fallback:Fallback=Building2}) {
   const key = brandThemeKey(brand);
+  const src = BRAND_LOGOS[key];
   return <span className={`brandLogoMark brand-${key} ${className}`} aria-hidden="true">
-    <img src={appLogo} alt="" draggable="false"/>
+    {src ? <img src={src} alt="" draggable="false"/> : <Fallback size={20}/>}
   </span>;
 }
 const centralDisplay = (central) => {

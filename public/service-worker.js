@@ -1,17 +1,17 @@
-const CACHE_NAME = 'controltech-assist-v1-3';
+const CACHE_NAME = 'controltech-assist-v1-4';
 const CORE_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.webmanifest',
-  '/favicon.ico',
-  '/favicon-16x16.png',
-  '/favicon-32x32.png',
-  '/app-icon-192.png',
-  '/app-icon-512.png',
-  '/apple-touch-icon.png',
-  '/apple-touch-icon-120.png',
-  '/apple-touch-icon-152.png',
-  '/apple-touch-icon-167.png'
+  '/manifest.webmanifest?v=3.0.3',
+  '/favicon.ico?v=3.0.3',
+  '/favicon-16x16.png?v=3.0.3',
+  '/favicon-32x32.png?v=3.0.3',
+  '/app-icon-192.png?v=3.0.3',
+  '/app-icon-512.png?v=3.0.3',
+  '/apple-touch-icon.png?v=3.0.3',
+  '/apple-touch-icon-120.png?v=3.0.3',
+  '/apple-touch-icon-152.png?v=3.0.3',
+  '/apple-touch-icon-167.png?v=3.0.3'
 ];
 
 self.addEventListener('install', (event) => {
