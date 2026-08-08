@@ -69,7 +69,7 @@ function Badge({ children, tone = 'slate' }) {
 function Logo() {
   return (
     <div className="brand">
-      <img src="/logo-symbol.svg" alt="ControlTech Assist" />
+      <img src="/app-icon-192.png" alt="ControlTech Assist" />
       <div>
         <strong>Control<span>Tech</span></strong>
         <small>Assist</small>
@@ -453,7 +453,7 @@ function HomePage({ setActiveTab, farms, locations, equipments, records }) {
             <button onClick={() => setActiveTab('fazendas')}><Icon name="farm" />Fazendas e VPs</button>
           </div>
         </div>
-        <div className="hero-logo"><img src="/logo-symbol.svg" alt="" /><strong>Manual vira ação.</strong><span>Procedimento seguro, registro rápido e menos dúvida no campo.</span></div>
+        <div className="hero-logo"><img src="/app-icon-192.png" alt="" /><strong>Manual vira ação.</strong><span>Procedimento seguro, registro rápido e menos dúvida no campo.</span></div>
       </section>
       <section className="panel manual-warning"><Icon name="shield" /><div><strong>Regra da V1.2</strong><p>Diagnóstico crítico como padrão de luzes, sequência oficial e validação no Nedap Now deve ser preenchido com manual/print oficial. O app já está preparado para receber esse conteúdo.</p></div></section>
       <section className="stats-grid"><article><Icon name="farm" /><span>Fazendas</span><strong>{farms.length}</strong></article><article><Icon name="pin" /><span>Locais</span><strong>{locations.length}</strong></article><article><Icon name="cow" /><span>Equipamentos</span><strong>{equipments.length}</strong></article><article><Icon name="wrench" /><span>Pendências</span><strong>{issueCount}</strong></article></section>

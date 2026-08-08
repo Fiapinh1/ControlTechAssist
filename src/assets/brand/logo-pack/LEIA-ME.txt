@@ -1,0 +1,46 @@
+CONTROLTECH ICON PACK
+
+Este pacote contém a logo enviada por você, tratada e preparada para uso em app.
+
+O que foi feito:
+- fundo transparente preservado
+- recorte do excesso de área vazia
+- centralização da arte
+- margem de segurança para boa leitura em apps
+- exportação em tamanhos prontos para Android, iOS e Web/PWA
+
+Pastas:
+00_MASTER
+- controltech_icon_master_1024.png
+- controltech_icon_trimmed_original.png
+
+01_GENERIC_APP
+- versões genéricas em 64, 96, 128, 180, 192, 256, 512 e 1024 px
+
+02_ANDROID
+- ic_launcher nas densidades:
+  mdpi 48x48
+  hdpi 72x72
+  xhdpi 96x96
+  xxhdpi 144x144
+  xxxhdpi 192x192
+- google_play_icon_512x512.png
+
+03_IOS
+- ícones prontos para App Store, iPhone e iPad
+- inclui 1024, 180, 167, 152, 120, 87, 80, 76, 60, 58, 40, 29 e 20 px
+
+04_WEB_PWA
+- favicon_16x16.png
+- favicon_32x32.png
+- favicon_48x48.png
+- favicon_64x64.png
+- favicon_96x96.png
+- favicon.ico
+- apple-touch-icon.png
+- pwa-192x192.png
+- pwa-512x512.png
+- pwa-maskable-512x512.png
+
+Observação:
+A arte-base é raster PNG. Portanto, o pacote não inclui SVG vetorial real.

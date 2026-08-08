@@ -1,12 +1,11 @@
-const CACHE_NAME = 'controltech-assist-v1-2';
+const CACHE_NAME = 'controltech-assist-v1-3';
 const CORE_ASSETS = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
-  '/favicon.svg',
-  '/logo.svg',
-  '/logo-symbol.svg',
-  '/app-icon.svg',
+  '/favicon.ico',
+  '/favicon-16x16.png',
+  '/favicon-32x32.png',
   '/app-icon-192.png',
   '/app-icon-512.png',
   '/apple-touch-icon.png',
