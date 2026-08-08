@@ -17,12 +17,16 @@ import {
 } from 'lucide-react';
 import './styles.css';
 import holsteinCowSvg from './assets/holstein-cow.svg';
+import altaLogo from '../LOGO_ALTA.png';
+import genexLogo from '../LOGO_GENEX.png';
+import urusLogo from '../LOGO_URUS.png';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
 const APP_VERSION = '3.0.0';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
 const FARM_VIEW_KEY = 'cta_farm_view_mode';
+const BRAND_LOGOS = { alta: altaLogo, genex: genexLogo, urus: urusLogo };
 const readAppContext = () => {
   try { return JSON.parse(localStorage.getItem(APP_CONTEXT_KEY) || '{}') || {}; } catch { return {}; }
 };
@@ -217,6 +221,17 @@ const collarBreakdown = farm => {
 const CENTRAIS = ['Alta Genetics', 'Genex Brasil', 'Outra / Não informado'];
 const EMPRESA_ACESSO = ['Alta Genetics', 'Genex Brasil', 'Urus'];
 const normalizeEmpresaAcesso = value => EMPRESA_ACESSO.includes(value) ? value : 'Urus';
+const APP_ROLES = ['user', 'admin', 'super_admin'];
+const APP_ROLE_LABELS = {user:'Usuário',admin:'Administrador',super_admin:'Super admin'};
+const normalizeAppRole = value => APP_ROLES.includes(value) ? value : 'user';
+const normalizeProfile = profile => profile ? ({
+  ...profile,
+  empresa_acesso: normalizeEmpresaAcesso(profile.empresa_acesso),
+  app_role: normalizeAppRole(profile.app_role),
+  ativo: profile.ativo !== false
+}) : null;
+const isAppAdminProfile = profile => ['admin','super_admin'].includes(normalizeAppRole(profile?.app_role)) && profile?.ativo !== false;
+const PROFILE_SELECT = 'id,email,nome,empresa_acesso,app_role,ativo,created_at,updated_at';
 const allowedCentraisForAccess = value => {
   const access = normalizeEmpresaAcesso(value);
   return access === 'Urus' ? CENTRAIS : [access];
@@ -321,6 +336,7 @@ const autoServiceStatus = (inicio, fim, fallback = 'Não iniciada') => {
 
 function useData(user, localMode=false){
   const [fazendas,setFazendas]=useState([]), [equipamentos,setEquipamentos]=useState([]), [visitas,setVisitas]=useState([]), [checklists,setChecklists]=useState([]), [diagnosticos,setDiagnosticos]=useState([]), [planejamentos,setPlanejamentos]=useState([]), [obstaculos,setObstaculos]=useState([]), [testesCobertura,setTestesCobertura]=useState([]), [evidencias,setEvidencias]=useState([]), [fazendaMembros,setFazendaMembros]=useState([]), [dadosRestritos,setDadosRestritos]=useState([]);
+  const [profiles,setProfiles]=useState([]), [adminLogs,setAdminLogs]=useState([]);
   const [currentProfile,setCurrentProfile]=useState(null);
   const [loading,setLoading]=useState(false);
   const [dbStatus,setDbStatus]=useState({
@@ -364,22 +380,52 @@ function useData(user, localMode=false){
       id: user.id,
       email: String(user.email || '').trim().toLowerCase(),
       nome: personName(user.user_metadata) || user.email?.split('@')[0] || 'Usuário',
-      empresa_acesso: normalizeEmpresaAcesso(user.user_metadata?.empresa_acesso)
+      empresa_acesso: normalizeEmpresaAcesso(user.user_metadata?.empresa_acesso),
+      app_role: 'user',
+      ativo: true
     };
-    const {data:profile,error} = await supabase.from('profiles').select('id,email,nome,empresa_acesso').eq('id',user.id).maybeSingle();
+    let {data:profile,error} = await supabase.from('profiles').select(PROFILE_SELECT).eq('id',user.id).maybeSingle();
+    if(error && /app_role|ativo/i.test(error.message || '')){
+      const legacy = await supabase.from('profiles').select('id,email,nome,empresa_acesso').eq('id',user.id).maybeSingle();
+      profile = legacy.data;
+      error = legacy.error;
+    }
     if(error){
       console.warn('Perfil não carregado:', error.message);
       return fallback;
     }
     if(!profile){
-      const {data:saved,error:upsertError}=await supabase.from('profiles').upsert({...fallback,updated_at:nowISO()},{onConflict:'id'}).select('id,email,nome,empresa_acesso').single();
-      if(upsertError){
-        console.warn('Perfil não criado:', upsertError.message);
+      const {data:saved,error:insertError}=await supabase.from('profiles').insert({...fallback,updated_at:nowISO()}).select(PROFILE_SELECT).single();
+      if(insertError){
+        console.warn('Perfil não criado:', insertError.message);
         return fallback;
       }
-      return {...saved, empresa_acesso: normalizeEmpresaAcesso(saved?.empresa_acesso)};
+      return normalizeProfile(saved);
     }
-    return {...profile, empresa_acesso: normalizeEmpresaAcesso(profile.empresa_acesso)};
+    return normalizeProfile(profile);
+  }
+
+  async function loadAdminDirectory(profile=currentProfile){
+    if(!cloud || !isAppAdminProfile(profile)){
+      setProfiles([]);
+      setAdminLogs([]);
+      return {ok:false};
+    }
+    const usersResult = await supabase.from('profiles').select(PROFILE_SELECT).order('nome',{ascending:true});
+    if(usersResult.error){
+      console.warn('Usuários não carregados:', usersResult.error.message);
+      setProfiles([]);
+      return {ok:false,error:usersResult.error};
+    }
+    setProfiles((usersResult.data||[]).map(normalizeProfile));
+    const logsResult = await supabase.from('admin_logs').select('*').order('created_at',{ascending:false}).limit(20);
+    if(logsResult.error){
+      console.warn('Auditoria não carregada:', logsResult.error.message);
+      setAdminLogs([]);
+    } else {
+      setAdminLogs(logsResult.data||[]);
+    }
+    return {ok:true};
   }
 
   useEffect(()=>{
@@ -414,9 +460,12 @@ function useData(user, localMode=false){
         if(!membros.error)setFazendaMembros(membros.data||[]);else{console.warn('Compartilhamento não carregado:',membros.error.message);setFazendaMembros([]);}
         const restritos = await supabase.from('fazenda_dados_restritos').select('*').order('updated_at',{ascending:false});
         if(!restritos.error)setDadosRestritos(restritos.data||[]);else{console.warn('Dados restritos não carregados:',restritos.error.message);setDadosRestritos([]);}
+        if(isAppAdminProfile(profile)) await loadAdminDirectory(profile); else { setProfiles([]); setAdminLogs([]); }
         setOk();
       } else {
         setFazendas(loadLocal('cta_fazendas').map(normalizeFarmRow)); setEquipamentos(loadLocal('cta_equipamentos')); setVisitas(loadLocal('cta_visitas')); setChecklists(loadLocal('cta_checklists')); setDiagnosticos(loadLocal('cta_diagnosticos')); setPlanejamentos(loadLocal('cta_planejamentos')); setObstaculos(loadLocal('cta_obstaculos')); setTestesCobertura(loadLocal('cta_testes_cobertura')); setEvidencias(loadLocal('cta_evidencias')); setFazendaMembros([]); setDadosRestritos(loadLocal('cta_dados_restritos'));
+        setProfiles([]);
+        setAdminLogs([]);
         setCurrentProfile(null);
         setDbStatus({mode:'local',connected:false,lastError: supabase ? 'Modo local de emergência ativado manualmente.' : 'Supabase não configurado no .env.local.', lastSync:new Date().toLocaleString('pt-BR'), details:{}});
       }
@@ -667,12 +716,61 @@ function useData(user, localMode=false){
     notify('Acesso removido.');
     return {ok:true};
   }
+  async function recordAdminLog(acao, targetUserId, detalhes={}){
+    if(!cloud || !isAppAdminProfile(currentProfile)) return;
+    const {error}=await supabase.from('admin_logs').insert({actor_id:user?.id,target_user_id:targetUserId||null,acao,detalhes});
+    if(error) console.warn('Auditoria não registrada:', error.message);
+    else await loadAdminDirectory(currentProfile);
+  }
+  async function saveAdminProfile(profile){
+    if(!cloud || !isAppAdminProfile(currentProfile)){ notify('Acesso gerencial não disponível para esta conta.','warning'); return {ok:false}; }
+    if(!profile?.id){ notify('Usuário inválido.','error'); return {ok:false}; }
+    const clean={
+      nome:String(profile.nome||'').trim() || null,
+      empresa_acesso:normalizeEmpresaAcesso(profile.empresa_acesso),
+      app_role:normalizeAppRole(profile.app_role),
+      ativo:profile.ativo !== false,
+      updated_at:nowISO()
+    };
+    const self=profile.id===user?.id;
+    if(self && !clean.ativo){ notify('Você não pode bloquear o próprio usuário.','warning'); return {ok:false}; }
+    if(self && !isAppAdminProfile(clean)){ notify('Você não pode remover o próprio acesso gerencial por aqui.','warning'); return {ok:false}; }
+    const {data:saved,error}=await supabase.from('profiles').update(clean).eq('id',profile.id).select(PROFILE_SELECT).single();
+    if(error){ notify(`Não foi possível atualizar usuário: ${error.message}`,'error'); return {ok:false,error}; }
+    const normalized=normalizeProfile(saved);
+    setProfiles(prev=>prev.map(p=>p.id===normalized.id?normalized:p));
+    if(self) setCurrentProfile(normalized);
+    await recordAdminLog('profile_updated', normalized.id, {empresa_acesso:normalized.empresa_acesso, app_role:normalized.app_role, ativo:normalized.ativo});
+    notify('Usuário atualizado.');
+    return {ok:true,data:normalized};
+  }
+  async function resetAdminUserPassword(profile){
+    if(!cloud || !isAppAdminProfile(currentProfile)){ notify('Acesso gerencial não disponível para esta conta.','warning'); return {ok:false}; }
+    const email=String(profile?.email||'').trim().toLowerCase();
+    if(!email){ notify('Este usuário não possui e-mail cadastrado.','warning'); return {ok:false}; }
+    const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin});
+    if(error){ notify(`Não foi possível enviar recuperação: ${error.message}`,'error'); return {ok:false,error}; }
+    await recordAdminLog('password_reset_requested', profile.id, {email});
+    notify('Link de recuperação enviado por e-mail.');
+    return {ok:true};
+  }
+  async function promoteFirstAdmin(){
+    if(!cloud){ notify('Essa ação exige Supabase ativo.','warning'); return {ok:false}; }
+    const {data:saved,error}=await supabase.rpc('promote_first_admin');
+    if(error){ notify(`Não foi possível ativar administrador: ${error.message}`,'error'); return {ok:false,error}; }
+    const normalized=normalizeProfile(saved);
+    setCurrentProfile(normalized);
+    await loadAdminDirectory(normalized);
+    notify('Administrador inicial ativado.');
+    return {ok:true,data:normalized};
+  }
   const empresaAcesso = cloud ? normalizeEmpresaAcesso(currentProfile?.empresa_acesso || user?.user_metadata?.empresa_acesso) : 'Urus';
-  const currentUserProfile = user ? {id:user.id,email:user.email,nome:currentProfile?.nome || personName(user.user_metadata)||user.email?.split('@')[0]||'Usuário atual',empresa_acesso:empresaAcesso} : null;
+  const currentUserProfile = user ? {id:user.id,email:user.email,nome:currentProfile?.nome || personName(user.user_metadata)||user.email?.split('@')[0]||'Usuário atual',empresa_acesso:empresaAcesso,app_role:normalizeAppRole(currentProfile?.app_role),ativo:currentProfile?.ativo !== false} : null;
+  const appAdmin = isAppAdminProfile(currentUserProfile);
   return {
     cloud, loading, dbStatus, testConnection,
-    userId:user?.id, currentUser:currentUserProfile, currentProfile, empresaAcesso, allowedCentrais:allowedCentraisForAccess(empresaAcesso), fazendas, equipamentos, visitas, checklists, diagnosticos, planejamentos, obstaculos, testesCobertura, evidencias, fazendaMembros, dadosRestritos,
-    shareFarm, updateFarmMember, removeFarmMember, uploadEvidencias, saveEvidencia, delEvidencia, saveDadosRestritos,
+    userId:user?.id, currentUser:currentUserProfile, currentProfile, isAppAdmin:appAdmin, empresaAcesso, allowedCentrais:allowedCentraisForAccess(empresaAcesso), fazendas, equipamentos, visitas, checklists, diagnosticos, planejamentos, obstaculos, testesCobertura, evidencias, fazendaMembros, dadosRestritos, profiles, adminLogs,
+    shareFarm, updateFarmMember, removeFarmMember, uploadEvidencias, saveEvidencia, delEvidencia, saveDadosRestritos, saveAdminProfile, resetAdminUserPassword, refreshAdminData:()=>loadAdminDirectory(currentProfile), promoteFirstAdmin,
     saveFazenda: r => upsert('fazendas', setFazendas, 'cta_fazendas', normalizeFarmRow(withExistingOwner(fazendas,r))),
     saveEquipamento: r => upsert('equipamentos', setEquipamentos, 'cta_equipamentos', withExistingOwner(equipamentos,r)),
     saveVisita: r => upsert('visitas', setVisitas, 'cta_visitas', withExistingOwner(visitas,r)),
@@ -762,7 +860,11 @@ function App(){
   useEffect(()=>{
     if(!supabase||!user||localMode)return;
     const email=String(user.email||'').trim().toLowerCase();
-    supabase.from('profiles').upsert({id:user.id,email,nome:user.user_metadata?.name||email.split('@')[0]||'Usuário',updated_at:nowISO()}).then(({error})=>{if(error)console.warn('Profile sync:',error.message)});
+    supabase.from('profiles').select('id').eq('id',user.id).maybeSingle().then(({data,error})=>{
+      if(error){console.warn('Profile sync:',error.message);return;}
+      if(data?.id)return;
+      supabase.from('profiles').insert({id:user.id,email,nome:user.user_metadata?.name||user.user_metadata?.nome||email.split('@')[0]||'Usuário',empresa_acesso:normalizeEmpresaAcesso(user.user_metadata?.empresa_acesso),updated_at:nowISO()}).then(({error:insertError})=>{if(insertError)console.warn('Profile sync:',insertError.message)});
+    });
   },[user?.id,localMode]);
   useEffect(()=>{
     if(!update.updateAvailable || updateHandled.current) return;
@@ -795,15 +897,18 @@ function App(){
   const setMainView = v => { setView(v); if(v!=='fazenda') setSelectedFarmId(null); saveAppContext(v, v==='fazenda'?selectedFarmId:null); };
   const exitLocalMode = () => { localStorage.removeItem(LOCAL_MODE_KEY); saveAppContext('fazendas', null); setLocalMode(false); setSelectedFarmId(null); setView('fazendas'); };
   const logout = async () => { if(localMode){ exitLocalMode(); return; } await supabase?.auth.signOut(); };
-  return <div className="app"><NotificationCenter/><Sidebar view={view} setView={setMainView} user={user} cloud={data.cloud} localMode={localMode} onExitLocal={exitLocalMode}/><main className="main">
+  const showGerencial = data.isAppAdmin || data.empresaAcesso === 'Urus';
+  const activeTheme = view === 'fazenda' && selectedFarm ? brandThemeKey(selectedFarm.central) : brandThemeKey(data.empresaAcesso);
+  return <div className={`app theme-${activeTheme}`}><NotificationCenter/><Sidebar view={view} setView={setMainView} user={user} cloud={data.cloud} localMode={localMode} onExitLocal={exitLocalMode} isAdmin={showGerencial}/><main className="main">
     {(!data.cloud || localMode) && <SystemStatus data={data} localMode={localMode} onDisableLocal={()=>{localStorage.removeItem(LOCAL_MODE_KEY); setLocalMode(false)}}/>}
     {view==='fazendas' && <Fazendas data={data} onOpen={goFarm}/>}
     {view==='diagnostico' && <Diagnostico data={data}/>}
     {view==='guia' && <Guia/>}
     {view==='produtividade' && <Produtividade data={data} onOpen={goFarm}/>}
     {view==='relatorios' && <Relatorios data={data} onOpen={goFarm}/>}
+    {view==='gerencial' && <GerencialUsuarios data={data}/>}
     {view==='fazenda' && selectedFarm && <FazendaDetalhe farm={selectedFarm} data={data} onBack={()=>setMainView('fazendas')}/>}
-  </main>{view!=='fazenda'&&<BottomNav view={view} setView={setMainView} user={user} localMode={localMode} onLogout={logout}/>}</div>;
+  </main>{view!=='fazenda'&&<BottomNav view={view} setView={setMainView} user={user} localMode={localMode} onLogout={logout} isAdmin={showGerencial}/>}</div>;
 }
 
 function Splash(){return <div className="splash"><Logo/><p>Carregando ambiente técnico...</p></div>}
@@ -886,7 +991,7 @@ function Login({onUseLocal}){
         });
         if(result.error) throw result.error;
         if(result.data?.user?.id){
-          const {error:profileError}=await supabase.from('profiles').upsert({id:result.data.user.id,email:cleanEmail,nome:cleanName,empresa_acesso:empresaAcesso,updated_at:nowISO()},{onConflict:'id'});
+          const {error:profileError}=await supabase.from('profiles').insert({id:result.data.user.id,email:cleanEmail,nome:cleanName,empresa_acesso:empresaAcesso,updated_at:nowISO()});
           if(profileError) console.warn('Profile sync:',profileError.message);
         }
         setMsg('Cadastro criado. Se o Supabase pedir confirmação, verifique seu e-mail antes de entrar.');
@@ -928,7 +1033,7 @@ function Login({onUseLocal}){
 }
 
 function AuthShell({eyebrow,title,desc,children}){
-  return <div className="loginPage authPage">
+  return <div className="loginPage authPage theme-urus">
     <div className="authBackdrop" aria-hidden="true"><i/><i/><i/></div>
     <div className="authShell">
       <aside className="authAside">
@@ -985,8 +1090,8 @@ function SystemStatus({data, localMode, onDisableLocal}){
   return <section className={`systemStatus ${cls}`}><button className="systemSummary" onClick={()=>setOpen(!open)}><Database size={17}/><b>{statusText}</b><span>v{APP_VERSION}</span>{s.lastSync&&<small>Última sincronização: {s.lastSync}</small>}</button><button className="linkBtn" onClick={async()=>{await data.testConnection();}}>Testar Supabase</button><button className="linkBtn" onClick={forceRefreshApp}>Atualizar app/cache</button>{localMode&&<button className="linkBtn dangerText" onClick={onDisableLocal}>Sair do modo local</button>}{open&&<div className="systemDetails"><p><b>URL configurada:</b> {supabaseUrl ? 'sim' : 'não'}</p><p><b>Chave configurada:</b> {supabaseKey ? 'sim' : 'não'}</p><p><b>Usuário logado:</b> {supabase && !localMode ? 'sim' : localMode ? 'modo local' : 'não'}</p><p><b>Modo atual:</b> {data.cloud ? 'Supabase' : 'Local'}</p>{s.lastError&&<p><b>Último aviso:</b> {s.lastError}</p>}</div>}</section>
 }
 
-function Sidebar({view,setView,user,cloud,localMode,onExitLocal}){const items=[['fazendas',MapPinned,'Fazendas'],['produtividade',Gauge,'Produtividade'],['diagnostico',Stethoscope,'Diagnóstico'],['guia',BookOpen,'Guia'],['relatorios',FileText,'Relatórios']];return <aside className="sidebar"><Logo/><nav>{items.map(([id,Icon,label])=><button key={id} className={view===id?'active':''} onClick={()=>setView(id)}><Icon size={20}/>{label}</button>)}</nav><div className="sideFoot"><span className={cloud?'cloud on':'cloud'}><Database size={15}/>{cloud?'Supabase ativo':'Modo local'}</span>{localMode&&<button className="logout" onClick={onExitLocal}><Database size={16}/> Voltar ao Supabase</button>}{user&&<button className="logout" onClick={()=>supabase.auth.signOut()}><LogOut size={16}/> Sair</button>}</div></aside>}
-function BottomNav({view,setView,user,localMode,onLogout}){const items=[['fazendas',Home,'Início'],['produtividade',BarChart3,'Prod.'],['diagnostico',Stethoscope,'Diag.'],['guia',BookOpen,'Guia'],['relatorios',FileText,'Rel.']];const columns=items.length+(user||localMode?1:0);return <nav className="bottomNav" style={{gridTemplateColumns:`repeat(${columns},1fr)`}}>{items.map(([id,Icon,label])=><button key={id} className={view===id?'active':''} onClick={()=>setView(id)}><Icon size={20}/><span>{label}</span></button>)}{(user||localMode)&&<button className="mobileLogout" onClick={onLogout}><LogOut size={20}/><span>Sair</span></button>}</nav>}
+function Sidebar({view,setView,user,cloud,localMode,onExitLocal,isAdmin=false}){const items=[['fazendas',MapPinned,'Fazendas'],['produtividade',Gauge,'Produtividade'],['diagnostico',Stethoscope,'Diagnóstico'],['guia',BookOpen,'Guia'],['relatorios',FileText,'Relatórios'],isAdmin&&['gerencial',ShieldCheck,'Gerencial']].filter(Boolean);return <aside className="sidebar"><Logo/><nav>{items.map(([id,Icon,label])=><button key={id} className={view===id?'active':''} onClick={()=>setView(id)}><Icon size={20}/>{label}</button>)}</nav><div className="sideFoot"><span className={cloud?'cloud on':'cloud'}><Database size={15}/>{cloud?'Supabase ativo':'Modo local'}</span>{localMode&&<button className="logout" onClick={onExitLocal}><Database size={16}/> Voltar ao Supabase</button>}{user&&<button className="logout" onClick={()=>supabase.auth.signOut()}><LogOut size={16}/> Sair</button>}</div></aside>}
+function BottomNav({view,setView,user,localMode,onLogout,isAdmin=false}){const items=[['fazendas',Home,'Início'],['produtividade',BarChart3,'Prod.'],['diagnostico',Stethoscope,'Diag.'],['guia',BookOpen,'Guia'],['relatorios',FileText,'Rel.'],isAdmin&&['gerencial',ShieldCheck,'Adm.']].filter(Boolean);const columns=items.length+(user||localMode?1:0);return <nav className="bottomNav" style={{gridTemplateColumns:`repeat(${columns},1fr)`}}>{items.map(([id,Icon,label])=><button key={id} className={view===id?'active':''} onClick={()=>setView(id)}><Icon size={20}/><span>{label}</span></button>)}{(user||localMode)&&<button className="mobileLogout" onClick={onLogout}><LogOut size={20}/><span>Sair</span></button>}</nav>}
 function FarmBottomNav({farm,tabs,tab,setTab,onBack,access,serviceActive,serviceDone,onStart,onFinish,onEdit,onNewVisit}){const [open,setOpen]=useState(false);const mainIds=['resumo','mapa','visitas','relatorio'];const mainTabs=tabs.filter(([id])=>mainIds.includes(id));const moreTabs=tabs.filter(([id])=>!mainIds.includes(id));const go=id=>{setTab(id);setOpen(false)};return <><nav className="farmBottomNav"><button onClick={onBack}><Home size={20}/><span>Início</span></button>{mainTabs.map(([id,label,Icon])=><button key={id} className={tab===id?'active':''} onClick={()=>go(id)}><Icon size={20}/><span>{label.replace(' técnico','').replace('Relatório','Rel.')}</span></button>)}<button className={open?'active':''} onClick={()=>setOpen(v=>!v)}><Layers size={20}/><span>Mais</span></button></nav>{open&&<><button className="farmMoreBackdrop" aria-label="Fechar menu da fazenda" onClick={()=>setOpen(false)}/><div className="farmMoreSheet"><div className="farmMoreTitle"><span>Mais opções</span><button type="button" aria-label="Fechar menu" onClick={()=>setOpen(false)}><X size={16}/></button></div><div className="farmMoreGrid">{moreTabs.map(([id,label,Icon])=><button key={id} className={tab===id?'active':''} onClick={()=>go(id)}><Icon size={18}/><span>{label}</span></button>)}</div></div></>}</>}
 function PageHead({eyebrow,title,children}){return <header className="pageHead"><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1></div><div className="headActions">{children}</div></header>}
 function Stat({icon:Icon,label,value,tone=''}){return <div className={`stat ${tone}`}><Icon size={22}/><div><b>{value}</b><span>{label}</span></div></div>}
@@ -1020,12 +1125,25 @@ function BrasilAtuacaoMap({fazendas,onOpen,centrais=CENTRAIS}){
     </MapContainer></div>{err&&<p className="sourceText">{err}</p>}</section>
 }
 
-const centralTone = (central) => {
+function centralTone(central) {
   const text = String(central || '').toLowerCase();
   if (text.includes('alta')) return 'alta';
   if (text.includes('genex')) return 'genex';
   return 'other';
-};
+}
+function brandThemeKey(value) {
+  const text = String(value || '').toLowerCase();
+  if (text.includes('alta')) return 'alta';
+  if (text.includes('genex')) return 'genex';
+  return 'urus';
+}
+function BrandLogoMark({brand,className='',fallback:Fallback=Building2}) {
+  const key = brandThemeKey(brand);
+  const src = BRAND_LOGOS[key];
+  return <span className={`brandLogoMark brand-${key} ${className}`} aria-hidden="true">
+    {src ? <img src={src} alt="" draggable="false"/> : <Fallback size={20}/>}
+  </span>;
+}
 const centralDisplay = (central) => {
   const tone = centralTone(central);
   if (tone === 'alta') return 'Alta Genetics';
@@ -1107,7 +1225,7 @@ function Fazendas({data,onOpen}){
         </div>
       </div>
       <div className="farmsHeroVisual" aria-hidden="true">
-        <div className="fieldRadar"><Building2 size={28}/><i /><i /></div>
+        <div className="fieldRadar"><BrandLogoMark brand={data.empresaAcesso} className="heroBrandLogo"/><i /><i /></div>
         <div className="fieldLines"><span /><span /><span /></div>
       </div>
       <button className="btn primary farmsNewDesktop" onClick={()=>setModal(true)}><Plus size={18}/> Nova fazenda</button>
@@ -2178,6 +2296,130 @@ function ProductivityLineChart({rows,suffix=' h',decimals=1}){
     <polyline className="lineStroke" points={line}/>
     {points.map((p,i)=><g key={p.label}><circle className="lineDot" cx={p.x} cy={p.y} r={5}/>{p.value>0&&<text className="lineValue" x={p.x} y={Math.max(14,p.y-10)} textAnchor="middle">{p.value.toFixed(decimals)}{suffix}</text>}<text className="lineMonth" x={p.x} y={height-15} textAnchor="middle">{i%2===0||rows.length<=6?p.label:''}</text></g>)}
   </svg></div>
+}
+
+function GerencialUsuarios({data}){
+  const [q,setQ]=useState(''),[central,setCentral]=useState('Todas'),[role,setRole]=useState('Todos'),[status,setStatus]=useState('Todos');
+  const loadedRef=useRef(false);
+  useEffect(()=>{
+    if(data.isAppAdmin && !loadedRef.current){
+      loadedRef.current=true;
+      data.refreshAdminData?.();
+    }
+  },[data.isAppAdmin]);
+  if(!data.isAppAdmin){
+    return <div className="adminUsersPage">
+      <PageHead eyebrow="Gerencial" title="Acesso administrativo"/>
+      <section className="panel adminLockedPanel">
+        <div className="adminLockedIcon"><ShieldCheck size={28}/></div>
+        <div>
+          <h2>Painel restrito</h2>
+          <p>Somente administradores podem alterar central de acesso, bloquear usuários ou enviar recuperação de senha.</p>
+        </div>
+        {data.cloud&&data.empresaAcesso==='Urus'&&<button className="btn primary" onClick={data.promoteFirstAdmin}><ShieldCheck size={18}/> Ativar primeiro administrador</button>}
+      </section>
+    </div>
+  }
+  const users=(data.profiles||[]).filter(Boolean);
+  const text=String(q||'').trim().toLowerCase();
+  const filtered=users.filter(profile=>{
+    const roleLabel=APP_ROLE_LABELS[normalizeAppRole(profile.app_role)]||'Usuário';
+    const matchesText=!text||[profile.nome,profile.email,profile.empresa_acesso,roleLabel].join(' ').toLowerCase().includes(text);
+    const matchesCentral=central==='Todas'||profile.empresa_acesso===central;
+    const matchesRole=role==='Todos'||profile.app_role===role;
+    const matchesStatus=status==='Todos'||(status==='Ativos'?profile.ativo!==false:profile.ativo===false);
+    return matchesText&&matchesCentral&&matchesRole&&matchesStatus;
+  });
+  const stats={
+    total:users.length,
+    active:users.filter(profile=>profile.ativo!==false).length,
+    admins:users.filter(isAppAdminProfile).length,
+    urus:users.filter(profile=>profile.empresa_acesso==='Urus').length
+  };
+  const logs=(data.adminLogs||[]).slice(0,8);
+  const profileById=Object.fromEntries(users.map(profile=>[profile.id,profile]));
+  const resetFilters=()=>{setQ('');setCentral('Todas');setRole('Todos');setStatus('Todos')};
+  return <div className="adminUsersPage">
+    <PageHead eyebrow="Gerencial" title="Usuários e acessos">
+      <button className="btn light" onClick={data.refreshAdminData}><RefreshCw size={18}/> Atualizar</button>
+    </PageHead>
+    <section className="adminHero">
+      <div>
+        <span className="eyebrow">Controle de acesso</span>
+        <h2><ShieldCheck size={25}/> Administração do app</h2>
+        <p>Gerencie central, perfil administrativo, bloqueio de acesso e recuperação de senha sem compartilhar senhas.</p>
+      </div>
+      <div className="adminHeroBadge"><b>{APP_ROLE_LABELS[normalizeAppRole(data.currentUser?.app_role)]||'Administrador'}</b><span>{data.currentUser?.empresa_acesso}</span></div>
+    </section>
+    <div className="adminKpis">
+      <article><UserCheck size={20}/><span>Usuários</span><b>{stats.total}</b><small>{stats.active} ativo(s)</small></article>
+      <article><ShieldCheck size={20}/><span>Admins</span><b>{stats.admins}</b><small>painel gerencial</small></article>
+      <article><Building2 size={20}/><span>Urus</span><b>{stats.urus}</b><small>duas centrais</small></article>
+      <article><Database size={20}/><span>Diretório</span><b>{filtered.length}</b><small>no filtro atual</small></article>
+    </div>
+    <section className="panel adminFilters">
+      <div className="adminSearch"><Search size={18}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar por nome, e-mail, central ou perfil"/></div>
+      <select value={central} onChange={e=>setCentral(e.target.value)}><option>Todas</option>{EMPRESA_ACESSO.map(item=><option key={item}>{item}</option>)}</select>
+      <select value={role} onChange={e=>setRole(e.target.value)}><option>Todos</option>{APP_ROLES.map(item=><option key={item} value={item}>{APP_ROLE_LABELS[item]}</option>)}</select>
+      <select value={status} onChange={e=>setStatus(e.target.value)}><option>Todos</option><option>Ativos</option><option>Bloqueados</option></select>
+      <button className="btn light" onClick={resetFilters}>Limpar</button>
+    </section>
+    <div className="adminGrid">
+      <section className="panel adminUsersPanel">
+        <div className="sectionTitle"><div><h2><UserCheck size={20}/> Diretório</h2></div><span className="pill">{filtered.length} usuário(s)</span></div>
+        <div className="adminUserList">{filtered.map(profile=><AdminUserCard key={profile.id} profile={profile} currentUserId={data.userId} onSave={data.saveAdminProfile} onReset={data.resetAdminUserPassword}/>)}</div>
+        {!filtered.length&&<Empty icon={UserCheck} title="Nenhum usuário encontrado" text="Ajuste os filtros ou peça para a pessoa criar uma conta primeiro."/>}
+      </section>
+      <section className="panel adminAuditPanel">
+        <div className="sectionTitle"><div><h2><ClipboardList size={20}/> Auditoria</h2></div></div>
+        {logs.length?<div className="adminAuditList">{logs.map(log=>{
+          const actor=profileById[log.actor_id], target=profileById[log.target_user_id];
+          return <article key={log.id}><span>{brDateTime(log.created_at)}</span><b>{String(log.acao||'acao').replaceAll('_',' ')}</b><small>{actor?.nome||actor?.email||'Sistema'} - {target?.nome||target?.email||'Usuário'}</small></article>
+        })}</div>:<Empty icon={ClipboardList} title="Sem ações registradas" text="As alterações feitas pelo painel aparecerão aqui."/>}
+      </section>
+    </div>
+  </div>
+}
+
+function AdminUserCard({profile,currentUserId,onSave,onReset}){
+  const [draft,setDraft]=useState(profile),[saving,setSaving]=useState(false),[resetting,setResetting]=useState(false);
+  useEffect(()=>setDraft(profile),[profile.id,profile.nome,profile.email,profile.empresa_acesso,profile.app_role,profile.ativo]);
+  const self=profile.id===currentUserId;
+  const roleLabel=APP_ROLE_LABELS[normalizeAppRole(draft.app_role)]||'Usuário';
+  const dirty=['nome','empresa_acesso','app_role','ativo'].some(key=>(draft?.[key]??'')!==(profile?.[key]??''));
+  const set=(key,value)=>setDraft(prev=>({...prev,[key]:value}));
+  const save=async()=>{
+    setSaving(true);
+    await onSave(draft);
+    setSaving(false);
+  };
+  const reset=async()=>{
+    if(!confirm(`Enviar link de recuperação para ${profile.email}?`)) return;
+    setResetting(true);
+    await onReset(profile);
+    setResetting(false);
+  };
+  return <article className={`adminUserCard ${draft.ativo===false?'blocked':''}`}>
+    <div className="adminUserAvatar"><UserCheck size={21}/></div>
+    <div className="adminUserMain">
+      <input value={draft.nome||''} onChange={e=>set('nome',e.target.value)} placeholder="Nome do usuário"/>
+      <span>{profile.email||'E-mail não informado'}{self&&<b>Você</b>}</span>
+    </div>
+    <div className="adminUserStatus">
+      <span className={`centralPill ${centralTone(draft.empresa_acesso)}`}>{draft.empresa_acesso}</span>
+      <span className={`status ${draft.ativo===false?'warn':'ok'}`}>{draft.ativo===false?'Bloqueado':'Ativo'}</span>
+      <span className="pill">{roleLabel}</span>
+    </div>
+    <div className="adminUserControls">
+      <label><span>Central</span><select value={draft.empresa_acesso} onChange={e=>set('empresa_acesso',e.target.value)}>{EMPRESA_ACESSO.map(item=><option key={item}>{item}</option>)}</select></label>
+      <label><span>Perfil</span><select value={draft.app_role} onChange={e=>set('app_role',e.target.value)}>{APP_ROLES.map(item=><option key={item} value={item}>{APP_ROLE_LABELS[item]}</option>)}</select></label>
+      <label className="adminToggle"><span>Status</span><button type="button" className={draft.ativo!==false?'active':''} disabled={self} onClick={()=>set('ativo',draft.ativo===false)}>{draft.ativo!==false?'Ativo':'Bloqueado'}</button></label>
+    </div>
+    <div className="adminUserActions">
+      <button className="btn primary" disabled={!dirty||saving} onClick={save}><Save size={16}/> {saving?'Salvando...':'Salvar'}</button>
+      <button className="btn light" disabled={resetting||!profile.email} onClick={reset}><Mail size={16}/> {resetting?'Enviando...':'Recuperar senha'}</button>
+    </div>
+  </article>
 }
 
 function Produtividade({data,onOpen}){

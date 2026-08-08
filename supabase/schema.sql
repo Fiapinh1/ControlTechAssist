@@ -784,3 +784,176 @@ create policy "fazenda_dados_restritos_update_admin" on public.fazenda_dados_res
 create policy "fazenda_dados_restritos_delete_admin" on public.fazenda_dados_restritos for delete using (public.can_write_fazenda(fazenda_id));
 
 create index if not exists fazenda_dados_restritos_fazenda_idx on public.fazenda_dados_restritos(fazenda_id);
+
+-- V3.29: painel gerencial de usuarios e controle de perfis
+alter table public.profiles
+add column if not exists app_role text not null default 'user',
+add column if not exists ativo boolean not null default true;
+
+update public.profiles
+set app_role = 'user'
+where app_role is null
+   or app_role = ''
+   or app_role not in ('user', 'admin', 'super_admin');
+
+update public.profiles
+set ativo = true
+where ativo is null;
+
+do $$
+begin
+  alter table public.profiles
+    add constraint profiles_app_role_check
+    check (app_role in ('user', 'admin', 'super_admin'));
+exception
+  when duplicate_object then null;
+end $$;
+
+create or replace function public.user_app_role(target_user_id uuid default auth.uid())
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (
+      select p.app_role
+      from public.profiles p
+      where p.id = target_user_id
+      limit 1
+    ),
+    'user'
+  )
+$$;
+
+create or replace function public.user_profile_active(target_user_id uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (
+      select p.ativo
+      from public.profiles p
+      where p.id = target_user_id
+      limit 1
+    ),
+    true
+  )
+$$;
+
+create or replace function public.is_app_admin(target_user_id uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.user_profile_active(target_user_id)
+     and public.user_app_role(target_user_id) in ('admin', 'super_admin')
+$$;
+
+create or replace function public.can_access_central(target_central text, target_user_id uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case
+    when target_user_id is null then false
+    when not public.user_profile_active(target_user_id) then false
+    when public.user_empresa_acesso(target_user_id) = 'Urus' then true
+    else coalesce(nullif(target_central, ''), 'Outra / Não informado') = public.user_empresa_acesso(target_user_id)
+  end
+$$;
+
+grant execute on function public.user_app_role(uuid) to authenticated;
+grant execute on function public.user_profile_active(uuid) to authenticated;
+grant execute on function public.is_app_admin(uuid) to authenticated;
+grant execute on function public.can_access_central(text, uuid) to authenticated;
+
+drop policy if exists "profiles_select_authenticated" on public.profiles;
+drop policy if exists "profiles_insert_own" on public.profiles;
+drop policy if exists "profiles_update_own" on public.profiles;
+drop policy if exists "profiles_update_admin" on public.profiles;
+create policy "profiles_select_authenticated" on public.profiles for select using (auth.uid() is not null);
+create policy "profiles_insert_own" on public.profiles for insert with check (
+  auth.uid() = id
+  and app_role = 'user'
+  and ativo = true
+);
+create policy "profiles_update_own" on public.profiles for update using (false) with check (false);
+create policy "profiles_update_admin" on public.profiles for update using (public.is_app_admin()) with check (public.is_app_admin());
+
+create table if not exists public.admin_logs (
+  id uuid primary key default gen_random_uuid(),
+  actor_id uuid references auth.users(id) on delete set null,
+  target_user_id uuid references auth.users(id) on delete set null,
+  acao text not null,
+  detalhes jsonb not null default '{}'::jsonb,
+  created_at timestamptz default now()
+);
+
+alter table public.admin_logs enable row level security;
+
+drop policy if exists "admin_logs_select_admin" on public.admin_logs;
+drop policy if exists "admin_logs_insert_admin" on public.admin_logs;
+create policy "admin_logs_select_admin" on public.admin_logs for select using (public.is_app_admin());
+create policy "admin_logs_insert_admin" on public.admin_logs for insert with check (public.is_app_admin() and actor_id = auth.uid());
+
+create index if not exists admin_logs_created_idx on public.admin_logs(created_at desc);
+create index if not exists admin_logs_target_idx on public.admin_logs(target_user_id, created_at desc);
+
+create or replace function public.promote_first_admin()
+returns public.profiles
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_uid uuid := auth.uid();
+  auth_email text;
+  auth_name text;
+  result public.profiles;
+begin
+  if current_uid is null then
+    raise exception 'Usuario nao autenticado.';
+  end if;
+
+  if exists (
+    select 1
+    from public.profiles p
+    where p.app_role in ('admin', 'super_admin')
+      and p.ativo = true
+  ) then
+    raise exception 'Ja existe administrador configurado.';
+  end if;
+
+  select u.email, coalesce(u.raw_user_meta_data->>'nome', u.raw_user_meta_data->>'name', split_part(u.email, '@', 1))
+  into auth_email, auth_name
+  from auth.users u
+  where u.id = current_uid;
+
+  insert into public.profiles (id, email, nome, empresa_acesso, app_role, ativo, created_at, updated_at)
+  values (current_uid, auth_email, coalesce(auth_name, 'Administrador'), 'Urus', 'super_admin', true, now(), now())
+  on conflict (id) do update set
+    email = coalesce(public.profiles.email, excluded.email),
+    nome = coalesce(public.profiles.nome, excluded.nome),
+    empresa_acesso = 'Urus',
+    app_role = 'super_admin',
+    ativo = true,
+    updated_at = now()
+  returning * into result;
+
+  insert into public.admin_logs (actor_id, target_user_id, acao, detalhes)
+  values (current_uid, current_uid, 'promote_first_admin', '{"role":"super_admin"}'::jsonb);
+
+  return result;
+end;
+$$;
+
+grant execute on function public.promote_first_admin() to authenticated;
