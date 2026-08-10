@@ -11305,3 +11305,172 @@ textarea {
     padding: 13px 0;
   }
 }
+
+/* V3.40: produtividade por colares/horas e suporte mobile em modal */
+.prodMetricSwitch {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 5px;
+  border: 1px solid #dbe4ef;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.prodMetricSwitch button {
+  border: 0;
+  border-radius: 12px;
+  padding: 9px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: #64748b;
+  background: transparent;
+  font-weight: 950;
+}
+
+.prodMetricSwitch button.active {
+  color: #fff;
+  background: #0f172a;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, .18);
+}
+
+.prodChartPanel .lineChart {
+  margin-top: 2px;
+}
+
+.prodChartSummary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0 2px;
+}
+
+.prodChartSummary div {
+  border: 1px solid #dbe4ef;
+  border-radius: 15px;
+  padding: 11px 12px;
+  background: linear-gradient(180deg, #fff, #f8fafc);
+}
+
+.prodChartSummary span {
+  display: block;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.prodChartSummary b {
+  display: block;
+  margin-top: 4px;
+  color: #0f172a;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.supportDesktopDetail {
+  display: contents;
+}
+
+.supportMobileModalBackdrop {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .supportDesktopDetail {
+    display: none;
+  }
+
+  .supportMobileModalBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0 12px 12px;
+    background: rgba(2, 6, 23, .52);
+    backdrop-filter: blur(12px);
+  }
+
+  .supportMobileModal {
+    width: min(560px, 100%);
+    max-height: min(86dvh, 720px);
+    overflow: auto;
+    border: 1px solid rgba(226, 232, 240, .9);
+    border-radius: 26px;
+    background: #fff;
+    box-shadow: 0 30px 90px rgba(2, 6, 23, .35);
+  }
+
+  .supportMobileModal header {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, .94);
+    backdrop-filter: blur(14px);
+  }
+
+  .supportMobileModal header span {
+    color: #0f172a;
+    font-weight: 950;
+  }
+
+  .supportMobileModal header button {
+    width: 38px;
+    height: 38px;
+    border: 0;
+    border-radius: 13px;
+    display: grid;
+    place-items: center;
+    color: #334155;
+    background: #f1f5f9;
+  }
+
+  .supportMobileModal .supportDetail,
+  .supportMobileModal .supportGuideDetail {
+    border: 0;
+    border-radius: 0;
+    padding: 16px;
+    background: #fff;
+  }
+}
+
+@media (max-width: 760px) {
+  .prodMetricSwitch {
+    width: 100%;
+  }
+
+  .prodChartSummary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .prodChartSummary div:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .prodChartPanel .lineChart,
+  .prodChartPanel .lineEmpty {
+    min-height: 210px;
+  }
+}
+
+@media (max-width: 420px) {
+  .prodChartSummary {
+    grid-template-columns: 1fr;
+  }
+
+  .prodChartSummary div:last-child {
+    grid-column: auto;
+  }
+}

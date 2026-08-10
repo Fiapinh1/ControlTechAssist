@@ -2556,6 +2556,7 @@ function AdminUserCard({profile,currentUserId,onSave,onReset}){
 function Produtividade({data,onOpen}){
   const [year,setYear]=useState('Todos'),[month,setMonth]=useState('Todos'),[central,setCentral]=useState('Todas'),[resp,setResp]=useState('Todos'),[filtersOpen,setFiltersOpen]=useState(false);
   const [workStart,setWorkStart]=useState(DEFAULT_WORKDAY.start),[workEnd,setWorkEnd]=useState(DEFAULT_WORKDAY.end),[lunchMinutes,setLunchMinutes]=useState(DEFAULT_WORKDAY.lunchMinutes),[includeWeekends,setIncludeWeekends]=useState(false);
+  const [chartMetric,setChartMetric]=useState('colares');
   const visibleCentrais=allowedCentrais(data);
   useEffect(()=>{if(central!=='Todas'&&!visibleCentrais.includes(central))setCentral('Todas');},[central,visibleCentrais.join('|')]);
   const workConfig={start:workStart||DEFAULT_WORKDAY.start,end:workEnd||DEFAULT_WORKDAY.end,lunchMinutes:num(lunchMinutes),includeWeekends};
@@ -2591,8 +2592,13 @@ function Produtividade({data,onOpen}){
       && (central==='Todas'||(f.central||'')===central||(!f.central&&central.startsWith('Outra')))
       && (resp==='Todos'||owner===resp);
   });
+  const monthlyCollars=monthNames.map((label,i)=>({label,value:monthlyBase.filter(f=>new Date(f.servico_fim_em).getMonth()===i).reduce((a,f)=>a+collarsFor(f),0)}));
   const monthlyHours=monthNames.map((label,i)=>({label,value:monthlyBase.filter(f=>new Date(f.servico_fim_em).getMonth()===i).reduce((a,f)=>a+workedHoursFor(f),0)}));
   const monthlyCount=monthNames.map((label,i)=>({label,value:monthlyBase.filter(f=>new Date(f.servico_fim_em).getMonth()===i).length}));
+  const chartRows=chartMetric==='horas'?monthlyHours:monthlyCollars;
+  const secondaryRows=chartMetric==='horas'?monthlyCollars:monthlyHours;
+  const chartSuffix=chartMetric==='horas'?' h':'';
+  const chartDecimals=chartMetric==='horas'?1:0;
   const buckets=[['0-100',0,100],['101-250',101,250],['251-500',251,500],['501+',501,Infinity]].map(([label,min,max])=>{
     const list=farms.filter(f=>{const collars=collarsFor(f);return collars>=min&&collars<=max;});
     return {label,value:list.length?list.reduce((a,f)=>a+workedHoursFor(f),0)/list.length/dailyHours:0};
@@ -2642,8 +2648,17 @@ function Produtividade({data,onOpen}){
     <div className="prodDashboardGrid">
       <section className="panel prodChartPanel">
         <div className="sectionTitle"><div><h2><BarChart3 size={20}/> Evolução mensal</h2></div><span className="pill">{productiveDays?`${productiveDays.toFixed(1)} dias úteis`:avgLabel}</span></div>
-        <ProductivityLineChart rows={monthlyHours}/>
-        <div className="prodMiniBars"><span>Instalações fechadas por mês</span><ProductivityBars rows={monthlyCount}/></div>
+        <div className="prodMetricSwitch" role="group" aria-label="Métrica do gráfico">
+          <button className={chartMetric==='colares'?'active':''} onClick={()=>setChartMetric('colares')}><Milk size={16}/> Colares</button>
+          <button className={chartMetric==='horas'?'active':''} onClick={()=>setChartMetric('horas')}><Clock size={16}/> Horas</button>
+        </div>
+        <ProductivityLineChart rows={chartRows} suffix={chartSuffix} decimals={chartDecimals}/>
+        <div className="prodChartSummary">
+          <div><span>Total de colares</span><b>{totalCollars}</b></div>
+          <div><span>Horas úteis</span><b>{totalHours?`${totalHours.toFixed(1)} h`:'-'}</b></div>
+          <div><span>Colares/dia útil</span><b>{collarsPerDay?collarsPerDay.toFixed(1):'-'}</b></div>
+        </div>
+        <div className="prodMiniBars"><span>{chartMetric==='horas'?'Colares por mês':'Horas úteis por mês'}</span><ProductivityBars rows={secondaryRows} suffix={chartMetric==='horas'?'':' h'} decimals={chartMetric==='horas'?0:1}/></div>
       </section>
       <section className="panel prodRankingPanel">
         <div className="sectionTitle"><div><h2><UserCheck size={20}/> Responsáveis</h2></div><span className="pill">{ownerRows.length}</span></div>
@@ -2785,6 +2800,7 @@ function download(filename, text){const blob=new Blob([text],{type:'text/tab-sep
 
 function SuporteTecnico({data}){
   const [tab,setTab]=useState('resolver'),[q,setQ]=useState(''),[symptomId,setSymptomId]=useState(SYMPTOMS[0]?.id||''),[guideId,setGuideId]=useState(INSTALL_GUIDES[0]?.id||''),[farm,setFarm]=useState(''),[obs,setObs]=useState(''),[checked,setChecked]=useState({});
+  const [mobilePanel,setMobilePanel]=useState(null);
   const query=q.trim().toLowerCase();
   const matches=(...parts)=>!query||parts.flat().join(' ').toLowerCase().includes(query);
   const symptomResults=SYMPTOMS.filter(s=>matches(s.title,s.category,s.cause,s.action,s.checks));
@@ -2801,6 +2817,10 @@ function SuporteTecnico({data}){
     ['can',AlertTriangle,'CAN',canResults.length],
     ['suporte',LifeBuoy,'Suporte',SUPPORT_CHECKS.length]
   ];
+  const openMobilePanel=panel=>{
+    if(typeof window!=='undefined'&&window.matchMedia('(max-width: 900px)').matches) setMobilePanel(panel);
+  };
+  useEffect(()=>{setMobilePanel(null);},[tab,q]);
   const saveSymptom=()=>{
     if(!selectedSymptom) return;
     data.saveDiagnostico({id:uid(),fazenda_id:farm||null,categoria:selectedSymptom.category,sintoma:selectedSymptom.title,resultado:selectedSymptom.cause,acoes_realizadas:selectedSymptom.action,observacoes:obs,created_at:nowISO()});
@@ -2830,10 +2850,10 @@ function SuporteTecnico({data}){
     {tab==='resolver'&&<section className="panel supportWorkspace">
       <div className="supportList">
         <div className="supportListHead"><b>Sintomas encontrados</b><span>{symptomResults.length}</span></div>
-        {symptomResults.map(s=>{const I=s.icon;return <button key={s.id} className={selectedSymptom?.id===s.id?'active':''} onClick={()=>setSymptomId(s.id)}><I size={18}/><span><b>{s.title}</b><small>{s.category}</small></span></button>})}
+        {symptomResults.map(s=>{const I=s.icon;return <button key={s.id} className={selectedSymptom?.id===s.id?'active':''} onClick={()=>{setSymptomId(s.id);openMobilePanel('resolver')}}><I size={18}/><span><b>{s.title}</b><small>{s.category}</small></span></button>})}
         {!symptomResults.length&&<Empty icon={Search} title="Nada encontrado" text="Tente buscar por IP, rede, antena, tag, CAN ou LED."/>}
       </div>
-      {selectedSymptom&&<article className="supportDetail">
+      {selectedSymptom&&<div className="supportDesktopDetail"><article className="supportDetail">
         <span className="pill">{selectedSymptom.category}</span>
         <h2>{selectedSymptom.title}</h2>
         <p className="cause">{selectedSymptom.cause}</p>
@@ -2848,17 +2868,17 @@ function SuporteTecnico({data}){
           </div>
         </details>
         <p className="sourceText">{selectedSymptom.source}</p>
-      </article>}
+      </article></div>}
     </section>}
 
     {tab==='guia'&&<section className="panel supportGuidePanel">
-      <div className="supportGuideRail">{guideResults.map(g=>{const I=g.icon;return <button key={g.id} className={selectedGuide?.id===g.id?'active':''} onClick={()=>setGuideId(g.id)}><I size={18}/><span><b>{g.title}</b><small>{g.phases.length} etapas</small></span></button>})}</div>
-      {selectedGuide?<article className="supportGuideDetail">
+      <div className="supportGuideRail">{guideResults.map(g=>{const I=g.icon;return <button key={g.id} className={selectedGuide?.id===g.id?'active':''} onClick={()=>{setGuideId(g.id);openMobilePanel('guia')}}><I size={18}/><span><b>{g.title}</b><small>{g.phases.length} etapas</small></span></button>})}</div>
+      {selectedGuide?<div className="supportDesktopDetail"><article className="supportGuideDetail">
         <span className="pill">{selectedGuide.source}</span>
         <h2>{selectedGuide.title}</h2>
         <p>{selectedGuide.desc}</p>
         <div className="supportPhaseGrid">{selectedGuide.phases.map((phase,i)=><details key={phase.title} open={i===0}><summary><span>{i+1}</span><b>{phase.title}</b></summary><ul>{phase.items.map(item=><li key={item}>{item}</li>)}</ul></details>)}</div>
-      </article>:<Empty icon={BookOpen} title="Nenhum guia encontrado" text="Limpe a busca ou procure por VP8002, antena, Nedap Now ou colares."/>}
+      </article></div>:<Empty icon={BookOpen} title="Nenhum guia encontrado" text="Limpe a busca ou procure por VP8002, antena, Nedap Now ou colares."/>}
     </section>}
 
     {tab==='leds'&&<section className="panel supportCardPanel">
@@ -2882,6 +2902,38 @@ function SuporteTecnico({data}){
         <button className="btn primary" onClick={saveSupport}><Save size={17}/> Registrar checklist</button>
       </div>
     </section>}
+    {mobilePanel==='resolver'&&selectedSymptom&&<div className="supportMobileModalBackdrop" onClick={()=>setMobilePanel(null)}>
+      <aside className="supportMobileModal" onClick={e=>e.stopPropagation()}>
+        <header><span>Procedimento</span><button type="button" onClick={()=>setMobilePanel(null)} aria-label="Fechar"><X size={18}/></button></header>
+        <article className="supportDetail">
+          <span className="pill">{selectedSymptom.category}</span>
+          <h2>{selectedSymptom.title}</h2>
+          <p className="cause">{selectedSymptom.cause}</p>
+          <div className="supportCheckGrid">{selectedSymptom.checks.map((item,i)=><div key={item}><span>{i+1}</span><b>{item}</b></div>)}</div>
+          <div className="supportAction"><Zap size={19}/><span><b>Próxima ação</b>{selectedSymptom.action}</span></div>
+          <details className="supportRegister">
+            <summary><Save size={17}/> Registrar diagnóstico</summary>
+            <div className="saveDiag compact">
+              <select value={farm} onChange={e=>setFarm(e.target.value)}><option value="">Sem vincular fazenda</option>{data.fazendas.map(f=><option key={f.id} value={f.id}>{f.nome}</option>)}</select>
+              <textarea value={obs} onChange={e=>setObs(e.target.value)} placeholder="Resumo do que foi feito no campo"/>
+              <button className="btn primary" onClick={saveSymptom}><Save size={17}/> Salvar registro</button>
+            </div>
+          </details>
+          <p className="sourceText">{selectedSymptom.source}</p>
+        </article>
+      </aside>
+    </div>}
+    {mobilePanel==='guia'&&selectedGuide&&<div className="supportMobileModalBackdrop" onClick={()=>setMobilePanel(null)}>
+      <aside className="supportMobileModal" onClick={e=>e.stopPropagation()}>
+        <header><span>Guia técnico</span><button type="button" onClick={()=>setMobilePanel(null)} aria-label="Fechar"><X size={18}/></button></header>
+        <article className="supportGuideDetail">
+          <span className="pill">{selectedGuide.source}</span>
+          <h2>{selectedGuide.title}</h2>
+          <p>{selectedGuide.desc}</p>
+          <div className="supportPhaseGrid">{selectedGuide.phases.map((phase,i)=><details key={phase.title} open={i===0}><summary><span>{i+1}</span><b>{phase.title}</b></summary><ul>{phase.items.map(item=><li key={item}>{item}</li>)}</ul></details>)}</div>
+        </article>
+      </aside>
+    </div>}
   </div>
 }
 
