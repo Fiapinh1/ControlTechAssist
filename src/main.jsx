@@ -186,27 +186,52 @@ const FARM_STATUS = ['Não iniciada', 'Em andamento', 'Com pendência', 'Aguarda
 const FARM_STATUS_DONE = 'Instalação concluída';
 const normalizeText = (value='') => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 const VP8002_LED_MARKERS = [
-  { id:'power', label:'POWER', x:28.1, y:19.2 },
-  { id:'status', label:'STATUS', x:28.1, y:39.0 },
-  { id:'vin', label:'Vin1/Vin2', x:8.8, y:70.3 },
-  { id:'vout', label:'Vout1/Vout2', x:24.7, y:70.3 },
-  { id:'can', label:'CAN1/CAN2', x:30.4, y:70.3 },
-  { id:'io1', label:'O1/I1', x:44.7, y:70.3 },
-  { id:'io2', label:'O2/I2', x:55.6, y:70.3 },
-  { id:'link1-act1', label:'LINK1/ACT1', x:67.1, y:70.3 },
-  { id:'link2-act2', label:'LINK2/ACT2', x:78.2, y:70.3 },
-  { id:'usb', label:'USB1/USB2', x:90.2, y:70.3 }
+  { id:'power', label:'POWER', x:28.4, y:20.0 },
+  { id:'status', label:'STATUS', x:28.4, y:39.3 },
+  { id:'vin1', label:'Vin1', x:7.0, y:72.0 },
+  { id:'vin2', label:'Vin2', x:10.6, y:72.0 },
+  { id:'vout1', label:'Vout1', x:19.6, y:72.0 },
+  { id:'can1', label:'CAN1', x:25.0, y:72.0 },
+  { id:'vout2', label:'Vout2', x:30.4, y:72.0 },
+  { id:'can2', label:'CAN2', x:35.8, y:72.0 },
+  { id:'o1', label:'O1', x:43.1, y:72.0 },
+  { id:'i1', label:'I1', x:46.8, y:72.0 },
+  { id:'o2', label:'O2', x:54.0, y:72.0 },
+  { id:'i2', label:'I2', x:57.7, y:72.0 },
+  { id:'link1', label:'LINK1', x:64.5, y:72.0 },
+  { id:'act1', label:'ACT1', x:70.0, y:72.0 },
+  { id:'link2', label:'LINK2', x:75.5, y:72.0 },
+  { id:'act2', label:'ACT2', x:81.0, y:72.0 },
+  { id:'usb1', label:'USB1', x:87.7, y:72.0 },
+  { id:'usb2', label:'USB2', x:93.0, y:72.0 }
 ];
 const vp8002LedMarkerIds = label => {
   const text = normalizeText(label);
   if(text.includes('power')) return ['power'];
   if(text.includes('status') || text.includes('ecra')) return ['status'];
-  if(text.includes('vin')) return ['vin'];
-  if(text.includes('vout')) return ['vout'];
-  if(text.includes('can')) return ['can'];
-  if(text.includes('o1') || text.includes('i1') || text.includes('o2') || text.includes('i2')) return ['io1','io2'];
-  if(text.includes('link') || text.includes('act')) return ['link1-act1','link2-act2'];
-  if(text.includes('usb')) return ['usb'];
+  if(text.includes('vin1')) return ['vin1'];
+  if(text.includes('vin2')) return ['vin2'];
+  if(text.includes('vin')) return ['vin1','vin2'];
+  if(text.includes('vout1')) return ['vout1'];
+  if(text.includes('vout2')) return ['vout2'];
+  if(text.includes('vout')) return ['vout1','vout2'];
+  if(text.includes('can1')) return ['can1'];
+  if(text.includes('can2')) return ['can2'];
+  if(text.includes('can')) return ['can1','can2'];
+  if(text.includes('link1') && text.includes('act1')) return ['link1','act1'];
+  if(text.includes('link2') && text.includes('act2')) return ['link2','act2'];
+  if(text.includes('link1')) return ['link1'];
+  if(text.includes('act1')) return ['act1'];
+  if(text.includes('link2')) return ['link2'];
+  if(text.includes('act2')) return ['act2'];
+  if(text.includes('link') || text.includes('act')) return ['link1','act1','link2','act2'];
+  if(text.includes('usb1')) return ['usb1'];
+  if(text.includes('usb2')) return ['usb2'];
+  if(text.includes('usb')) return ['usb1','usb2'];
+  if(text.includes('o1')) return ['o1'];
+  if(text.includes('i1')) return ['i1'];
+  if(text.includes('o2')) return ['o2'];
+  if(text.includes('i2')) return ['i2'];
   return [];
 };
 const ledToneClass = value => {
@@ -227,6 +252,24 @@ const VP8002_LED_NORMALS = {
   'link2-act2': { color:'Verde', mode:'Aceso', meaning:'Ligação LAN estabelecida em 100 Mbps.', action:'Condição normal quando esta porta está conectada.' },
   usb: { color:'Branco', mode:'Apagado', meaning:'USB sem atividade.', action:'Condição normal quando não há backup ou dispositivo USB conectado.' }
 };
+Object.assign(VP8002_LED_NORMALS, {
+  vin1: { color:'Verde', mode:'Aceso', meaning:'Entrada Vin1 alimentando o equipamento.', action:'Condição normal na alimentação principal.' },
+  vin2: { color:'Branco', mode:'Apagado', meaning:'Entrada Vin2 sem uso no funcionamento normal.', action:'Condição normal quando não existe segunda entrada conectada.' },
+  vout1: { color:'Verde', mode:'Aceso', meaning:'Saída Vout1 ativa.', action:'Condição normal quando a saída está em uso.' },
+  vout2: { color:'Verde', mode:'Aceso', meaning:'Saída Vout2 ativa.', action:'Condição normal quando a saída está em uso.' },
+  can1: { color:'Verde', mode:'Aceso', meaning:'CAN1 com barramento OK.', action:'Condição normal de comunicação CAN.' },
+  can2: { color:'Verde', mode:'Aceso', meaning:'CAN2 com barramento OK.', action:'Condição normal de comunicação CAN.' },
+  o1: { color:'Branco', mode:'Apagado', meaning:'Saída O1 sem atividade.', action:'Condição normal se esta saída não estiver em uso.' },
+  i1: { color:'Branco', mode:'Apagado', meaning:'Entrada I1 sem atividade.', action:'Condição normal se esta entrada não estiver em uso.' },
+  o2: { color:'Branco', mode:'Apagado', meaning:'Saída O2 sem atividade.', action:'Condição normal se esta saída não estiver em uso.' },
+  i2: { color:'Branco', mode:'Apagado', meaning:'Entrada I2 sem atividade.', action:'Condição normal se esta entrada não estiver em uso.' },
+  link1: { color:'Verde', mode:'Aceso', meaning:'Porta LAN 1 com link estabelecido.', action:'Condição normal de rede.' },
+  act1: { color:'Verde', mode:'Pisca lentamente', meaning:'Porta LAN 1 com atividade periódica.', action:'Condição normal quando há tráfego na rede.' },
+  link2: { color:'Verde', mode:'Aceso', meaning:'Porta LAN 2 com link estabelecido.', action:'Condição normal quando esta porta está conectada.' },
+  act2: { color:'Verde', mode:'Pisca lentamente', meaning:'Porta LAN 2 com atividade periódica.', action:'Condição normal quando há tráfego na rede.' },
+  usb1: { color:'Branco', mode:'Apagado', meaning:'USB1 sem atividade.', action:'Condição normal quando não há dispositivo USB conectado.' },
+  usb2: { color:'Branco', mode:'Apagado', meaning:'USB2 sem atividade.', action:'Condição normal quando não há dispositivo USB conectado.' }
+});
 const defaultVp8002LedStates = () => Object.fromEntries(VP8002_LED_MARKERS.map(marker => [marker.id, {...VP8002_LED_NORMALS[marker.id]}]));
 const ledColorMatches = (source='', target='') => {
   const sourceText = normalizeText(source);
@@ -2922,7 +2965,7 @@ function SuporteTecnico({data}){
   };
   const selectLedMarker=marker=>{
     setSelectedLedId(marker.id);
-    const scrollToInspector=()=>ledInspectorRef.current?.scrollIntoView({behavior:'smooth', block:'nearest'});
+    const scrollToInspector=()=>ledInspectorRef.current?.scrollIntoView({behavior:'smooth', block:'center'});
     if(typeof requestAnimationFrame==='function') requestAnimationFrame(scrollToInspector);
     else setTimeout(scrollToInspector, 0);
   };
@@ -3002,10 +3045,10 @@ function SuporteTecnico({data}){
         <div className="ledSimulatorStage">
           <div className="ledSimulatorIntro">
             <div>
-              <b>Painel em estado normal</b>
+              <b>Modo: Funcionamento normal</b>
               <span>Compare com a VP8002 física e toque no LED que estiver diferente.</span>
             </div>
-            <button type="button" className="btn light" onClick={resetAllLeds}><RefreshCw size={16}/> Restaurar normal</button>
+            <button type="button" className="btn light" onClick={resetAllLeds}><RefreshCw size={16}/> Restaurar funcionamento normal</button>
           </div>
           <DeviceLedMap
             imageSrc={vp8002LedPanelImage}
