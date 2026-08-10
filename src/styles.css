@@ -155,6 +155,12 @@
 @media(max-width:760px){.serviceControl{padding:13px;border-radius:18px}.serviceActions .btn{width:100%}.prodBar{grid-template-columns:52px minmax(0,1fr) 50px}.productivityFilters .grid4{grid-template-columns:1fr!important}.serviceOpenList{grid-template-columns:1fr}.workdayPanel{grid-template-columns:1fr}.workdayToggle{height:auto;min-height:52px}.lineChart{padding:4px}.lineValue{font-size:11px}.lineMonth{font-size:11px}}
 @media(max-width:420px){.serviceFacts{grid-template-columns:1fr}.prodTable table{min-width:760px}.insightGrid{grid-template-columns:1fr}.workdayIntro h3{font-size:18px}}
 
+/* V3.51 - produtividade enxuta */
+.productivityPage{display:grid;gap:16px}.prodFilterBtn.active{border-color:#86efac;background:#ecfdf5;color:#047857}.prodHeroPanel{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(360px,.9fr);gap:18px;align-items:stretch;border:1px solid rgba(148,163,184,.25);border-radius:28px;padding:22px;background:radial-gradient(circle at 88% 18%,rgba(125,211,252,.18),transparent 32%),linear-gradient(135deg,#0f172a 0%,#12332d 100%);color:#fff;box-shadow:0 24px 60px rgba(15,23,42,.16);overflow:hidden}.prodHeroCopy{display:flex;flex-direction:column;justify-content:center;min-width:0}.prodHeroCopy .eyebrow{color:#86efac}.prodHeroCopy h2{margin:8px 0 10px;font-size:clamp(28px,4vw,46px);line-height:1;letter-spacing:-.05em}.prodHeroCopy p{margin:0;color:#cbd5e1;font-weight:750;line-height:1.45}.prodHeroStats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.prodHeroStats article{min-width:0;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.08);border-radius:18px;padding:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}.prodHeroStats svg{color:#86efac}.prodHeroStats span{display:block;margin-top:8px;color:#cbd5e1;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.prodHeroStats b{display:block;margin-top:4px;font-size:24px;line-height:1;letter-spacing:-.03em}.prodDashboardGrid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(320px,.75fr);gap:16px}.prodChartPanel,.prodRankingPanel,.prodFarmPanel,.prodOpenPanel{min-width:0}.prodRankingList{display:grid;gap:10px}.prodRankingItem{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid #e2e8f0;background:#fff;border-radius:16px;padding:11px}.prodRankingItem>span{width:34px;height:34px;border-radius:12px;background:#ecfdf5;color:#047857;display:grid;place-items:center;font-weight:950}.prodRankingItem b,.prodRankingItem small{display:block}.prodRankingItem small{color:#64748b;margin-top:3px;font-weight:750}.prodRankingItem strong{font-size:22px;color:#0f172a}.prodCompactStats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid #e2e8f0}.prodCompactStats div{border:1px solid #e2e8f0;background:#f8fafc;border-radius:16px;padding:12px}.prodCompactStats span{display:block;color:#64748b;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}.prodCompactStats b{display:block;margin-top:5px;color:#0f172a}.prodFarmRows{display:grid;gap:10px}.prodFarmRow{width:100%;border:1px solid #e2e8f0;background:#fff;border-radius:18px;padding:13px 14px;display:grid;grid-template-columns:minmax(210px,1.3fr) repeat(3,minmax(120px,.55fr)) auto;gap:12px;align-items:center;text-align:left;color:#0f172a;transition:.18s}.prodFarmRow:hover{border-color:#86efac;background:#f8fffb;transform:translateY(-1px)}.prodFarmIdentity b{display:block;font-size:16px;line-height:1.18}.prodFarmIdentity small{display:flex;align-items:center;gap:5px;margin-top:5px;color:#64748b;font-weight:750}.prodFarmMetric{min-width:0;border-left:1px solid #e2e8f0;padding-left:12px}.prodFarmMetric small{display:block;color:#64748b;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}.prodFarmMetric b{display:block;margin-top:3px;font-size:13px;line-height:1.25}.prodFarmOpen{justify-self:end;border-radius:999px;background:#0f172a;color:#fff;padding:8px 12px;font-size:12px;font-weight:950}.prodFilterBackdrop{position:fixed;inset:0;background:rgba(15,23,42,.42);z-index:60;display:flex;justify-content:flex-end;padding:18px}.prodFilterSheet{width:min(440px,100%);height:100%;overflow:auto;background:#fff;border:1px solid #dbe4ef;border-radius:26px;padding:18px;box-shadow:0 30px 90px rgba(15,23,42,.25);display:flex;flex-direction:column;gap:16px}.prodFilterSheet header,.prodFilterSheet footer{display:flex;align-items:center;justify-content:space-between;gap:12px}.prodFilterSheet h2{margin:3px 0 0;font-size:24px;letter-spacing:-.04em}.prodFilterSheet footer{margin-top:auto;border-top:1px solid #e2e8f0;padding-top:14px}.prodFilterGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.prodFilterGrid.compact{grid-template-columns:repeat(3,minmax(0,1fr))}.prodWorkdayBox{border:1px solid #bbf7d0;background:linear-gradient(180deg,#f0fdf4,#fff);border-radius:20px;padding:15px;display:grid;gap:12px}.prodWorkdayBox b{display:block;margin-top:5px;color:#0f172a}.prodWorkdayBox .workdayToggle{background:#fff;height:auto;min-height:50px}.prodOpenPanel .serviceOpenList{margin-top:4px}
+@media(max-width:1050px){.prodHeroPanel,.prodDashboardGrid{grid-template-columns:1fr}.prodHeroStats{grid-template-columns:repeat(4,minmax(0,1fr))}.prodFarmRow{grid-template-columns:minmax(0,1fr) repeat(2,minmax(120px,.5fr)) auto}.prodFarmMetric:nth-of-type(4){display:none}}
+@media(max-width:760px){.prodHeroPanel{border-radius:24px;padding:18px}.prodHeroStats{grid-template-columns:repeat(2,minmax(0,1fr))}.prodHeroStats article{padding:12px}.prodDashboardGrid{gap:14px}.prodFarmRow{grid-template-columns:1fr;border-radius:18px;padding:14px}.prodFarmMetric{border-left:0;border-top:1px solid #e2e8f0;padding:10px 0 0}.prodFarmOpen{justify-self:start}.prodFilterBackdrop{padding:0;align-items:flex-end}.prodFilterSheet{height:min(86dvh,720px);border-radius:26px 26px 0 0}.prodFilterGrid,.prodFilterGrid.compact{grid-template-columns:1fr}.prodCompactStats{grid-template-columns:1fr}}
+@media(max-width:420px){.prodHeroCopy h2{font-size:27px}.prodHeroStats b{font-size:21px}.prodHeroStats span{font-size:10px}.prodRankingItem{grid-template-columns:30px minmax(0,1fr) auto}.prodRankingItem>span{width:30px;height:30px}.prodRankingItem strong{font-size:18px}}
+
 /* V3.7 - resumo e localização da fazenda */
 .farmEditor{padding-top:0!important}.farmEditorTabs{padding-left:0;padding-right:0}.farmDataPane{gap:14px}.farmLocationCompact{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;border:1px solid #bbf7d0;background:linear-gradient(135deg,#f0fdf4,#ffffff);border-radius:20px;padding:15px}.farmLocationCompact h3{margin:3px 0 4px;font-size:18px}.farmLocationCompact p,.farmLocationCompact small{display:block;margin:0;color:#475569;font-weight:800;word-break:break-word}.farmLocationCompact small{margin-top:4px;color:#64748b;font-size:12px}.locationCompactActions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.farmLocationPane .mapSearch{margin-top:0}.farmLocationMap{height:min(54dvh,470px);min-height:390px}.farmOverviewGrid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(270px,.75fr);gap:14px;align-items:stretch}.farmInfoPanel,.farmQuickPanel{border:1px solid var(--line);border-radius:22px;background:#fff;padding:16px}.farmInfoPanel{background:linear-gradient(180deg,#fff,#f8fafc)}.farmInfoHead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}.farmInfoHead h3{margin:4px 0 0;font-size:22px;letter-spacing:-.03em}.farmInfoHead .btn{padding:9px 12px;border-radius:12px;white-space:nowrap}.farmInfoTiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.farmInfoTile{min-width:0;border:1px solid #e2e8f0;background:#fff;border-radius:16px;padding:12px;box-shadow:0 8px 18px rgba(15,23,42,.035)}.farmInfoTile span{display:flex;align-items:center;gap:7px;color:#64748b;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}.farmInfoTile span svg{color:#16a34a;flex:0 0 auto}.farmInfoTile b{display:block;margin-top:7px;color:#0f172a;font-size:15px;line-height:1.25;word-break:break-word}.farmNotes{margin-top:10px;padding:12px;border-left:4px solid #16a34a;background:#ecfdf5;border-radius:14px}.farmNotes span{display:block;color:#047857;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.06em}.farmNotes p{margin:4px 0 0;color:#334155;line-height:1.45}.farmQuickPanel{display:grid;gap:12px;background:#f8fafc}.farmLocationSummary{border:1px solid #bbf7d0;background:#f0fdf4;border-radius:18px;padding:14px;display:grid;grid-template-columns:auto 1fr;gap:11px;align-items:flex-start}.farmLocationSummary svg{color:#16a34a}.farmLocationSummary span,.farmLocationSummary small{display:block;color:#64748b;font-size:12px;font-weight:800}.farmLocationSummary b{display:block;margin:4px 0;color:#0f172a;word-break:break-word}.farmQuickGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.farmQuickGrid article{border:1px solid #e2e8f0;background:#fff;border-radius:16px;padding:12px;min-height:92px;display:flex;flex-direction:column;justify-content:space-between}.farmQuickGrid svg{color:#16a34a}.farmQuickGrid span{color:#64748b;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.04em}.farmQuickGrid b{font-size:18px;line-height:1.1;word-break:break-word}
 @media(max-width:980px){.farmOverviewGrid{grid-template-columns:1fr}.farmQuickPanel{grid-template-columns:1fr 1fr}.farmQuickGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -10470,25 +10476,168 @@ textarea {
 }
 
 .farmsUserGreeting {
+  appearance: none;
+  border: 1px solid rgba(255,255,255,.17);
   display: inline-flex;
   align-items: center;
   gap: 6px;
   max-width: 240px;
   min-height: 34px;
   padding: 7px 12px;
-  border: 1px solid rgba(255,255,255,.17);
   border-radius: 999px;
   background: rgba(255,255,255,.10);
   color: rgba(226,232,240,.92);
   font-size: 13px;
   font-weight: 800;
+  font-family: inherit;
+  cursor: pointer;
   backdrop-filter: blur(14px);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
+  transition: transform .18s ease, background .18s ease, border-color .18s ease;
+}
+
+.farmsUserGreeting:hover {
+  transform: translateY(-1px);
+  background: rgba(255,255,255,.16);
+  border-color: rgba(255,255,255,.28);
+}
+
+.farmsUserGreeting span,
+.farmsUserGreeting svg {
+  position: relative;
+  z-index: 1;
 }
 
 .farmsUserGreeting b {
   color: #fff;
   font-weight: 900;
+}
+
+.profileSettings {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.profileSettingsHero,
+.profileSettingsCard {
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, .06);
+}
+
+.profileSettingsHero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f8fafc, #eefdf5);
+}
+
+.profileAvatar {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 16px;
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.profileSettingsHero h3,
+.profileSettingsHero p {
+  margin: 0;
+}
+
+.profileSettingsHero h3 {
+  font-size: 22px;
+  color: #0f172a;
+}
+
+.profileSettingsHero p {
+  margin-top: 4px;
+  color: #64748b;
+  font-weight: 750;
+}
+
+.profileSettingsCard {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.profileSettingsTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #0f172a;
+  font-size: 17px;
+}
+
+.profileSettingsTitle svg {
+  color: #16a34a;
+}
+
+.passwordGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.profilePasswordInput {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profilePasswordInput input {
+  min-width: 0;
+  flex: 1;
+}
+
+.profilePasswordInput button {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 14px;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.profileSettingsActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+@media (max-width: 720px) {
+  .profileSettings {
+    padding: 12px;
+  }
+
+  .profileSettingsHero {
+    align-items: flex-start;
+    padding: 14px;
+  }
+
+  .profileSettingsHero h3 {
+    font-size: 19px;
+  }
+
+  .passwordGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .profileSettingsActions,
+  .profileSettingsActions .btn {
+    width: 100%;
+  }
 }
 
 .farmsHeroActions .farmsNewDesktop {
