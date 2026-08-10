@@ -10823,3 +10823,485 @@ textarea {
     box-shadow: 0 12px 26px rgba(2, 8, 23, .20);
   }
 }
+
+/* V3.39: suporte tecnico unificado */
+.supportPage {
+  display: grid;
+  gap: 16px;
+}
+
+.supportHero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, .76fr);
+  gap: 16px;
+  align-items: center;
+  border: 1px solid rgba(148, 163, 184, .25);
+  border-radius: 28px;
+  padding: 22px;
+  color: #fff;
+  background:
+    radial-gradient(circle at 86% 18%, rgba(34, 197, 94, .18), transparent 34%),
+    linear-gradient(135deg, #0f172a, #12332d);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, .14);
+}
+
+.supportHero .eyebrow {
+  color: #86efac;
+}
+
+.supportHero h2 {
+  margin: 7px 0 9px;
+  font-size: clamp(25px, 3.4vw, 40px);
+  line-height: 1.05;
+  letter-spacing: -.04em;
+}
+
+.supportHero p {
+  max-width: 720px;
+  margin: 0;
+  color: #cbd5e1;
+  line-height: 1.55;
+}
+
+.supportSearch {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 18px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, .10);
+}
+
+.supportSearch svg {
+  color: #86efac;
+}
+
+.supportSearch input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  padding: 15px 2px;
+  color: #fff;
+  background: transparent;
+  font-weight: 800;
+}
+
+.supportSearch input::placeholder {
+  color: #cbd5e1;
+}
+
+.supportTabs {
+  display: flex;
+  gap: 9px;
+  overflow: auto;
+  padding: 3px 2px 6px;
+  scrollbar-width: none;
+}
+
+.supportTabs::-webkit-scrollbar {
+  display: none;
+}
+
+.supportTabs button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 9px 12px;
+  color: #64748b;
+  background: #fff;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.supportTabs button.active {
+  border-color: #0f172a;
+  color: #fff;
+  background: #0f172a;
+}
+
+.supportTabs b {
+  min-width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #475569;
+  background: #f1f5f9;
+  font-size: 12px;
+}
+
+.supportTabs .active b {
+  color: #fff;
+  background: rgba(255, 255, 255, .16);
+}
+
+.supportWorkspace {
+  display: grid;
+  grid-template-columns: minmax(280px, .8fr) minmax(0, 1.35fr);
+  gap: 16px;
+}
+
+.supportList,
+.supportGuideRail {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.supportList {
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.supportListHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 4px 10px;
+}
+
+.supportListHead span {
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: #047857;
+  background: #ecfdf5;
+  font-weight: 950;
+}
+
+.supportList button,
+.supportGuideRail button {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 12px;
+  color: #0f172a;
+  background: #fff;
+  text-align: left;
+}
+
+.supportList button.active,
+.supportGuideRail button.active {
+  border-color: #86efac;
+  background: #ecfdf5;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, .10);
+}
+
+.supportList svg,
+.supportGuideRail svg {
+  flex: 0 0 auto;
+  color: #16a34a;
+}
+
+.supportList b,
+.supportList small,
+.supportGuideRail b,
+.supportGuideRail small {
+  display: block;
+}
+
+.supportList small,
+.supportGuideRail small {
+  margin-top: 3px;
+  color: #64748b;
+  font-weight: 750;
+}
+
+.supportDetail,
+.supportGuideDetail {
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+  padding: 18px;
+  background: linear-gradient(180deg, #fff, #f8fafc);
+}
+
+.supportDetail h2,
+.supportGuideDetail h2 {
+  margin: 12px 0 8px;
+  font-size: 26px;
+  letter-spacing: -.04em;
+}
+
+.supportCheckGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.supportCheckGrid div {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 11px;
+  background: #fff;
+}
+
+.supportCheckGrid span,
+.supportPhaseGrid summary span,
+.supportChecklist span {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  color: #047857;
+  background: #ecfdf5;
+  font-weight: 950;
+}
+
+.supportCheckGrid b {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.supportAction {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid #bbf7d0;
+  border-radius: 17px;
+  padding: 13px;
+  color: #14532d;
+  background: #f0fdf4;
+}
+
+.supportAction b,
+.supportAction span {
+  display: block;
+}
+
+.supportAction span {
+  line-height: 1.45;
+}
+
+.supportRegister {
+  margin-top: 13px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 10px;
+  background: #fff;
+}
+
+.supportRegister summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 950;
+}
+
+.supportRegister .saveDiag {
+  margin-top: 10px;
+}
+
+.supportGuidePanel {
+  display: grid;
+  grid-template-columns: minmax(260px, .7fr) minmax(0, 1.4fr);
+  gap: 16px;
+}
+
+.supportGuideDetail .pill {
+  max-width: 100%;
+  white-space: normal;
+  line-height: 1.3;
+}
+
+.supportPhaseGrid {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.supportPhaseGrid details {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 10px;
+  background: #f8fafc;
+}
+
+.supportPhaseGrid summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 950;
+}
+
+.supportPhaseGrid ul {
+  margin: 10px 0 0;
+  padding-left: 22px;
+  color: #334155;
+  line-height: 1.55;
+}
+
+.supportLedGrid,
+.supportCanGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.supportLedGrid article,
+.supportCanGrid article {
+  position: relative;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 15px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .04);
+}
+
+.supportLedGrid .ledDot {
+  top: 15px;
+  right: 14px;
+}
+
+.supportLedGrid b,
+.supportLedGrid small,
+.supportCanGrid b,
+.supportCanGrid small {
+  display: block;
+}
+
+.supportLedGrid small,
+.supportCanGrid small {
+  margin-top: 4px;
+  color: #64748b;
+  font-weight: 800;
+}
+
+.supportLedGrid p,
+.supportCanGrid p {
+  color: #334155;
+  line-height: 1.45;
+}
+
+.supportLedGrid strong {
+  display: block;
+  color: #047857;
+  line-height: 1.35;
+}
+
+.supportCanGrid article > span {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 10px;
+  border-radius: 14px;
+  color: #c2410c;
+  background: #fff7ed;
+  font-size: 20px;
+  font-weight: 950;
+}
+
+.supportBeforeHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.supportBeforeHead h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0 0;
+}
+
+.supportChecklist {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 9px;
+}
+
+.supportChecklist button {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 12px;
+  color: #0f172a;
+  background: #fff;
+  text-align: left;
+}
+
+.supportChecklist button.done {
+  border-color: #86efac;
+  background: #ecfdf5;
+}
+
+.supportSaveLine {
+  margin-top: 14px;
+}
+
+.supportSaveLine textarea {
+  min-height: 70px;
+}
+
+@media (max-width: 900px) {
+  .supportHero,
+  .supportWorkspace,
+  .supportGuidePanel {
+    grid-template-columns: 1fr;
+  }
+
+  .supportHero {
+    border-radius: 24px;
+    padding: 18px;
+  }
+
+  .supportCheckGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .supportBeforeHead {
+    align-items: flex-start;
+  }
+
+  .supportLedGrid,
+  .supportCanGrid,
+  .supportChecklist {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 460px) {
+  .supportHero h2 {
+    font-size: 25px;
+  }
+
+  .supportTabs button {
+    padding: 8px 10px;
+  }
+
+  .supportList,
+  .supportDetail,
+  .supportGuideDetail {
+    border-radius: 18px;
+    padding: 12px;
+  }
+
+  .supportCardPanel .sectionTitle {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .supportSearch input {
+    padding: 13px 0;
+  }
+}

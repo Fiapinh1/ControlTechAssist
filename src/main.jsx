@@ -30,8 +30,9 @@ const BRAND_LOGOS = { alta: altaLogo, genex: genexLogo, urus: urusLogo };
 const readAppContext = () => {
   try { return JSON.parse(localStorage.getItem(APP_CONTEXT_KEY) || '{}') || {}; } catch { return {}; }
 };
+const normalizeMainView = view => view === 'diagnostico' || view === 'guia' ? 'suporte' : view;
 const saveAppContext = (view, farmId = null) => {
-  try { localStorage.setItem(APP_CONTEXT_KEY, JSON.stringify({ view, farmId })); } catch {}
+  try { localStorage.setItem(APP_CONTEXT_KEY, JSON.stringify({ view: normalizeMainView(view), farmId })); } catch {}
 };
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -905,7 +906,7 @@ async function forceRefreshApp(){
 function App(){
   const [user,setUser]=useState(null);
   const [authLoading,setAuthLoading]=useState(Boolean(supabase));
-  const [view,setView]=useState(()=>readAppContext().view || 'fazendas');
+  const [view,setView]=useState(()=>normalizeMainView(readAppContext().view || 'fazendas'));
   const [selectedFarmId,setSelectedFarmId]=useState(()=>readAppContext().farmId || null);
   const [localMode,setLocalMode]=useState(localStorage.getItem(LOCAL_MODE_KEY)==='true');
   const [recoveryMode,setRecoveryMode]=useState(()=> window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery'));
@@ -962,7 +963,7 @@ function App(){
   if(supabase && recoveryMode && user && !localMode) return <PasswordRecovery onDone={()=>{setRecoveryMode(false); window.history.replaceState({}, document.title, window.location.origin + window.location.pathname);}}/>;
   if(supabase && !user && !localMode) return <Login onUseLocal={()=>{localStorage.setItem(LOCAL_MODE_KEY,'true'); setLocalMode(true)}}/>;
   const goFarm = id => { setSelectedFarmId(id); setView('fazenda'); saveAppContext('fazenda', id); };
-  const setMainView = v => { setView(v); if(v!=='fazenda') setSelectedFarmId(null); saveAppContext(v, v==='fazenda'?selectedFarmId:null); };
+  const setMainView = v => { const next=normalizeMainView(v); setView(next); if(next!=='fazenda') setSelectedFarmId(null); saveAppContext(next, next==='fazenda'?selectedFarmId:null); };
   const exitLocalMode = () => { localStorage.removeItem(LOCAL_MODE_KEY); saveAppContext('fazendas', null); setLocalMode(false); setSelectedFarmId(null); setView('fazendas'); };
   const logout = async () => { if(localMode){ exitLocalMode(); return; } await supabase?.auth.signOut(); };
   const showGerencial = data.isAppAdmin || data.empresaAcesso === 'Urus';
@@ -970,8 +971,7 @@ function App(){
   return <div className={`app theme-${activeTheme}`}><NotificationCenter/><Sidebar view={view} setView={setMainView} user={user} cloud={data.cloud} localMode={localMode} onExitLocal={exitLocalMode} isAdmin={showGerencial}/><main className="main">
     {(!data.cloud || localMode) && <SystemStatus data={data} localMode={localMode} onDisableLocal={()=>{localStorage.removeItem(LOCAL_MODE_KEY); setLocalMode(false)}}/>}
     {view==='fazendas' && <Fazendas data={data} onOpen={goFarm}/>}
-    {view==='diagnostico' && <Diagnostico data={data}/>}
-    {view==='guia' && <Guia/>}
+    {view==='suporte' && <SuporteTecnico data={data}/>}
     {view==='produtividade' && <Produtividade data={data} onOpen={goFarm}/>}
     {view==='relatorios' && <Relatorios data={data} onOpen={goFarm}/>}
     {view==='gerencial' && <GerencialUsuarios data={data}/>}
@@ -1139,8 +1139,8 @@ function SystemStatus({data, localMode, onDisableLocal}){
   return <section className={`systemStatus ${cls}`}><button className="systemSummary" onClick={()=>setOpen(!open)}><Database size={17}/><b>{statusText}</b><span>v{APP_VERSION}</span>{s.lastSync&&<small>Última sincronização: {s.lastSync}</small>}</button><button className="linkBtn" onClick={async()=>{await data.testConnection();}}>Testar Supabase</button><button className="linkBtn" onClick={forceRefreshApp}>Atualizar app/cache</button>{localMode&&<button className="linkBtn dangerText" onClick={onDisableLocal}>Sair do modo local</button>}{open&&<div className="systemDetails"><p><b>URL configurada:</b> {supabaseUrl ? 'sim' : 'não'}</p><p><b>Chave configurada:</b> {supabaseKey ? 'sim' : 'não'}</p><p><b>Usuário logado:</b> {supabase && !localMode ? 'sim' : localMode ? 'modo local' : 'não'}</p><p><b>Modo atual:</b> {data.cloud ? 'Supabase' : 'Local'}</p>{s.lastError&&<p><b>Último aviso:</b> {s.lastError}</p>}</div>}</section>
 }
 
-function Sidebar({view,setView,user,cloud,localMode,onExitLocal,isAdmin=false}){const items=[['fazendas',MapPinned,'Fazendas'],['produtividade',Gauge,'Produtividade'],['diagnostico',Stethoscope,'Diagnóstico'],['guia',BookOpen,'Guia'],['relatorios',FileText,'Relatórios'],isAdmin&&['gerencial',ShieldCheck,'Gerencial']].filter(Boolean);return <aside className="sidebar"><Logo/><nav>{items.map(([id,Icon,label])=><button key={id} className={view===id?'active':''} onClick={()=>setView(id)}><Icon size={20}/>{label}</button>)}</nav><div className="sideFoot"><span className={cloud?'cloud on':'cloud'}><Database size={15}/>{cloud?'Supabase ativo':'Modo local'}</span>{localMode&&<button className="logout" onClick={onExitLocal}><Database size={16}/> Voltar ao Supabase</button>}{user&&<button className="logout" onClick={()=>supabase.auth.signOut()}><LogOut size={16}/> Sair</button>}</div></aside>}
-function BottomNav({view,setView,user,localMode,onLogout,isAdmin=false}){const items=[['fazendas',Home,'Início'],['produtividade',BarChart3,'Prod.'],['diagnostico',Stethoscope,'Diag.'],['guia',BookOpen,'Guia'],['relatorios',FileText,'Rel.'],isAdmin&&['gerencial',ShieldCheck,'Adm.']].filter(Boolean);const columns=items.length+(user||localMode?1:0);return <nav className="bottomNav" style={{gridTemplateColumns:`repeat(${columns},1fr)`}}>{items.map(([id,Icon,label])=><button key={id} className={view===id?'active':''} onClick={()=>setView(id)}><Icon size={20}/><span>{label}</span></button>)}{(user||localMode)&&<button className="mobileLogout" onClick={onLogout}><LogOut size={20}/><span>Sair</span></button>}</nav>}
+function Sidebar({view,setView,user,cloud,localMode,onExitLocal,isAdmin=false}){const items=[['fazendas',MapPinned,'Fazendas'],['produtividade',Gauge,'Produtividade'],['suporte',LifeBuoy,'Suporte'],['relatorios',FileText,'Relatórios'],isAdmin&&['gerencial',ShieldCheck,'Gerencial']].filter(Boolean);return <aside className="sidebar"><Logo/><nav>{items.map(([id,Icon,label])=><button key={id} className={view===id?'active':''} onClick={()=>setView(id)}><Icon size={20}/>{label}</button>)}</nav><div className="sideFoot"><span className={cloud?'cloud on':'cloud'}><Database size={15}/>{cloud?'Supabase ativo':'Modo local'}</span>{localMode&&<button className="logout" onClick={onExitLocal}><Database size={16}/> Voltar ao Supabase</button>}{user&&<button className="logout" onClick={()=>supabase.auth.signOut()}><LogOut size={16}/> Sair</button>}</div></aside>}
+function BottomNav({view,setView,user,localMode,onLogout,isAdmin=false}){const items=[['fazendas',Home,'Início'],['produtividade',BarChart3,'Prod.'],['suporte',LifeBuoy,'Suporte'],['relatorios',FileText,'Rel.'],isAdmin&&['gerencial',ShieldCheck,'Adm.']].filter(Boolean);const columns=items.length+(user||localMode?1:0);return <nav className="bottomNav" style={{gridTemplateColumns:`repeat(${columns},1fr)`}}>{items.map(([id,Icon,label])=><button key={id} className={view===id?'active':''} onClick={()=>setView(id)}><Icon size={20}/><span>{label}</span></button>)}{(user||localMode)&&<button className="mobileLogout" onClick={onLogout}><LogOut size={20}/><span>Sair</span></button>}</nav>}
 function FarmBottomNav({farm,tabs,tab,setTab,onBack,access,serviceActive,serviceDone,onStart,onFinish,onEdit,onNewVisit}){const [open,setOpen]=useState(false);const mainIds=['resumo','mapa','visitas','relatorio'];const mainTabs=tabs.filter(([id])=>mainIds.includes(id));const moreTabs=tabs.filter(([id])=>!mainIds.includes(id));const go=id=>{setTab(id);setOpen(false)};return <><nav className="farmBottomNav"><button onClick={onBack}><Home size={20}/><span>Início</span></button>{mainTabs.map(([id,label,Icon])=><button key={id} className={tab===id?'active':''} onClick={()=>go(id)}><Icon size={20}/><span>{label.replace(' técnico','').replace('Relatório','Rel.')}</span></button>)}<button className={open?'active':''} onClick={()=>setOpen(v=>!v)}><Layers size={20}/><span>Mais</span></button></nav>{open&&<><button className="farmMoreBackdrop" aria-label="Fechar menu da fazenda" onClick={()=>setOpen(false)}/><div className="farmMoreSheet"><div className="farmMoreTitle"><span>Mais opções</span><button type="button" aria-label="Fechar menu" onClick={()=>setOpen(false)}><X size={16}/></button></div><div className="farmMoreGrid">{moreTabs.map(([id,label,Icon])=><button key={id} className={tab===id?'active':''} onClick={()=>go(id)}><Icon size={18}/><span>{label}</span></button>)}</div></div></>}</>}
 function PageHead({eyebrow,title,children}){return <header className="pageHead"><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1></div><div className="headActions">{children}</div></header>}
 function Stat({icon:Icon,label,value,tone=''}){return <div className={`stat ${tone}`}><Icon size={22}/><div><b>{value}</b><span>{label}</span></div></div>}
@@ -2782,5 +2782,107 @@ function Relatorios({data}){
 function Field({label,icon:Icon,children}){return <label className="field"><span>{Icon&&<Icon size={15}/>} {label}</span>{children}</label>}
 function Modal({title,onClose,children}){return <div className="modalBackdrop"><div className="modal"><header><h2>{title}</h2><button onClick={onClose}><X size={20}/></button></header>{children}</div></div>}
 function download(filename, text){const blob=new Blob([text],{type:'text/tab-separated-values;charset=utf-8'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); URL.revokeObjectURL(a.href);}
+
+function SuporteTecnico({data}){
+  const [tab,setTab]=useState('resolver'),[q,setQ]=useState(''),[symptomId,setSymptomId]=useState(SYMPTOMS[0]?.id||''),[guideId,setGuideId]=useState(INSTALL_GUIDES[0]?.id||''),[farm,setFarm]=useState(''),[obs,setObs]=useState(''),[checked,setChecked]=useState({});
+  const query=q.trim().toLowerCase();
+  const matches=(...parts)=>!query||parts.flat().join(' ').toLowerCase().includes(query);
+  const symptomResults=SYMPTOMS.filter(s=>matches(s.title,s.category,s.cause,s.action,s.checks));
+  const guideResults=INSTALL_GUIDES.filter(g=>matches(g.title,g.desc,g.source,g.phases.flatMap(p=>[p.title,...p.items])));
+  const ledResults=LED_DIAGNOSTICS.filter(l=>matches(l.led,l.cor,l.modo,l.estado,l.acao));
+  const canResults=CAN_ERRORS.filter(c=>matches(c.code,c.bus,c.desc,c.solution));
+  const selectedSymptom=symptomResults.find(s=>s.id===symptomId)||symptomResults[0];
+  const selectedGuide=guideResults.find(g=>g.id===guideId)||guideResults[0];
+  const done=SUPPORT_CHECKS.filter((_,i)=>checked[i]).length;
+  const tabs=[
+    ['resolver',Stethoscope,'Resolver',symptomResults.length],
+    ['guia',BookOpen,'Guias',guideResults.length],
+    ['leds',Cpu,'LEDs',ledResults.length],
+    ['can',AlertTriangle,'CAN',canResults.length],
+    ['suporte',LifeBuoy,'Suporte',SUPPORT_CHECKS.length]
+  ];
+  const saveSymptom=()=>{
+    if(!selectedSymptom) return;
+    data.saveDiagnostico({id:uid(),fazenda_id:farm||null,categoria:selectedSymptom.category,sintoma:selectedSymptom.title,resultado:selectedSymptom.cause,acoes_realizadas:selectedSymptom.action,observacoes:obs,created_at:nowISO()});
+    setObs('');
+    notify('Diagnóstico registrado.');
+  };
+  const saveSupport=()=>{
+    data.saveDiagnostico({id:uid(),fazenda_id:farm||null,categoria:'Antes de chamar suporte',sintoma:'Checklist de suporte',resultado:`${done}/${SUPPORT_CHECKS.length} itens conferidos`,acoes_realizadas:SUPPORT_CHECKS.filter((_,i)=>checked[i]).join('; '),observacoes:obs,created_at:nowISO()});
+    setObs('');
+    notify('Checklist de suporte registrado.');
+  };
+  return <div className="supportPage">
+    <PageHead eyebrow="Suporte técnico" title="Resolver no campo"/>
+    <section className="supportHero">
+      <div>
+        <span className="eyebrow">Busca rápida</span>
+        <h2>Diagnóstico, guia e checklist em um só lugar.</h2>
+        <p>Digite o erro, LED, código CAN, equipamento ou sintoma para encontrar o procedimento certo.</p>
+      </div>
+      <div className="supportSearch">
+        <Search size={20}/>
+        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Buscar IP, antena, CAN, LED, tag..."/>
+      </div>
+    </section>
+    <div className="supportTabs">{tabs.map(([id,Icon,label,count])=><button key={id} className={tab===id?'active':''} onClick={()=>setTab(id)}><Icon size={18}/><span>{label}</span><b>{count}</b></button>)}</div>
+
+    {tab==='resolver'&&<section className="panel supportWorkspace">
+      <div className="supportList">
+        <div className="supportListHead"><b>Sintomas encontrados</b><span>{symptomResults.length}</span></div>
+        {symptomResults.map(s=>{const I=s.icon;return <button key={s.id} className={selectedSymptom?.id===s.id?'active':''} onClick={()=>setSymptomId(s.id)}><I size={18}/><span><b>{s.title}</b><small>{s.category}</small></span></button>})}
+        {!symptomResults.length&&<Empty icon={Search} title="Nada encontrado" text="Tente buscar por IP, rede, antena, tag, CAN ou LED."/>}
+      </div>
+      {selectedSymptom&&<article className="supportDetail">
+        <span className="pill">{selectedSymptom.category}</span>
+        <h2>{selectedSymptom.title}</h2>
+        <p className="cause">{selectedSymptom.cause}</p>
+        <div className="supportCheckGrid">{selectedSymptom.checks.map((item,i)=><div key={item}><span>{i+1}</span><b>{item}</b></div>)}</div>
+        <div className="supportAction"><Zap size={19}/><span><b>Próxima ação</b>{selectedSymptom.action}</span></div>
+        <details className="supportRegister">
+          <summary><Save size={17}/> Registrar diagnóstico</summary>
+          <div className="saveDiag compact">
+            <select value={farm} onChange={e=>setFarm(e.target.value)}><option value="">Sem vincular fazenda</option>{data.fazendas.map(f=><option key={f.id} value={f.id}>{f.nome}</option>)}</select>
+            <textarea value={obs} onChange={e=>setObs(e.target.value)} placeholder="Resumo do que foi feito no campo"/>
+            <button className="btn primary" onClick={saveSymptom}><Save size={17}/> Salvar registro</button>
+          </div>
+        </details>
+        <p className="sourceText">{selectedSymptom.source}</p>
+      </article>}
+    </section>}
+
+    {tab==='guia'&&<section className="panel supportGuidePanel">
+      <div className="supportGuideRail">{guideResults.map(g=>{const I=g.icon;return <button key={g.id} className={selectedGuide?.id===g.id?'active':''} onClick={()=>setGuideId(g.id)}><I size={18}/><span><b>{g.title}</b><small>{g.phases.length} etapas</small></span></button>})}</div>
+      {selectedGuide?<article className="supportGuideDetail">
+        <span className="pill">{selectedGuide.source}</span>
+        <h2>{selectedGuide.title}</h2>
+        <p>{selectedGuide.desc}</p>
+        <div className="supportPhaseGrid">{selectedGuide.phases.map((phase,i)=><details key={phase.title} open={i===0}><summary><span>{i+1}</span><b>{phase.title}</b></summary><ul>{phase.items.map(item=><li key={item}>{item}</li>)}</ul></details>)}</div>
+      </article>:<Empty icon={BookOpen} title="Nenhum guia encontrado" text="Limpe a busca ou procure por VP8002, antena, Nedap Now ou colares."/>}
+    </section>}
+
+    {tab==='leds'&&<section className="panel supportCardPanel">
+      <div className="sectionTitle"><div><h2><Cpu size={20}/> LEDs da VP8002</h2></div><span className="pill">{ledResults.length}</span></div>
+      <div className="supportLedGrid">{ledResults.map((l,i)=><article key={i}><span className={`ledDot ${l.cor.toLowerCase().includes('verde')?'green':l.cor.toLowerCase().includes('vermelho')?'red':l.cor.toLowerCase().includes('laranja')?'orange':l.cor.toLowerCase().includes('azul')?'blue':''}`}/><b>{l.led}</b><small>{l.cor} • {l.modo}</small><p>{l.estado}</p><strong>{l.acao}</strong></article>)}</div>
+      {!ledResults.length&&<Empty icon={Search} title="Nenhum LED encontrado" text="Busque por cor, modo ou nome do LED."/>}
+    </section>}
+
+    {tab==='can'&&<section className="panel supportCardPanel">
+      <div className="sectionTitle"><div><h2><AlertTriangle size={20}/> Erros CAN</h2></div><span className="pill">{canResults.length}</span></div>
+      <div className="supportCanGrid">{canResults.map(c=><article key={c.code}><span>{c.code}</span><small>{c.bus}</small><b>{c.desc}</b><p>{c.solution}</p></article>)}</div>
+      {!canResults.length&&<Empty icon={Search} title="Nenhum código encontrado" text="Digite o código CAN ou uma palavra do problema."/>}
+    </section>}
+
+    {tab==='suporte'&&<section className="panel supportBeforePanel">
+      <div className="supportBeforeHead"><div><span className="eyebrow">Antes de acionar suporte</span><h2><LifeBuoy size={21}/> Conferência rápida</h2></div><div className="circleProgress"><b>{done}</b><span>/{SUPPORT_CHECKS.length}</span></div></div>
+      <div className="supportChecklist">{SUPPORT_CHECKS.map((item,i)=><button key={item} className={checked[i]?'done':''} onClick={()=>setChecked({...checked,[i]:!checked[i]})}><span>{checked[i]?<Check size={15}/>:i+1}</span><b>{item}</b></button>)}</div>
+      <div className="saveDiag supportSaveLine">
+        <select value={farm} onChange={e=>setFarm(e.target.value)}><option value="">Sem vincular fazenda</option>{data.fazendas.map(f=><option key={f.id} value={f.id}>{f.nome}</option>)}</select>
+        <textarea value={obs} onChange={e=>setObs(e.target.value)} placeholder="Resumo para enviar ao suporte"/>
+        <button className="btn primary" onClick={saveSupport}><Save size={17}/> Registrar checklist</button>
+      </div>
+    </section>}
+  </div>
+}
 
 createRoot(document.getElementById('root')).render(<App/>);
