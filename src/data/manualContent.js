@@ -83,6 +83,7 @@ export const LED_DIAGNOSTICS = [
   { led:'POWER', cor:'Verde', modo:'Pisca lentamente', estado:'UPS interno funcionando', acao:'Verificar alimentação principal, tomada e fonte.' },
   { led:'POWER', cor:'Laranja', modo:'Aceso', estado:'Baixa tensão do UPS', acao:'Verificar fonte de alimentação e estabilidade da energia.' },
   { led:'POWER', cor:'Vermelho', modo:'Piscando', estado:'Tensão do UPS muito baixa', acao:'Prioridade: conferir alimentação e escalar se persistir.' },
+  { led:'POWER', cor:'Branco', modo:'Apagado', estado:'Sem alimentação', acao:'Verificar tomada, fonte e conexão de alimentação antes de continuar.' },
   { led:'STATUS', cor:'Azul', modo:'Pisca lentamente', estado:'Funcionamento OK', acao:'Condição normal.' },
   { led:'STATUS', cor:'Azul', modo:'Pisca rapidamente', estado:'Transferindo ou erro ao transferir', acao:'Aguardar; se persistir, verificar atualização/rede.' },
   { led:'STATUS', cor:'Azul', modo:'Pisca muito rapidamente', estado:'Modo de serviço ativo', acao:'Confirmar se foi ativado intencionalmente.' },
@@ -94,13 +95,20 @@ export const LED_DIAGNOSTICS = [
   { led:'Vin1 / Vin2', cor:'Laranja', modo:'Aceso', estado:'Aviso de baixa potência', acao:'Verificar fonte, bitola/comprimento do cabo e tensão.' },
   { led:'Vin1 / Vin2', cor:'Vermelho', modo:'Piscando', estado:'Erro', acao:'Verificar alimentação de entrada e fonte.' },
   { led:'Vout1 / Vout2', cor:'Verde', modo:'Aceso', estado:'Saída ligada', acao:'Normal quando saída está ativa.' },
+  { led:'Vout1 / Vout2', cor:'Branco', modo:'Apagado', estado:'Saída desligada', acao:'Verificar se a saída deveria estar ativa neste ponto da instalação.' },
+  { led:'Vout1 / Vout2', cor:'Laranja', modo:'Aceso', estado:'Aviso de baixa potência', acao:'Verificar fonte, bitola/comprimento do cabo e tensão de saída.' },
   { led:'Vout1 / Vout2', cor:'Vermelho', modo:'Piscando', estado:'Erro', acao:'Verificar sobrecarga, curto ou dispositivo conectado.' },
   { led:'CAN1 / CAN2', cor:'Verde', modo:'Aceso', estado:'CAN bus OK', acao:'Condição normal.' },
   { led:'CAN1 / CAN2', cor:'Branco', modo:'Apagado', estado:'CAN bus desligado', acao:'Verificar se CAN está habilitado e há V-packs.' },
   { led:'CAN1 / CAN2', cor:'Vermelho', modo:'Piscando', estado:'Erro do CAN bus', acao:'Consultar código CAN e verificar cabos/conectores.' },
+  { led:'O1 / I1 / O2 / I2', cor:'Verde', modo:'Aceso', estado:'Saída ligada', acao:'Condição normal quando a saída está ativa.' },
+  { led:'O1 / I1 / O2 / I2', cor:'Branco', modo:'Apagado', estado:'Saída desligada ou sobrecarga enquanto a saída está ligada', acao:'Verificar dispositivo(s) ligado(s) a O1 e/ou O2.' },
+  { led:'O1 / I1 / O2 / I2', cor:'Laranja', modo:'Aceso', estado:'Aviso', acao:'Conferir o dispositivo conectado e registrar a condição no atendimento.' },
+  { led:'O1 / I1 / O2 / I2', cor:'Vermelho', modo:'Piscando', estado:'Erro', acao:'Verificar saídas digitais, cabos e possível sobrecarga.' },
   { led:'LINK + ACT', cor:'Branco', modo:'Apagado', estado:'Sem ligação LAN', acao:'Verificar cabo, porta do roteador/switch e rede.' },
   { led:'LINK + ACT', cor:'Verde', modo:'Aceso', estado:'Ligação LAN 100 Mbps', acao:'Rede conectada em 100 Mbps.' },
   { led:'LINK + ACT', cor:'Branco/Verde', modo:'Piscando', estado:'Atividade de rede', acao:'Condição normal quando há tráfego.' },
+  { led:'USB1 / USB2', cor:'Branco', modo:'Apagado', estado:'Não ativo', acao:'Condição normal quando não há dispositivo USB ou backup em execução.' },
   { led:'USB1 / USB2', cor:'Verde', modo:'Aceso', estado:'Ativo', acao:'USB ativo; USB1 pode ser usado para backup.' }
 ];
 

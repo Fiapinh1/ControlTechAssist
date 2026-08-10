@@ -11194,6 +11194,427 @@ textarea {
   line-height: 1.35;
 }
 
+.ledSupportLayout {
+  display: grid;
+  grid-template-columns: minmax(360px, .95fr) minmax(0, 1.25fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.ledMapPanel {
+  position: sticky;
+  top: 16px;
+  border: 1px solid #dbe4ef;
+  border-radius: 22px;
+  padding: 14px;
+  background: linear-gradient(180deg, #f8fafc, #fff);
+  box-shadow: 0 16px 38px rgba(15, 23, 42, .06);
+}
+
+.ledMapPanelHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.ledMapPanelHead span {
+  text-transform: uppercase;
+  color: #64748b;
+  font-size: 11px;
+  letter-spacing: .12em;
+  font-weight: 950;
+}
+
+.ledMapPanelHead b {
+  color: #0f172a;
+  font-size: 15px;
+}
+
+.deviceLedMap {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #dbe4ef;
+  border-radius: 18px;
+  padding: 10px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, .03);
+}
+
+.deviceLedMap img {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+}
+
+.deviceLedMapLayer {
+  position: absolute;
+  inset: 10px;
+  pointer-events: none;
+}
+
+.deviceLedMarker {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+  border: 0;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, .86);
+  color: white;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, .22);
+  pointer-events: auto;
+  transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+}
+
+.deviceLedMarker span {
+  width: 12px;
+  height: 12px;
+  border: 2px solid white;
+  border-radius: 999px;
+  background: var(--led-color, #22c55e);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, .16), 0 0 16px var(--led-color, #22c55e);
+  transition: opacity .18s ease, background .18s ease, box-shadow .18s ease;
+}
+
+.deviceLedMarker em {
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: #0f172a;
+  color: white;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 950;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, .22);
+  transition: opacity .18s ease, transform .18s ease;
+}
+
+.deviceLedMarker:hover,
+.deviceLedMarker:focus-visible,
+.deviceLedMarker.active {
+  transform: translate(-50%, -50%) scale(1.12);
+  background: #0f172a;
+  box-shadow: 0 0 0 5px rgba(14, 165, 233, .16), 0 16px 28px rgba(15, 23, 42, .28);
+}
+
+.deviceLedMarker:hover em,
+.deviceLedMarker:focus-visible em,
+.deviceLedMarker.active em {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.deviceLedMarker.active {
+  animation: ledMarkerPulse 1.35s ease-in-out infinite;
+}
+
+.deviceLedMarker.different {
+  background: #7f1d1d;
+}
+
+.deviceLedMarker.mode-apagado span {
+  opacity: .45;
+  background: #f8fafc;
+  box-shadow: inset 0 0 0 1px #94a3b8;
+}
+
+.deviceLedMarker.mode-pisca-lentamente span {
+  animation: ledBlinkSlow 1.8s ease-in-out infinite;
+}
+
+.deviceLedMarker.mode-pisca-rapidamente span {
+  animation: ledBlinkFast .55s ease-in-out infinite;
+}
+
+.deviceLedMarker.mode-1-flash-curto span {
+  animation: ledFlashOne 2.2s linear infinite;
+}
+
+.deviceLedMarker.mode-2-flashes-curtos span {
+  animation: ledFlashTwo 2.45s linear infinite;
+}
+
+.deviceLedMarker.mode-3-flashes-curtos span {
+  animation: ledFlashThree 2.7s linear infinite;
+}
+
+@keyframes ledMarkerPulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(14, 165, 233, .14), 0 16px 28px rgba(15, 23, 42, .26); }
+  50% { box-shadow: 0 0 0 11px rgba(14, 165, 233, .04), 0 18px 34px rgba(15, 23, 42, .30); }
+}
+
+@keyframes ledBlinkSlow {
+  0%, 58%, 100% { opacity: 1; filter: brightness(1.15); }
+  72% { opacity: .22; filter: brightness(.75); }
+}
+
+@keyframes ledBlinkFast {
+  0%, 45%, 100% { opacity: 1; filter: brightness(1.2); }
+  55%, 80% { opacity: .18; filter: brightness(.7); }
+}
+
+@keyframes ledFlashOne {
+  0%, 8%, 100% { opacity: 1; }
+  12%, 72% { opacity: .22; }
+}
+
+@keyframes ledFlashTwo {
+  0%, 8%, 18%, 26%, 100% { opacity: 1; }
+  11%, 21%, 70% { opacity: .18; }
+}
+
+@keyframes ledFlashThree {
+  0%, 7%, 15%, 22%, 30%, 37%, 100% { opacity: 1; }
+  10%, 18%, 33%, 72% { opacity: .18; }
+}
+
+.ledMapHint {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.ledMapHint svg {
+  color: #059669;
+}
+
+.pill.warn {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.ledSimulatorLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(330px, .72fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.ledSimulatorStage,
+.ledInspectorPanel {
+  border: 1px solid #dbe4ef;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #f8fafc, #fff);
+  box-shadow: 0 16px 38px rgba(15, 23, 42, .06);
+}
+
+.ledSimulatorStage {
+  padding: 14px;
+  overflow: hidden;
+}
+
+.ledSimulatorIntro {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ledSimulatorIntro b,
+.ledSimulatorIntro span {
+  display: block;
+}
+
+.ledSimulatorIntro b {
+  font-size: 16px;
+  letter-spacing: -.02em;
+}
+
+.ledSimulatorIntro span {
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 750;
+  margin-top: 2px;
+}
+
+.ledSelectorRail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ledSelectorRail button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  border: 1px solid #dbe4ef;
+  border-radius: 14px;
+  padding: 9px 10px;
+  background: #fff;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: left;
+  transition: border-color .18s ease, background .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+
+.ledSelectorRail button:hover,
+.ledSelectorRail button.active {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #0f172a;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, .10);
+  transform: translateY(-1px);
+}
+
+.ledSelectorRail button.different {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.ledSelectorDot,
+.ledInspectorDot {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #cbd5e1;
+  box-shadow: 0 0 0 4px rgba(203, 213, 225, .25);
+}
+
+.ledSelectorDot.green,
+.ledInspectorDot.green { background: #22c55e; box-shadow: 0 0 0 4px rgba(34, 197, 94, .14); }
+.ledSelectorDot.red,
+.ledInspectorDot.red { background: #ef4444; box-shadow: 0 0 0 4px rgba(239, 68, 68, .14); }
+.ledSelectorDot.orange,
+.ledInspectorDot.orange { background: #f59e0b; box-shadow: 0 0 0 4px rgba(245, 158, 11, .16); }
+.ledSelectorDot.blue,
+.ledInspectorDot.blue { background: #2563eb; box-shadow: 0 0 0 4px rgba(37, 99, 235, .14); }
+
+.ledInspectorPanel {
+  position: sticky;
+  top: 16px;
+  padding: 16px;
+}
+
+.ledInspectorPanel header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.ledInspectorPanel h3 {
+  margin: 2px 0 0;
+  font-size: 22px;
+  letter-spacing: -.03em;
+}
+
+.ledCompareGrid {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ledCompareGrid article,
+.ledDiagnosticResult {
+  border: 1px solid #dbe4ef;
+  border-radius: 16px;
+  padding: 12px;
+  background: #fff;
+}
+
+.ledCompareGrid article.ok,
+.ledDiagnosticResult.ok {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.ledCompareGrid article.warn,
+.ledDiagnosticResult.warn {
+  border-color: #fed7aa;
+  background: #fff7ed;
+}
+
+.ledCompareGrid small,
+.ledDiagnosticResult span,
+.ledDiagnosticResult b {
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.ledCompareGrid b {
+  display: block;
+  margin: 3px 0;
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.ledCompareGrid span,
+.ledDiagnosticResult p {
+  display: block;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.ledObservedControls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ledDiagnosticResult {
+  margin-bottom: 12px;
+}
+
+.ledDiagnosticResult h4 {
+  margin: 5px 0 7px;
+  color: #0f172a;
+  font-size: 18px;
+  letter-spacing: -.02em;
+}
+
+.ledDiagnosticResult p {
+  margin: 0 0 9px;
+}
+
+.ledDiagnosticResult p:last-child {
+  margin-bottom: 0;
+}
+
+.supportLedGrid article {
+  cursor: pointer;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.supportLedGrid article:hover,
+.supportLedGrid article.active {
+  border-color: #86efac;
+  background: linear-gradient(180deg, #f0fdf4, #fff);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, .08);
+  transform: translateY(-1px);
+}
+
+.supportLedGrid article:focus-visible {
+  outline: 3px solid rgba(34, 197, 94, .24);
+  outline-offset: 2px;
+}
+
 .supportCanGrid article > span {
   width: 42px;
   height: 42px;
@@ -11256,7 +11677,9 @@ textarea {
 @media (max-width: 900px) {
   .supportHero,
   .supportWorkspace,
-  .supportGuidePanel {
+  .supportGuidePanel,
+  .ledSupportLayout,
+  .ledSimulatorLayout {
     grid-template-columns: 1fr;
   }
 
@@ -11277,6 +11700,25 @@ textarea {
   .supportCanGrid,
   .supportChecklist {
     grid-template-columns: 1fr;
+  }
+
+  .ledMapPanel {
+    position: relative;
+    top: auto;
+    overflow-x: auto;
+  }
+
+  .ledInspectorPanel {
+    position: relative;
+    top: auto;
+  }
+
+  .ledSimulatorStage {
+    overflow-x: auto;
+  }
+
+  .deviceLedMap {
+    min-width: 620px;
   }
 }
 
@@ -11303,6 +11745,43 @@ textarea {
 
   .supportSearch input {
     padding: 13px 0;
+  }
+
+  .ledMapPanel {
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .ledSimulatorPanel {
+    padding: 12px;
+  }
+
+  .ledSimulatorStage,
+  .ledInspectorPanel {
+    border-radius: 20px;
+    padding: 12px;
+  }
+
+  .ledSimulatorIntro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ledSimulatorIntro .btn {
+    width: 100%;
+  }
+
+  .ledInspectorPanel header {
+    grid-template-columns: auto 1fr;
+  }
+
+  .ledInspectorPanel header .status {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .ledMapHint {
+    font-size: 12px;
   }
 }
 

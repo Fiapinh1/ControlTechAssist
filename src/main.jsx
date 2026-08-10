@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import './styles.css';
 import appLogo from './assets/brand/controltech-logo.png';
+import DeviceLedMap from './components/DeviceLedMap.jsx';
+import vp8002LedPanelImage from './assets/vp8002-led-panel.png';
 import altaLogo from '../LOGO_ALTA.png';
 import genexLogo from '../LOGO_GENEX.png';
 import urusLogo from '../LOGO_URUS.png';
@@ -183,6 +185,92 @@ function farmMarkerIcon(f){const short=String(f?.nome||'Fazenda').replace(/^Faze
 const FARM_STATUS = ['Não iniciada', 'Em andamento', 'Com pendência', 'Aguardando validação', 'Instalação concluída'];
 const FARM_STATUS_DONE = 'Instalação concluída';
 const normalizeText = (value='') => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+const VP8002_LED_MARKERS = [
+  { id:'power', label:'POWER', x:28.1, y:19.2 },
+  { id:'status', label:'STATUS', x:28.1, y:39.0 },
+  { id:'vin', label:'Vin1/Vin2', x:8.8, y:70.3 },
+  { id:'vout', label:'Vout1/Vout2', x:24.7, y:70.3 },
+  { id:'can', label:'CAN1/CAN2', x:30.4, y:70.3 },
+  { id:'io1', label:'O1/I1', x:44.7, y:70.3 },
+  { id:'io2', label:'O2/I2', x:55.6, y:70.3 },
+  { id:'link1-act1', label:'LINK1/ACT1', x:67.1, y:70.3 },
+  { id:'link2-act2', label:'LINK2/ACT2', x:78.2, y:70.3 },
+  { id:'usb', label:'USB1/USB2', x:90.2, y:70.3 }
+];
+const vp8002LedMarkerIds = label => {
+  const text = normalizeText(label);
+  if(text.includes('power')) return ['power'];
+  if(text.includes('status') || text.includes('ecra')) return ['status'];
+  if(text.includes('vin')) return ['vin'];
+  if(text.includes('vout')) return ['vout'];
+  if(text.includes('can')) return ['can'];
+  if(text.includes('o1') || text.includes('i1') || text.includes('o2') || text.includes('i2')) return ['io1','io2'];
+  if(text.includes('link') || text.includes('act')) return ['link1-act1','link2-act2'];
+  if(text.includes('usb')) return ['usb'];
+  return [];
+};
+const ledToneClass = value => {
+  const text = normalizeText(value);
+  return text.includes('verde') ? 'green' : text.includes('vermelho') ? 'red' : text.includes('laranja') ? 'orange' : text.includes('azul') ? 'blue' : '';
+};
+const LED_COLOR_OPTIONS = ['Verde', 'Azul', 'Laranja', 'Vermelho', 'Branco'];
+const LED_MODE_OPTIONS = ['Aceso', 'Apagado', 'Pisca lentamente', 'Pisca rapidamente', '1 flash curto', '2 flashes curtos', '3 flashes curtos'];
+const VP8002_LED_NORMALS = {
+  power: { color:'Verde', mode:'Aceso', meaning:'Alimentação principal ligada e reserva interna carregada.', action:'Condição normal de alimentação.' },
+  status: { color:'Azul', mode:'Pisca lentamente', meaning:'VP8002 em funcionamento normal.', action:'Condição normal. Continuar a validação da instalação.' },
+  vin: { color:'Verde', mode:'Aceso', meaning:'Entrada de alimentação ligada.', action:'Condição normal.' },
+  vout: { color:'Verde', mode:'Aceso', meaning:'Saída de alimentação ligada.', action:'Condição normal quando a saída está ativa.' },
+  can: { color:'Verde', mode:'Aceso', meaning:'CAN bus OK.', action:'Condição normal de comunicação CAN.' },
+  io1: { color:'Branco', mode:'Apagado', meaning:'Entrada/saída sem atividade no estado normal.', action:'Condição normal se este ponto não estiver em uso.' },
+  io2: { color:'Branco', mode:'Apagado', meaning:'Entrada/saída sem atividade no estado normal.', action:'Condição normal se este ponto não estiver em uso.' },
+  'link1-act1': { color:'Verde', mode:'Aceso', meaning:'Ligação LAN estabelecida em 100 Mbps.', action:'Condição normal de rede.' },
+  'link2-act2': { color:'Verde', mode:'Aceso', meaning:'Ligação LAN estabelecida em 100 Mbps.', action:'Condição normal quando esta porta está conectada.' },
+  usb: { color:'Branco', mode:'Apagado', meaning:'USB sem atividade.', action:'Condição normal quando não há backup ou dispositivo USB conectado.' }
+};
+const defaultVp8002LedStates = () => Object.fromEntries(VP8002_LED_MARKERS.map(marker => [marker.id, {...VP8002_LED_NORMALS[marker.id]}]));
+const ledColorMatches = (source='', target='') => {
+  const sourceText = normalizeText(source);
+  const targetText = normalizeText(target);
+  if(!sourceText || !targetText) return false;
+  return sourceText.split('/').some(part => {
+    const clean = part.trim();
+    return clean === targetText || clean.includes(targetText) || targetText.includes(clean);
+  }) || sourceText.includes(targetText);
+};
+const ledModeMatches = (source='', target='') => {
+  const sourceText = normalizeText(source);
+  const targetText = normalizeText(target);
+  if(!sourceText || !targetText) return false;
+  if(sourceText === targetText) return true;
+  if(sourceText.includes('piscando') && targetText.includes('pisca')) return true;
+  if(targetText.includes('piscando') && sourceText.includes('pisca')) return true;
+  const sourceFlash = sourceText.match(/(\d+)\s+flash/);
+  const targetFlash = targetText.match(/(\d+)\s+flash/);
+  if(sourceFlash && targetFlash) return sourceFlash[1] === targetFlash[1];
+  if(sourceText.includes('rapidamente') && targetText.includes('rapidamente')) return true;
+  if(sourceText.includes('lentamente') && targetText.includes('lentamente')) return true;
+  return false;
+};
+const ledStateMatches = (expected={}, observed={}) => ledColorMatches(expected.color, observed.color) && ledModeMatches(expected.mode, observed.mode);
+const ledLabelState = state => `${state?.color || '-'} • ${state?.mode || '-'}`;
+const ledDiagnosticFor = (ledId, observed) => {
+  const normal = VP8002_LED_NORMALS[ledId] || {};
+  const rows = LED_DIAGNOSTICS.filter(row => vp8002LedMarkerIds(row.led).includes(ledId));
+  const exact = rows.find(row => ledColorMatches(row.cor, observed.color) && ledModeMatches(row.modo, observed.mode));
+  const isNormal = ledStateMatches(normal, observed);
+  if(isNormal) return {
+    isNormal,
+    title: 'Funcionamento normal',
+    meaning: normal.meaning || exact?.estado || 'O LED está no comportamento esperado.',
+    action: normal.action || exact?.acao || 'Sem ação necessária.'
+  };
+  return {
+    isNormal,
+    title: exact?.estado || 'Comportamento diferente do esperado',
+    meaning: exact?.estado || `O esperado era ${ledLabelState(normal)}.`,
+    action: exact?.acao || 'Comparar com os demais LEDs, revisar alimentação, rede, cabeamento e registrar a condição se persistir.'
+  };
+};
 function normalizeFarmStatus(value){
   const raw = String(value || '').trim();
   const text = normalizeText(raw);
@@ -2801,25 +2889,49 @@ function download(filename, text){const blob=new Blob([text],{type:'text/tab-sep
 function SuporteTecnico({data}){
   const [tab,setTab]=useState('resolver'),[q,setQ]=useState(''),[symptomId,setSymptomId]=useState(SYMPTOMS[0]?.id||''),[guideId,setGuideId]=useState(INSTALL_GUIDES[0]?.id||''),[farm,setFarm]=useState(''),[obs,setObs]=useState(''),[checked,setChecked]=useState({});
   const [mobilePanel,setMobilePanel]=useState(null);
+  const [selectedLedId,setSelectedLedId]=useState('power');
+  const [observedLedStates,setObservedLedStates]=useState(()=>defaultVp8002LedStates());
+  const ledInspectorRef = useRef(null);
   const query=q.trim().toLowerCase();
   const matches=(...parts)=>!query||parts.flat().join(' ').toLowerCase().includes(query);
   const symptomResults=SYMPTOMS.filter(s=>matches(s.title,s.category,s.cause,s.action,s.checks));
   const guideResults=INSTALL_GUIDES.filter(g=>matches(g.title,g.desc,g.source,g.phases.flatMap(p=>[p.title,...p.items])));
-  const ledResults=LED_DIAGNOSTICS.filter(l=>matches(l.led,l.cor,l.modo,l.estado,l.acao));
   const canResults=CAN_ERRORS.filter(c=>matches(c.code,c.bus,c.desc,c.solution));
   const selectedSymptom=symptomResults.find(s=>s.id===symptomId)||symptomResults[0];
   const selectedGuide=guideResults.find(g=>g.id===guideId)||guideResults[0];
+  const selectedLedMarker=VP8002_LED_MARKERS.find(marker=>marker.id===selectedLedId)||VP8002_LED_MARKERS[0];
+  const selectedLedNormal=VP8002_LED_NORMALS[selectedLedMarker.id]||{};
+  const selectedLedObserved=observedLedStates[selectedLedMarker.id]||selectedLedNormal;
+  const selectedLedDiagnostic=ledDiagnosticFor(selectedLedMarker.id, selectedLedObserved);
+  const simulatedLedStates=Object.fromEntries(VP8002_LED_MARKERS.map(marker=>{
+    const normal=VP8002_LED_NORMALS[marker.id]||{};
+    const observed=observedLedStates[marker.id]||normal;
+    return [marker.id,{...observed,different:!ledStateMatches(normal,observed)}];
+  }));
+  const ledDivergenceCount=VP8002_LED_MARKERS.filter(marker=>simulatedLedStates[marker.id]?.different).length;
   const done=SUPPORT_CHECKS.filter((_,i)=>checked[i]).length;
   const tabs=[
     ['resolver',Stethoscope,'Resolver',symptomResults.length],
     ['guia',BookOpen,'Guias',guideResults.length],
-    ['leds',Cpu,'LEDs',ledResults.length],
+    ['leds',Cpu,'LEDs',ledDivergenceCount||VP8002_LED_MARKERS.length],
     ['can',AlertTriangle,'CAN',canResults.length],
     ['suporte',LifeBuoy,'Suporte',SUPPORT_CHECKS.length]
   ];
   const openMobilePanel=panel=>{
     if(typeof window!=='undefined'&&window.matchMedia('(max-width: 900px)').matches) setMobilePanel(panel);
   };
+  const selectLedMarker=marker=>{
+    setSelectedLedId(marker.id);
+    const scrollToInspector=()=>ledInspectorRef.current?.scrollIntoView({behavior:'smooth', block:'nearest'});
+    if(typeof requestAnimationFrame==='function') requestAnimationFrame(scrollToInspector);
+    else setTimeout(scrollToInspector, 0);
+  };
+  const updateObservedLed=patch=>setObservedLedStates(prev=>({
+    ...prev,
+    [selectedLedMarker.id]: {...(prev[selectedLedMarker.id]||selectedLedNormal), ...patch}
+  }));
+  const resetObservedLed=()=>setObservedLedStates(prev=>({...prev,[selectedLedMarker.id]: {...selectedLedNormal}}));
+  const resetAllLeds=()=>setObservedLedStates(defaultVp8002LedStates());
   useEffect(()=>{setMobilePanel(null);},[tab,q]);
   const saveSymptom=()=>{
     if(!selectedSymptom) return;
@@ -2881,10 +2993,83 @@ function SuporteTecnico({data}){
       </article></div>:<Empty icon={BookOpen} title="Nenhum guia encontrado" text="Limpe a busca ou procure por VP8002, antena, Nedap Now ou colares."/>}
     </section>}
 
-    {tab==='leds'&&<section className="panel supportCardPanel">
-      <div className="sectionTitle"><div><h2><Cpu size={20}/> LEDs da VP8002</h2></div><span className="pill">{ledResults.length}</span></div>
-      <div className="supportLedGrid">{ledResults.map((l,i)=><article key={i}><span className={`ledDot ${l.cor.toLowerCase().includes('verde')?'green':l.cor.toLowerCase().includes('vermelho')?'red':l.cor.toLowerCase().includes('laranja')?'orange':l.cor.toLowerCase().includes('azul')?'blue':''}`}/><b>{l.led}</b><small>{l.cor} • {l.modo}</small><p>{l.estado}</p><strong>{l.acao}</strong></article>)}</div>
-      {!ledResults.length&&<Empty icon={Search} title="Nenhum LED encontrado" text="Busque por cor, modo ou nome do LED."/>}
+    {tab==='leds'&&<section className="panel supportCardPanel ledSimulatorPanel">
+      <div className="sectionTitle">
+        <div><span className="eyebrow">Simulador visual</span><h2><Cpu size={20}/> LEDs da VP8002</h2></div>
+        <span className={`pill ${ledDivergenceCount?'warn':''}`}>{ledDivergenceCount?`${ledDivergenceCount} divergente(s)`:'Operação normal'}</span>
+      </div>
+      <div className="ledSimulatorLayout">
+        <div className="ledSimulatorStage">
+          <div className="ledSimulatorIntro">
+            <div>
+              <b>Painel em estado normal</b>
+              <span>Compare com a VP8002 física e toque no LED que estiver diferente.</span>
+            </div>
+            <button type="button" className="btn light" onClick={resetAllLeds}><RefreshCw size={16}/> Restaurar normal</button>
+          </div>
+          <DeviceLedMap
+            imageSrc={vp8002LedPanelImage}
+            imageAlt="Painel frontal da VP8002 com LEDs e conectores"
+            markers={VP8002_LED_MARKERS}
+            stateById={simulatedLedStates}
+            activeIds={[selectedLedMarker.id]}
+            onMarkerClick={selectLedMarker}
+          />
+          <div className="ledSelectorRail" aria-label="Selecionar LED da VP8002">
+            {VP8002_LED_MARKERS.map(marker=>{
+              const state=simulatedLedStates[marker.id]||{};
+              const active=marker.id===selectedLedMarker.id;
+              return <button key={marker.id} type="button" className={`${active?'active':''} ${state.different?'different':''}`} onClick={()=>selectLedMarker(marker)}>
+                <span className={`ledSelectorDot ${ledToneClass(state.color)}`}/>
+                <b>{marker.label}</b>
+              </button>
+            })}
+          </div>
+        </div>
+        <aside className="ledInspectorPanel" ref={ledInspectorRef}>
+          <header>
+            <span className={`ledInspectorDot ${ledToneClass(selectedLedObserved.color)}`}/>
+            <div>
+              <span className="eyebrow">LED selecionado</span>
+              <h3>{selectedLedMarker.label}</h3>
+            </div>
+            <span className={`status ${selectedLedDiagnostic.isNormal?'ok':'warn'}`}>{selectedLedDiagnostic.isNormal?'Normal':'Divergente'}</span>
+          </header>
+          <div className="ledCompareGrid">
+            <article>
+              <small>Estado normal esperado</small>
+              <b>{ledLabelState(selectedLedNormal)}</b>
+              <span>{selectedLedNormal.meaning}</span>
+            </article>
+            <article className={selectedLedDiagnostic.isNormal?'ok':'warn'}>
+              <small>Estado observado</small>
+              <b>{ledLabelState(selectedLedObserved)}</b>
+              <span>{selectedLedDiagnostic.isNormal?'Igual ao funcionamento esperado.':'Diferente do funcionamento normal.'}</span>
+            </article>
+          </div>
+          <div className="ledObservedControls">
+            <Field label="Cor observada">
+              <select value={selectedLedObserved.color||'Verde'} onChange={e=>updateObservedLed({color:e.target.value})}>
+                {LED_COLOR_OPTIONS.map(color=><option key={color}>{color}</option>)}
+              </select>
+            </Field>
+            <Field label="Comportamento observado">
+              <select value={selectedLedObserved.mode||'Aceso'} onChange={e=>updateObservedLed({mode:e.target.value})}>
+                {LED_MODE_OPTIONS.map(mode=><option key={mode}>{mode}</option>)}
+              </select>
+            </Field>
+          </div>
+          <article className={`ledDiagnosticResult ${selectedLedDiagnostic.isNormal?'ok':'warn'}`}>
+            <span>Diagnóstico</span>
+            <h4>{selectedLedDiagnostic.title}</h4>
+            <p>{selectedLedDiagnostic.meaning}</p>
+            <b>Ação recomendada</b>
+            <p>{selectedLedDiagnostic.action}</p>
+          </article>
+          <button type="button" className="btn light full" onClick={resetObservedLed}><RefreshCw size={16}/> Voltar este LED ao normal</button>
+          <p className="sourceText">{SOURCES.vp8002}</p>
+        </aside>
+      </div>
     </section>}
 
     {tab==='can'&&<section className="panel supportCardPanel">
