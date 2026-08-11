@@ -314,6 +314,405 @@ const ledDiagnosticFor = (ledId, observed) => {
     action: exact?.acao || 'Comparar com os demais LEDs, revisar alimentação, rede, cabeamento e registrar a condição se persistir.'
   };
 };
+const VP8002_FIELD_ACTIONS = [
+  {
+    id:'display-ip',
+    title:'Localizar IP no display',
+    code:'IP',
+    icon:Globe2,
+    category:'Rede / acesso',
+    summary:'Use quando o Velos ou o Find my VPU não localizar a VP8002.',
+    expected:'Display com IP válido da rede local. Evite avançar se aparecer 0.0.0.0 ou 169.254.xx.',
+    relatedLedIds:['link1','act1','link2','act2'],
+    steps:[
+      'Confirme POWER verde e cabo de rede conectado na porta correta.',
+      'Use o botão frontal para navegar até a informação de IP no display.',
+      'Se aparecer 0.0.0.0, trate como ausência de rede física ou roteador desligado.',
+      'Se aparecer 169.254.xx, trate como falha de DHCP e corrija o roteador antes de seguir.',
+      'Com IP válido, acesse pelo navegador no mesmo ambiente de rede.'
+    ]
+  },
+  {
+    id:'menu-de',
+    title:'Consultar dE - erros CAN',
+    code:'dE',
+    icon:AlertTriangle,
+    category:'CAN bus',
+    summary:'Use quando STATUS ou CAN indicar erro. O menu dE mostra o código que direciona a correção.',
+    expected:'Código dE anotado e tratado no barramento correto antes de finalizar a instalação.',
+    relatedLedIds:['status','can1','can2'],
+    showCanCodes:true,
+    steps:[
+      'Abra o menu dE no display da VP8002.',
+      'Anote exatamente o código apresentado.',
+      'Confira se o erro está no CAN 1 ou CAN 2.',
+      'Inspecione cabos, conectores, corrosão, sobrecarga ou curto no barramento indicado.',
+      'Após corrigir, confirme CAN verde e STATUS em operação normal.'
+    ]
+  },
+  {
+    id:'menu-da',
+    title:'Consultar dA - dados do equipamento',
+    code:'dA',
+    icon:Cpu,
+    category:'Display VP8002',
+    summary:'Use para conferir dados de diagnóstico da VPU quando a informação no Velos não estiver clara.',
+    expected:'Dados conferidos no display e comparados com o comportamento físico dos LEDs.',
+    relatedLedIds:['status','power'],
+    steps:[
+      'Abra o menu dA no display da VP8002.',
+      'Compare a informação apresentada com o LED físico e com o estado no Velos.',
+      'Se houver divergência entre display, LED e Velos, registre foto e reinicie a validação.',
+      'Use dE em seguida se o display indicar erro relacionado ao CAN.'
+    ]
+  },
+  {
+    id:'reset-vp8002',
+    title:'Reiniciar VP8002 com segurança',
+    code:'RESET',
+    icon:RefreshCw,
+    category:'Procedimento controlado',
+    summary:'Use quando a VPU estiver travada, após corrigir energia/rede, ou quando o manual orientar reinicialização.',
+    expected:'Após religar, POWER verde, STATUS azul piscando lentamente e rede/CAN normalizados.',
+    warning:'Antes de reiniciar, anote LEDs, códigos dE, IP exibido e tire foto se houver falha intermitente.',
+    relatedLedIds:['power','status'],
+    steps:[
+      'Confirme que não existe atualização em andamento.',
+      'Anote o comportamento dos LEDs e o código do display.',
+      'Desligue a alimentação principal de forma controlada.',
+      'Aguarde alguns segundos antes de religar.',
+      'Religue, espere a inicialização e compare os LEDs com o funcionamento normal no app.'
+    ]
+  },
+  {
+    id:'lan-link-act',
+    title:'Validar rede LINK / ACT',
+    code:'LAN',
+    icon:Cable,
+    category:'Rede física',
+    summary:'Use quando não encontrar IP, quando LINK/ACT estiver apagado ou quando o acesso ao Velos falhar.',
+    expected:'LINK aceso e ACT piscando quando há tráfego de rede.',
+    relatedLedIds:['link1','act1','link2','act2'],
+    steps:[
+      'Confirme se o cabo está na porta correta da VP8002.',
+      'Troque o cabo Ethernet e teste outra porta no roteador ou switch.',
+      'Verifique se o roteador está ligado e entregando DHCP.',
+      'Se LINK acender e ACT piscar, volte para localizar IP.',
+      'Se continuar apagado, trate como falha de cabo, porta ou rede física.'
+    ]
+  },
+  {
+    id:'power-check',
+    title:'Conferir alimentação e saídas',
+    code:'PWR',
+    icon:Zap,
+    category:'Energia',
+    summary:'Use quando POWER, Vin ou Vout indicar baixa tensão, falha, sobrecarga ou UPS em uso.',
+    expected:'POWER verde aceso, Vin/Vout conforme instalação e sem aviso laranja/vermelho.',
+    relatedLedIds:['power','vin1','vin2','vout1','vout2'],
+    steps:[
+      'Confira tomada, fonte, polaridade e estabilidade da alimentação.',
+      'Observe POWER, Vin1/Vin2 e Vout1/Vout2 no painel.',
+      'Se houver laranja, investigue baixa potência, cabo longo ou bitola inadequada.',
+      'Se houver vermelho piscando, investigue curto, sobrecarga ou fonte incorreta.',
+      'Só avance para rede e CAN quando a alimentação estiver estável.'
+    ]
+  },
+  {
+    id:'vp4102-coverage',
+    title:'Validar antena e cobertura',
+    code:'RF',
+    icon:RadioTower,
+    category:'VP4102 / Antena',
+    summary:'Use quando tags não aparecem, há área sem leitura ou a antena foi instalada em novo ponto.',
+    expected:'Antena posicionada fora do alcance dos animais, com leitura validada em campo.',
+    steps:[
+      'Confira fixação, cabo da antena e proteção contra umidade.',
+      'Abra Reader check ou Tags analysis no sistema Nedap.',
+      'Caminhe com uma tag de teste na área de cobertura.',
+      'Registre no mapa o ponto real da antena e ajuste se necessário.',
+      'Se a área for grande ou tiver obstáculo metálico, planeje antena adicional.'
+    ]
+  }
+];
+const canCodesForLed = ledId => {
+  if(ledId === 'can1') return CAN_ERRORS.filter(c => c.bus.includes('CAN 1') || c.code === '12');
+  if(ledId === 'can2') return CAN_ERRORS.filter(c => c.bus.includes('CAN 2') || c.code === '12');
+  if(ledId === 'status') return CAN_ERRORS;
+  return [];
+};
+const actionForLed = ledId => VP8002_FIELD_ACTIONS.find(action => action.relatedLedIds?.includes(ledId));
+const ledDiagnosticForRich = (ledId, observed={}) => {
+  const normal = VP8002_LED_NORMALS[ledId] || {};
+  const rows = LED_DIAGNOSTICS.filter(row => vp8002LedMarkerIds(row.led).includes(ledId));
+  const exact = rows.find(row => ledColorMatches(row.cor, observed.color) && ledModeMatches(row.modo, observed.mode));
+  const isNormal = ledStateMatches(normal, observed);
+  const normalText = ledLabelState(normal);
+  const colorText = normalizeText(observed?.color);
+  const modeText = normalizeText(observed?.mode);
+  const isRed = colorText.includes('vermelho');
+  const isOrange = colorText.includes('laranja');
+  const isGreen = colorText.includes('verde');
+  const isBlue = colorText.includes('azul');
+  const isWhite = colorText.includes('branco');
+  const isOff = isWhite || modeText.includes('apagado');
+  const isBlinking = modeText.includes('pisca') || modeText.includes('piscando') || modeText.includes('flash');
+  const make = ({
+    severity='warn',
+    title=exact?.estado || 'Comportamento diferente do esperado',
+    meaning=exact?.estado ? `Leitura encontrada no manual: ${exact.estado}.` : `O esperado era ${normalText}.`,
+    probableCause='Divergencia visual entre a VP8002 fisica e o funcionamento normal usado como referencia.',
+    action=exact?.acao || 'Compare com os demais LEDs, revise alimentacao, rede, cabos e registre a condicao se persistir.',
+    checks=[],
+    procedureId
+  }={}) => ({isNormal, severity, title, meaning, probableCause, action, checks, procedureId});
+
+  if(isNormal) return make({
+    severity:'ok',
+    title:'Funcionamento normal',
+    meaning:normal.meaning || exact?.estado || 'O LED esta no comportamento esperado.',
+    probableCause:'Sem indicio de falha neste LED.',
+    action:normal.action || exact?.acao || 'Nenhuma acao necessaria para este LED.',
+    checks:['Compare rapidamente com POWER e STATUS.', 'Continue a validacao dos demais pontos se houver sintoma no campo.']
+  });
+
+  if(ledId === 'power'){
+    if(isOff) return make({
+      severity:'danger',
+      title:'VP8002 sem alimentacao',
+      meaning:'POWER apagado indica que a controladora pode nao estar energizada.',
+      probableCause:'Tomada, fonte, borne, polaridade ou alimentacao principal interrompida.',
+      action:'Pare a configuracao e normalize a alimentacao antes de testar rede, CAN ou antenas.',
+      checks:['Conferir tomada e disjuntor.', 'Medir a fonte de alimentacao.', 'Verificar borne e polaridade.', 'Religar e aguardar POWER verde aceso.'],
+      procedureId:'power-check'
+    });
+    if(isOrange) return make({
+      severity:'warn',
+      title:'Baixa tensao ou UPS em alerta',
+      meaning:'POWER laranja indica energia abaixo do ideal para operacao estavel.',
+      probableCause:'Fonte fraca, cabo longo/fino, queda de tensao ou UPS interno em baixa carga.',
+      action:'Corrija a alimentacao antes de finalizar a instalacao.',
+      checks:['Conferir tensao de entrada.', 'Revisar comprimento e bitola dos cabos.', 'Validar Vin1/Vin2.', 'Observar se o alerta some apos estabilizar.'],
+      procedureId:'power-check'
+    });
+    if(isRed || isBlinking) return make({
+      severity:'danger',
+      title:'Falha critica de alimentacao',
+      meaning:'POWER vermelho ou piscando fora do esperado indica risco de queda ou fonte inadequada.',
+      probableCause:'UPS muito baixo, curto, sobrecarga ou fonte fora de especificacao.',
+      action:'Desligue cargas suspeitas, revise a fonte e acione suporte se persistir.',
+      checks:['Isolar dispositivos conectados.', 'Verificar curto/sobrecarga.', 'Testar fonte confiavel.', 'Registrar foto do painel.'],
+      procedureId:'power-check'
+    });
+  }
+
+  if(ledId === 'status'){
+    if(isRed || isOrange) return make({
+      severity:'danger',
+      title:'Erro ativo na VP8002',
+      meaning:'STATUS fora do azul normal pede leitura do codigo no display.',
+      probableCause:'Erro de sistema, falha CAN ou inconsistencia de firmware/configuracao.',
+      action:'Abra o menu dE no display, anote o codigo e trate a causa antes de liberar a fazenda.',
+      checks:['Consultar dE no display.', 'Anotar o codigo apresentado.', 'Verificar CAN1/CAN2.', 'Reiniciar somente depois de registrar a falha.'],
+      procedureId:'menu-de'
+    });
+    if(isBlue && modeText.includes('1 flash')) return make({
+      severity:'warn',
+      title:'V-pack em falta',
+      meaning:'STATUS com 1 flash curto indica dispositivo esperado ausente.',
+      probableCause:'V-pack desconectado, sem alimentacao ou nao reconhecido no Velos.',
+      action:'Confira alimentacao, cabeamento e cadastro dos V-packs.',
+      checks:['Conferir V-pack esperado.', 'Revisar cabo e conector.', 'Validar se aparece no Velos.', 'Confirmar STATUS normal apos ajuste.'],
+      procedureId:'menu-de'
+    });
+    if(isBlue && (modeText.includes('2 flash') || modeText.includes('3 flash'))) return make({
+      severity:'warn',
+      title:'Firmware precisa de atencao',
+      meaning:'STATUS com 2 ou 3 flashes curtos indica firmware nao ativo ou ausente.',
+      probableCause:'Atualizacao incompleta, firmware nao ativado ou controladora sem firmware correto.',
+      action:'Verifique o Velos e conclua a atualizacao antes de continuar.',
+      checks:['Abrir dados dA no display.', 'Conferir versao no Velos.', 'Executar atualizacao se disponivel.', 'Validar STATUS piscando lentamente.'],
+      procedureId:'menu-da'
+    });
+    if(isBlue && modeText.includes('rapidamente')) return make({
+      severity:'info',
+      title:'Transferencia ou modo de servico',
+      meaning:'STATUS azul piscando rapido pode indicar transferencia/servico em andamento.',
+      probableCause:'Atualizacao, comunicacao ativa ou modo tecnico temporario.',
+      action:'Aguarde estabilizar; se nao normalizar, confira rede e dados dA.',
+      checks:['Aguardar alguns minutos.', 'Evitar desligar durante atualizacao.', 'Conferir rede.', 'Verificar dA se persistir.'],
+      procedureId:'menu-da'
+    });
+  }
+
+  if(ledId === 'can1' || ledId === 'can2'){
+    const bus = ledId === 'can1' ? 'CAN 1' : 'CAN 2';
+    if(isRed) return make({
+      severity:'danger',
+      title:`Erro no barramento ${bus}`,
+      meaning:'CAN vermelho indica falha no barramento ou alimentacao dos dispositivos conectados.',
+      probableCause:'Curto, sobrecarga, conector oxidado, cabo rompido ou dispositivo CAN com problema.',
+      action:'Consultar dE, identificar o codigo e revisar o barramento antes de finalizar.',
+      checks:['Abrir dE no display.', `Confirmar se o erro esta no ${bus}.`, 'Inspecionar cabos e conectores.', 'Desconectar trechos para isolar curto/sobrecarga.'],
+      procedureId:'menu-de'
+    });
+    if(isOff) return make({
+      severity:'warn',
+      title:`${bus} desligado ou sem comunicacao`,
+      meaning:'CAN apagado pode ser normal apenas se este barramento nao for usado.',
+      probableCause:'CAN desabilitado, sem V-pack conectado, cabo desconectado ou alimentacao ausente.',
+      action:'Confirme se este barramento deveria estar ativo para a instalacao.',
+      checks:['Verificar se ha V-packs neste barramento.', 'Conferir configuracao no Velos.', 'Checar alimentacao de Vout.', 'Validar CAN verde apos conectar.'],
+      procedureId:'menu-de'
+    });
+    if(isOrange) return make({
+      severity:'warn',
+      title:`Aviso no ${bus}`,
+      meaning:'CAN laranja fora do normal indica condicao eletrica ou comunicacao instavel.',
+      probableCause:'Tensao baixa, excesso de carga ou inicio de falha no cabo/conector.',
+      action:'Revise alimentacao e cabos antes que vire erro vermelho.',
+      checks:['Conferir Vout e Vin.', 'Revisar carga no barramento.', 'Inspecionar conectores.', 'Registrar a condicao na visita.'],
+      procedureId:'menu-de'
+    });
+  }
+
+  if(ledId === 'link1' || ledId === 'link2'){
+    const porta = ledId === 'link1' ? 'LAN 1' : 'LAN 2';
+    if(isOff) return make({
+      severity:'danger',
+      title:`Sem link fisico na ${porta}`,
+      meaning:'LINK apagado indica que a porta Ethernet nao fechou comunicacao fisica.',
+      probableCause:'Cabo desconectado, porta errada, roteador/switch desligado ou cabo com defeito.',
+      action:'Corrija a rede fisica antes de procurar IP ou abrir Velos.',
+      checks:['Reencaixar cabo Ethernet.', 'Testar outro cabo.', 'Trocar porta no roteador/switch.', 'Conferir se a LAN correta esta sendo usada.'],
+      procedureId:'lan-link-act'
+    });
+    if(isOrange || isRed) return make({
+      severity:'warn',
+      title:`LINK fora do padrao na ${porta}`,
+      meaning:'A porta tem sinal diferente do funcionamento normal esperado.',
+      probableCause:'Negociacao de rede instavel, cabo ruim ou porta/switch com comportamento irregular.',
+      action:'Valide cabo, porta e roteador antes de concluir a instalacao.',
+      checks:['Trocar cabo.', 'Testar outra porta.', 'Verificar IP no display.', 'Confirmar ACT com trafego.'],
+      procedureId:'lan-link-act'
+    });
+    if(isGreen && isBlinking) return make({
+      severity:'info',
+      title:`LINK oscilando na ${porta}`,
+      meaning:'O LINK normalmente fica aceso; quem pisca com trafego costuma ser ACT.',
+      probableCause:'Pode haver confusao visual entre LINK e ACT ou oscilacao de rede.',
+      action:'Confirme no painel se o LED observado e LINK ou ACT e valide o IP.',
+      checks:['Comparar LINK e ACT lado a lado.', 'Verificar IP no display.', 'Observar se perde acesso ao Velos.', 'Trocar cabo se oscilar.'],
+      procedureId:'lan-link-act'
+    });
+  }
+
+  if(ledId === 'act1' || ledId === 'act2'){
+    const porta = ledId === 'act1' ? 'LAN 1' : 'LAN 2';
+    if(isOff) return make({
+      severity:'warn',
+      title:`Sem atividade de rede na ${porta}`,
+      meaning:'ACT apagado com LINK aceso indica rede conectada, mas sem trafego aparente.',
+      probableCause:'Roteador sem DHCP, dispositivo fora da rede, cabo em porta sem comunicacao ou rede parada.',
+      action:'Localize o IP no display e valide acesso ao Velos.',
+      checks:['Confirmar LINK aceso.', 'Localizar IP no display.', 'Testar acesso pelo navegador.', 'Reiniciar roteador se DHCP falhar.'],
+      procedureId:'display-ip'
+    });
+    if(isOrange || isRed) return make({
+      severity:'warn',
+      title:`Atividade anormal na ${porta}`,
+      meaning:'ACT em cor de alerta sugere trafego ou porta fora do padrao esperado.',
+      probableCause:'Instabilidade de rede, cabo/switch ruim ou comunicacao irregular.',
+      action:'Valide rede fisica e IP antes de continuar.',
+      checks:['Trocar cabo.', 'Testar outra porta.', 'Checar DHCP.', 'Confirmar acesso ao Velos.'],
+      procedureId:'lan-link-act'
+    });
+    if(isGreen && !isBlinking) return make({
+      severity:'info',
+      title:`Rede conectada sem trafego visivel na ${porta}`,
+      meaning:'ACT aceso sem piscar pode ocorrer se nao houver comunicacao no momento.',
+      probableCause:'Rede conectada, mas sem acesso ativo ao Velos/Nedap ou pouco trafego.',
+      action:'Abra o Velos ou pingue a VP8002 e observe se ACT pisca.',
+      checks:['Abrir IP no navegador.', 'Testar Find my VPU.', 'Observar ACT durante acesso.', 'Se nao piscar, validar cabo e DHCP.'],
+      procedureId:'display-ip'
+    });
+  }
+
+  if(ledId.startsWith('vin') || ledId.startsWith('vout')){
+    const isOutput = ledId.startsWith('vout');
+    if(isRed) return make({
+      severity:'danger',
+      title:isOutput ? 'Erro na saida de alimentacao' : 'Erro na entrada de alimentacao',
+      meaning:'Vermelho indica falha eletrica que pode afetar V-packs e comunicacao.',
+      probableCause:isOutput ? 'Sobrecarga, curto ou dispositivo conectado com defeito.' : 'Fonte instavel, tensao fora do padrao ou entrada com defeito.',
+      action:'Isole a carga e normalize energia antes de seguir.',
+      checks:['Desconectar cargas suspeitas.', 'Medir tensao.', 'Verificar curto.', 'Religar e observar se volta para verde.'],
+      procedureId:'power-check'
+    });
+    if(isOrange) return make({
+      severity:'warn',
+      title:isOutput ? 'Baixa potencia na saida' : 'Baixa potencia na entrada',
+      meaning:'Laranja indica energia abaixo do ideal.',
+      probableCause:'Cabo longo, bitola inadequada, fonte fraca ou consumo acima do previsto.',
+      action:'Corrija alimentacao/cabeamento para evitar falha intermitente.',
+      checks:['Medir tensao sob carga.', 'Revisar bitola e distancia.', 'Conferir fonte.', 'Reduzir carga para testar.'],
+      procedureId:'power-check'
+    });
+    if(isOff && ['vin1','vout1','vout2'].includes(ledId)) return make({
+      severity:'warn',
+      title:'Alimentacao esperada esta apagada',
+      meaning:'Este ponto costuma estar ativo no funcionamento normal da instalacao.',
+      probableCause:'Entrada/saida desligada, cabo solto ou carga ausente.',
+      action:'Confirme se este circuito deveria estar ligado nesta fazenda.',
+      checks:['Comparar com esquema da instalacao.', 'Checar borne/cabo.', 'Validar configuracao.', 'Registrar se estiver propositalmente desligado.'],
+      procedureId:'power-check'
+    });
+  }
+
+  if(ledId.startsWith('usb')){
+    if(isGreen) return make({
+      severity:'info',
+      title:'USB ativo',
+      meaning:'USB verde indica dispositivo ou atividade USB presente.',
+      probableCause:'Pendrive conectado, backup/transferencia ou periferico ativo.',
+      action:'Confirme se o uso do USB e intencional antes de remover qualquer dispositivo.',
+      checks:['Verificar USB fisico.', 'Confirmar se ha backup em andamento.', 'Evitar remover durante escrita.', 'Registrar se foi usado para manutencao.'],
+      procedureId:'menu-da'
+    });
+    if(isRed || isOrange) return make({
+      severity:'warn',
+      title:'USB fora do padrao',
+      meaning:'Cor de alerta em USB nao faz parte do funcionamento normal sem dispositivo.',
+      probableCause:'Dispositivo USB com erro, consumo indevido ou atividade incompleta.',
+      action:'Remova com seguranca, teste novamente e registre se persistir.',
+      checks:['Confirmar se ha dispositivo USB.', 'Remover apos garantir que nao ha escrita.', 'Reiniciar validacao.', 'Testar outro pendrive se necessario.'],
+      procedureId:'menu-da'
+    });
+  }
+
+  if(['o1','i1','o2','i2'].includes(ledId)){
+    if(isRed) return make({
+      severity:'danger',
+      title:'Erro em entrada/saida digital',
+      meaning:'Vermelho indica falha no circuito de I/O.',
+      probableCause:'Curto, sobrecarga ou dispositivo externo ligado incorretamente.',
+      action:'Inspecione o dispositivo conectado e isole o circuito antes de prosseguir.',
+      checks:['Identificar dispositivo ligado ao I/O.', 'Verificar curto/sobrecarga.', 'Desconectar para teste.', 'Validar retorno ao estado normal.'],
+      procedureId:'power-check'
+    });
+    if(isOrange || isGreen) return make({
+      severity:'info',
+      title:'I/O ativo',
+      meaning:'Entrada ou saida digital ativa. Pode ser normal dependendo da instalacao.',
+      probableCause:'Dispositivo externo acionado ou configuracao ativa no Velos.',
+      action:'Confirme se este I/O deveria estar ativo neste ponto.',
+      checks:['Conferir o que esta ligado ao I/O.', 'Comparar com configuracao do Velos.', 'Registrar caso seja acionamento proposital.'],
+      procedureId:'menu-da'
+    });
+  }
+
+  return make({procedureId: exact ? actionForLed(ledId)?.id : undefined});
+};
 function normalizeFarmStatus(value){
   const raw = String(value || '').trim();
   const text = normalizeText(raw);
@@ -2930,7 +3329,7 @@ function Modal({title,onClose,children}){return <div className="modalBackdrop"><
 function download(filename, text){const blob=new Blob([text],{type:'text/tab-separated-values;charset=utf-8'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); URL.revokeObjectURL(a.href);}
 
 function SuporteTecnico({data}){
-  const [tab,setTab]=useState('resolver'),[q,setQ]=useState(''),[symptomId,setSymptomId]=useState(SYMPTOMS[0]?.id||''),[guideId,setGuideId]=useState(INSTALL_GUIDES[0]?.id||''),[farm,setFarm]=useState(''),[obs,setObs]=useState(''),[checked,setChecked]=useState({});
+  const [tab,setTab]=useState('resolver'),[q,setQ]=useState(''),[symptomId,setSymptomId]=useState(SYMPTOMS[0]?.id||''),[guideId,setGuideId]=useState(INSTALL_GUIDES[0]?.id||''),[actionId,setActionId]=useState(VP8002_FIELD_ACTIONS[0]?.id||''),[farm,setFarm]=useState(''),[obs,setObs]=useState(''),[checked,setChecked]=useState({});
   const [mobilePanel,setMobilePanel]=useState(null);
   const [selectedLedId,setSelectedLedId]=useState('power');
   const [observedLedStates,setObservedLedStates]=useState(()=>defaultVp8002LedStates());
@@ -2939,13 +3338,17 @@ function SuporteTecnico({data}){
   const matches=(...parts)=>!query||parts.flat().join(' ').toLowerCase().includes(query);
   const symptomResults=SYMPTOMS.filter(s=>matches(s.title,s.category,s.cause,s.action,s.checks));
   const guideResults=INSTALL_GUIDES.filter(g=>matches(g.title,g.desc,g.source,g.phases.flatMap(p=>[p.title,...p.items])));
-  const canResults=CAN_ERRORS.filter(c=>matches(c.code,c.bus,c.desc,c.solution));
+  const actionResults=VP8002_FIELD_ACTIONS.filter(action=>matches(action.title,action.code,action.category,action.summary,action.expected,action.steps));
   const selectedSymptom=symptomResults.find(s=>s.id===symptomId)||symptomResults[0];
   const selectedGuide=guideResults.find(g=>g.id===guideId)||guideResults[0];
+  const selectedAction=actionResults.find(action=>action.id===actionId)||actionResults[0]||VP8002_FIELD_ACTIONS[0];
   const selectedLedMarker=VP8002_LED_MARKERS.find(marker=>marker.id===selectedLedId)||VP8002_LED_MARKERS[0];
   const selectedLedNormal=VP8002_LED_NORMALS[selectedLedMarker.id]||{};
   const selectedLedObserved=observedLedStates[selectedLedMarker.id]||selectedLedNormal;
-  const selectedLedDiagnostic=ledDiagnosticFor(selectedLedMarker.id, selectedLedObserved);
+  const selectedLedDiagnostic=ledDiagnosticForRich(selectedLedMarker.id, selectedLedObserved);
+  const selectedLedCanCodes=canCodesForLed(selectedLedMarker.id);
+  const selectedLedAction=actionForLed(selectedLedMarker.id);
+  const selectedLedProcedureAction=VP8002_FIELD_ACTIONS.find(action=>action.id===selectedLedDiagnostic.procedureId)||selectedLedAction;
   const simulatedLedStates=Object.fromEntries(VP8002_LED_MARKERS.map(marker=>{
     const normal=VP8002_LED_NORMALS[marker.id]||{};
     const observed=observedLedStates[marker.id]||normal;
@@ -2954,14 +3357,19 @@ function SuporteTecnico({data}){
   const ledDivergenceCount=VP8002_LED_MARKERS.filter(marker=>simulatedLedStates[marker.id]?.different).length;
   const done=SUPPORT_CHECKS.filter((_,i)=>checked[i]).length;
   const tabs=[
-    ['resolver',Stethoscope,'Resolver',symptomResults.length],
+    ['resolver',Stethoscope,'Problemas',symptomResults.length],
+    ['leds',Cpu,'VP8002',ledDivergenceCount||VP8002_LED_MARKERS.length],
+    ['procedimentos',Wrench,'Procedimentos',actionResults.length],
     ['guia',BookOpen,'Guias',guideResults.length],
-    ['leds',Cpu,'LEDs',ledDivergenceCount||VP8002_LED_MARKERS.length],
-    ['can',AlertTriangle,'CAN',canResults.length],
-    ['suporte',LifeBuoy,'Suporte',SUPPORT_CHECKS.length]
+    ['suporte',LifeBuoy,'Checklist',SUPPORT_CHECKS.length]
   ];
   const openMobilePanel=panel=>{
     if(typeof window!=='undefined'&&window.matchMedia('(max-width: 900px)').matches) setMobilePanel(panel);
+  };
+  const openAction=id=>{
+    setActionId(id);
+    setTab('procedimentos');
+    openMobilePanel('procedimentos');
   };
   const selectLedMarker=marker=>{
     setSelectedLedId(marker.id);
@@ -2987,6 +3395,33 @@ function SuporteTecnico({data}){
     setObs('');
     notify('Checklist de suporte registrado.');
   };
+  const ActionDetail=()=>selectedAction?<article className="supportCommandDetail">
+    <div className="supportCommandHero">
+      <div className="vpCommandVisual" aria-hidden="true">
+        <div className="vpCommandTop"><span>VP8002</span><b>{selectedAction.category}</b></div>
+        <div className="vpCommandDisplay"><small>DISPLAY</small><strong>{selectedAction.code}</strong><em>{selectedAction.title}</em></div>
+        <div className="vpCommandLedRow"><i className="green"/><i className="blue blink"/><i className="green"/><i/></div>
+        <div className="vpCommandButton">BOTAO</div>
+      </div>
+      <div>
+        <span className="pill">{selectedAction.code}</span>
+        <h2>{selectedAction.title}</h2>
+        <p>{selectedAction.summary}</p>
+        <div className="supportAction"><CheckCircle2 size={19}/><span><b>Resultado esperado</b>{selectedAction.expected}</span></div>
+      </div>
+    </div>
+    {selectedAction.warning&&<div className="supportWarning"><AlertTriangle size={18}/><b>{selectedAction.warning}</b></div>}
+    <div className="supportStepTimeline">{selectedAction.steps.map((step,i)=><div key={step}><span>{i+1}</span><b>{step}</b></div>)}</div>
+    {selectedAction.relatedLedIds?.length>0&&<div className="supportLinkedLeds">
+      <small>LEDs relacionados</small>
+      <div>{selectedAction.relatedLedIds.map(id=>{const marker=VP8002_LED_MARKERS.find(item=>item.id===id);return marker?<button type="button" key={id} onClick={()=>{setTab('leds');selectLedMarker(marker)}}><span className={`ledSelectorDot ${ledToneClass(simulatedLedStates[id]?.color)}`}/>{marker.label}</button>:null})}</div>
+    </div>}
+    {selectedAction.showCanCodes&&<div className="supportCanReference">
+      <div className="sectionTitle"><div><h3><AlertTriangle size={18}/> Codigos dE / CAN</h3></div><span className="pill">{CAN_ERRORS.length}</span></div>
+      <div className="supportCanTable">{CAN_ERRORS.map(code=><article key={code.code}><b>{code.code}</b><span>{code.bus}</span><strong>{code.desc}</strong><p>{code.solution}</p></article>)}</div>
+    </div>}
+    <p className="sourceText">{SOURCES.vp8002}</p>
+  </article>:<Empty icon={Wrench} title="Nenhum procedimento encontrado" text="Limpe a busca ou procure por IP, dE, dA, reset, rede ou antena."/>;
   return <div className="supportPage">
     <PageHead eyebrow="Suporte técnico" title="Resolver no campo"/>
     <section className="supportHero">
@@ -3014,6 +3449,11 @@ function SuporteTecnico({data}){
         <p className="cause">{selectedSymptom.cause}</p>
         <div className="supportCheckGrid">{selectedSymptom.checks.map((item,i)=><div key={item}><span>{i+1}</span><b>{item}</b></div>)}</div>
         <div className="supportAction"><Zap size={19}/><span><b>Próxima ação</b>{selectedSymptom.action}</span></div>
+        <div className="supportQuickActions">
+          {normalizeText(selectedSymptom.category).includes('can')&&<button type="button" className="btn light" onClick={()=>openAction('menu-de')}><AlertTriangle size={17}/> Consultar dE / CAN</button>}
+          {normalizeText(selectedSymptom.title).includes('ip')&&<button type="button" className="btn light" onClick={()=>openAction('display-ip')}><Globe2 size={17}/> Ver IP no display</button>}
+          {normalizeText(selectedSymptom.title).includes('link')&&<button type="button" className="btn light" onClick={()=>openAction('lan-link-act')}><Cable size={17}/> Validar LINK / ACT</button>}
+        </div>
         <details className="supportRegister">
           <summary><Save size={17}/> Registrar diagnóstico</summary>
           <div className="saveDiag compact">
@@ -3024,6 +3464,15 @@ function SuporteTecnico({data}){
         </details>
         <p className="sourceText">{selectedSymptom.source}</p>
       </article></div>}
+    </section>}
+
+    {tab==='procedimentos'&&<section className="panel supportCommandPanel">
+      <div className="supportCommandRail">
+        <div className="supportListHead"><b>Procedimentos de campo</b><span>{actionResults.length}</span></div>
+        {actionResults.map(action=>{const I=action.icon;return <button key={action.id} className={selectedAction?.id===action.id?'active':''} onClick={()=>{setActionId(action.id);openMobilePanel('procedimentos')}}><I size={18}/><span><b>{action.title}</b><small>{action.category} • {action.code}</small></span></button>})}
+        {!actionResults.length&&<Empty icon={Search} title="Nada encontrado" text="Procure por IP, dE, dA, reset, rede, energia ou antena."/>}
+      </div>
+      <div className="supportDesktopDetail"><ActionDetail/></div>
     </section>}
 
     {tab==='guia'&&<section className="panel supportGuidePanel">
@@ -3076,7 +3525,7 @@ function SuporteTecnico({data}){
               <span className="eyebrow">LED selecionado</span>
               <h3>{selectedLedMarker.label}</h3>
             </div>
-            <span className={`status ${selectedLedDiagnostic.isNormal?'ok':'warn'}`}>{selectedLedDiagnostic.isNormal?'Normal':'Divergente'}</span>
+            <span className={`status ${selectedLedDiagnostic.isNormal?'ok':selectedLedDiagnostic.severity||'warn'}`}>{selectedLedDiagnostic.isNormal?'Normal':'Divergente'}</span>
           </header>
           <div className="ledCompareGrid">
             <article>
@@ -3084,7 +3533,7 @@ function SuporteTecnico({data}){
               <b>{ledLabelState(selectedLedNormal)}</b>
               <span>{selectedLedNormal.meaning}</span>
             </article>
-            <article className={selectedLedDiagnostic.isNormal?'ok':'warn'}>
+            <article className={selectedLedDiagnostic.isNormal?'ok':selectedLedDiagnostic.severity||'warn'}>
               <small>Estado observado</small>
               <b>{ledLabelState(selectedLedObserved)}</b>
               <span>{selectedLedDiagnostic.isNormal?'Igual ao funcionamento esperado.':'Diferente do funcionamento normal.'}</span>
@@ -3102,23 +3551,26 @@ function SuporteTecnico({data}){
               </select>
             </Field>
           </div>
-          <article className={`ledDiagnosticResult ${selectedLedDiagnostic.isNormal?'ok':'warn'}`}>
+          <article className={`ledDiagnosticResult ${selectedLedDiagnostic.severity||'warn'} ${selectedLedDiagnostic.isNormal?'ok':'warn'}`}>
             <span>Diagnóstico</span>
             <h4>{selectedLedDiagnostic.title}</h4>
             <p>{selectedLedDiagnostic.meaning}</p>
+            {selectedLedDiagnostic.probableCause&&<><b>Leitura provavel</b><p>{selectedLedDiagnostic.probableCause}</p></>}
             <b>Ação recomendada</b>
             <p>{selectedLedDiagnostic.action}</p>
+            {selectedLedDiagnostic.checks?.length>0&&<div className="ledActionSteps">
+              {selectedLedDiagnostic.checks.map((item,i)=><div key={item}><span>{i+1}</span><b>{item}</b></div>)}
+            </div>}
           </article>
+          {(selectedLedProcedureAction||selectedLedCanCodes.length>0)&&<div className="ledProcedureHint">
+            <div><Wrench size={17}/><span><b>Procedimento relacionado</b>{selectedLedProcedureAction?.title||'Consultar dE - erros CAN'}</span></div>
+            {selectedLedCanCodes.length>0&&<div className="ledMiniCodes">{selectedLedCanCodes.slice(0,6).map(code=><span key={code.code}>{code.code}</span>)}</div>}
+            <button type="button" className="btn light full" onClick={()=>openAction(selectedLedProcedureAction?.id||'menu-de')}>Abrir procedimento visual</button>
+          </div>}
           <button type="button" className="btn light full" onClick={resetObservedLed}><RefreshCw size={16}/> Voltar este LED ao normal</button>
           <p className="sourceText">{SOURCES.vp8002}</p>
         </aside>
       </div>
-    </section>}
-
-    {tab==='can'&&<section className="panel supportCardPanel">
-      <div className="sectionTitle"><div><h2><AlertTriangle size={20}/> Erros CAN</h2></div><span className="pill">{canResults.length}</span></div>
-      <div className="supportCanGrid">{canResults.map(c=><article key={c.code}><span>{c.code}</span><small>{c.bus}</small><b>{c.desc}</b><p>{c.solution}</p></article>)}</div>
-      {!canResults.length&&<Empty icon={Search} title="Nenhum código encontrado" text="Digite o código CAN ou uma palavra do problema."/>}
     </section>}
 
     {tab==='suporte'&&<section className="panel supportBeforePanel">
@@ -3139,6 +3591,11 @@ function SuporteTecnico({data}){
           <p className="cause">{selectedSymptom.cause}</p>
           <div className="supportCheckGrid">{selectedSymptom.checks.map((item,i)=><div key={item}><span>{i+1}</span><b>{item}</b></div>)}</div>
           <div className="supportAction"><Zap size={19}/><span><b>Próxima ação</b>{selectedSymptom.action}</span></div>
+          <div className="supportQuickActions">
+            {normalizeText(selectedSymptom.category).includes('can')&&<button type="button" className="btn light" onClick={()=>openAction('menu-de')}><AlertTriangle size={17}/> Consultar dE / CAN</button>}
+            {normalizeText(selectedSymptom.title).includes('ip')&&<button type="button" className="btn light" onClick={()=>openAction('display-ip')}><Globe2 size={17}/> Ver IP no display</button>}
+            {normalizeText(selectedSymptom.title).includes('link')&&<button type="button" className="btn light" onClick={()=>openAction('lan-link-act')}><Cable size={17}/> Validar LINK / ACT</button>}
+          </div>
           <details className="supportRegister">
             <summary><Save size={17}/> Registrar diagnóstico</summary>
             <div className="saveDiag compact">
@@ -3149,6 +3606,12 @@ function SuporteTecnico({data}){
           </details>
           <p className="sourceText">{selectedSymptom.source}</p>
         </article>
+      </aside>
+    </div>}
+    {mobilePanel==='procedimentos'&&selectedAction&&<div className="supportMobileModalBackdrop" onClick={()=>setMobilePanel(null)}>
+      <aside className="supportMobileModal" onClick={e=>e.stopPropagation()}>
+        <header><span>Procedimento visual</span><button type="button" onClick={()=>setMobilePanel(null)} aria-label="Fechar"><X size={18}/></button></header>
+        <ActionDetail/>
       </aside>
     </div>}
     {mobilePanel==='guia'&&selectedGuide&&<div className="supportMobileModalBackdrop" onClick={()=>setMobilePanel(null)}>

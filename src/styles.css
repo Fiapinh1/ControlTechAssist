@@ -11112,6 +11112,384 @@ textarea {
   gap: 16px;
 }
 
+.supportCommandPanel {
+  display: grid;
+  grid-template-columns: minmax(280px, .78fr) minmax(0, 1.45fr);
+  gap: 16px;
+}
+
+.supportCommandRail {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  border: 1px solid #e2e8f0;
+  border-radius: 20px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.supportCommandRail button {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 12px;
+  color: #0f172a;
+  background: #fff;
+  text-align: left;
+  transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+
+.supportCommandRail button:hover,
+.supportCommandRail button.active {
+  border-color: #86efac;
+  background: #ecfdf5;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, .10);
+  transform: translateY(-1px);
+}
+
+.supportCommandRail svg {
+  flex: 0 0 auto;
+  color: #16a34a;
+}
+
+.supportCommandRail b,
+.supportCommandRail small {
+  display: block;
+}
+
+.supportCommandRail small {
+  margin-top: 3px;
+  color: #64748b;
+  font-weight: 750;
+}
+
+.supportCommandDetail {
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+  padding: 18px;
+  background: linear-gradient(180deg, #fff, #f8fafc);
+}
+
+.supportCommandHero {
+  display: grid;
+  grid-template-columns: minmax(280px, .85fr) 1fr;
+  gap: 18px;
+  align-items: center;
+}
+
+.supportCommandHero h2 {
+  margin: 10px 0 8px;
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.04;
+  letter-spacing: -.04em;
+}
+
+.supportCommandHero p {
+  margin: 0 0 13px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.vpCommandVisual {
+  position: relative;
+  min-height: 230px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, .32);
+  border-radius: 24px;
+  padding: 18px;
+  color: #e2e8f0;
+  background:
+    radial-gradient(circle at 72% 24%, rgba(34, 197, 94, .24), transparent 28%),
+    linear-gradient(145deg, #101827, #263241 52%, #121826);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 18px 38px rgba(15, 23, 42, .18);
+}
+
+.vpCommandVisual::before,
+.vpCommandVisual::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.vpCommandVisual::before {
+  width: 180px;
+  height: 180px;
+  right: -48px;
+  top: -46px;
+  border: 1px solid rgba(125, 211, 252, .20);
+  box-shadow: 0 0 0 22px rgba(125, 211, 252, .05), 0 0 0 48px rgba(125, 211, 252, .035);
+}
+
+.vpCommandVisual::after {
+  left: 22px;
+  right: 22px;
+  bottom: 22px;
+  height: 10px;
+  background: rgba(148, 163, 184, .32);
+  box-shadow: 0 -44px 80px rgba(14, 165, 233, .08);
+}
+
+.vpCommandTop {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+.vpCommandTop b {
+  color: #86efac;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.vpCommandDisplay {
+  position: relative;
+  z-index: 1;
+  width: min(260px, 76%);
+  margin: 36px auto 18px;
+  border: 1px solid rgba(148, 163, 184, .36);
+  border-radius: 18px;
+  padding: 16px;
+  color: #dbeafe;
+  background: #050a12;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 18px 28px rgba(2, 6, 23, .28);
+}
+
+.vpCommandDisplay small,
+.vpCommandDisplay strong,
+.vpCommandDisplay em {
+  display: block;
+}
+
+.vpCommandDisplay small {
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .12em;
+}
+
+.vpCommandDisplay strong {
+  margin-top: 4px;
+  color: #86efac;
+  font-size: 36px;
+  line-height: 1;
+  letter-spacing: .08em;
+}
+
+.vpCommandDisplay em {
+  margin-top: 7px;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 850;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vpCommandLedRow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.vpCommandLedRow i {
+  width: 13px;
+  height: 13px;
+  border-radius: 999px;
+  background: #334155;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.16);
+}
+
+.vpCommandLedRow i.green {
+  background: #22c55e;
+  box-shadow: 0 0 18px rgba(34,197,94,.72);
+}
+
+.vpCommandLedRow i.blue {
+  background: #38bdf8;
+  box-shadow: 0 0 18px rgba(56,189,248,.72);
+}
+
+.vpCommandLedRow i.blink {
+  animation: ledBlinkSlow 1.8s ease-in-out infinite;
+}
+
+.vpCommandButton {
+  position: absolute;
+  z-index: 1;
+  right: 18px;
+  bottom: 15px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: #94a3b8;
+  background: rgba(15, 23, 42, .62);
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .08em;
+}
+
+.supportWarning {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin-top: 15px;
+  border: 1px solid #fed7aa;
+  border-radius: 16px;
+  padding: 12px;
+  color: #9a3412;
+  background: #fff7ed;
+}
+
+.supportStepTimeline {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.supportStepTimeline div {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 10px;
+  align-items: flex-start;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 12px;
+  background: #fff;
+}
+
+.supportStepTimeline span {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: #047857;
+  background: #ecfdf5;
+  font-weight: 950;
+}
+
+.supportStepTimeline b {
+  color: #0f172a;
+  line-height: 1.42;
+}
+
+.supportLinkedLeds {
+  border: 1px solid #dbe4ef;
+  border-radius: 16px;
+  padding: 12px;
+  background: #fff;
+}
+
+.supportLinkedLeds small {
+  display: block;
+  margin-bottom: 9px;
+  color: #64748b;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.supportLinkedLeds div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.supportLinkedLeds button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid #dbe4ef;
+  border-radius: 999px;
+  padding: 8px 10px;
+  color: #0f172a;
+  background: #f8fafc;
+  font-weight: 900;
+}
+
+.supportCanReference {
+  margin-top: 16px;
+}
+
+.supportCanReference .sectionTitle h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #0f172a;
+}
+
+.supportCanTable {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.supportCanTable article {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 12px;
+  background: #fff;
+}
+
+.supportCanTable b {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 8px;
+  border-radius: 13px;
+  color: #c2410c;
+  background: #fff7ed;
+  font-size: 18px;
+  font-weight: 950;
+}
+
+.supportCanTable span,
+.supportCanTable strong,
+.supportCanTable p {
+  display: block;
+}
+
+.supportCanTable span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.supportCanTable strong {
+  margin: 4px 0;
+  color: #0f172a;
+}
+
+.supportCanTable p {
+  margin: 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.supportQuickActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+
 .supportGuideDetail .pill {
   max-width: 100%;
   white-space: normal;
@@ -11564,6 +11942,26 @@ textarea {
   background: #fff7ed;
 }
 
+.ledCompareGrid article.info {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.ledCompareGrid article.danger {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.status.info {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.status.danger {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
 .ledCompareGrid small,
 .ledDiagnosticResult span,
 .ledDiagnosticResult b {
@@ -11614,6 +12012,129 @@ textarea {
 
 .ledDiagnosticResult p:last-child {
   margin-bottom: 0;
+}
+
+.ledDiagnosticResult {
+  position: relative;
+  overflow: hidden;
+}
+
+.ledDiagnosticResult::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  background: #f97316;
+}
+
+.ledDiagnosticResult.ok::before {
+  background: #16a34a;
+}
+
+.ledDiagnosticResult.info {
+  border-color: #bfdbfe;
+  background: linear-gradient(180deg, #eff6ff, #fff);
+}
+
+.ledDiagnosticResult.info::before {
+  background: #2563eb;
+}
+
+.ledDiagnosticResult.danger {
+  border-color: #fecaca;
+  background: linear-gradient(180deg, #fff5f5, #fff);
+}
+
+.ledDiagnosticResult.danger::before {
+  background: #dc2626;
+}
+
+.ledActionSteps {
+  display: grid;
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.ledActionSteps div {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 9px;
+  align-items: center;
+  border: 1px solid rgba(148, 163, 184, .22);
+  border-radius: 12px;
+  padding: 8px;
+  background: rgba(255, 255, 255, .78);
+}
+
+.ledActionSteps span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 9px;
+  color: #0f172a;
+  background: #eaf2fb;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.ledActionSteps b {
+  display: block;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #1e293b;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.ledProcedureHint {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 12px;
+  border: 1px solid #bae6fd;
+  border-radius: 16px;
+  padding: 12px;
+  background: linear-gradient(180deg, #f0f9ff, #fff);
+}
+
+.ledProcedureHint > div:first-child {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  color: #075985;
+}
+
+.ledProcedureHint b,
+.ledProcedureHint span {
+  display: block;
+}
+
+.ledProcedureHint b {
+  color: #0f172a;
+}
+
+.ledProcedureHint span {
+  color: #475569;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.ledMiniCodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ledMiniCodes span {
+  min-width: 30px;
+  border-radius: 999px;
+  padding: 5px 8px;
+  color: #9a3412;
+  background: #ffedd5;
+  font-size: 12px;
+  font-weight: 950;
+  text-align: center;
 }
 
 .supportLedGrid article {
@@ -11697,6 +12218,8 @@ textarea {
   .supportHero,
   .supportWorkspace,
   .supportGuidePanel,
+  .supportCommandPanel,
+  .supportCommandHero,
   .ledSupportLayout,
   .ledSimulatorLayout {
     grid-template-columns: 1fr;
@@ -11752,7 +12275,9 @@ textarea {
 
   .supportList,
   .supportDetail,
-  .supportGuideDetail {
+  .supportGuideDetail,
+  .supportCommandDetail,
+  .supportCommandRail {
     border-radius: 18px;
     padding: 12px;
   }
@@ -11936,11 +12461,20 @@ textarea {
   }
 
   .supportMobileModal .supportDetail,
-  .supportMobileModal .supportGuideDetail {
+  .supportMobileModal .supportGuideDetail,
+  .supportMobileModal .supportCommandDetail {
     border: 0;
     border-radius: 0;
     padding: 16px;
     background: #fff;
+  }
+
+  .supportMobileModal .supportCommandHero {
+    grid-template-columns: 1fr;
+  }
+
+  .supportMobileModal .vpCommandVisual {
+    min-height: 190px;
   }
 }
 
