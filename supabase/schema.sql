@@ -758,7 +758,7 @@ create table if not exists public.fazenda_dados_restritos (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users(id) on delete set null,
   fazenda_id uuid not null references public.fazendas(id) on delete cascade,
-  sistema text default 'Nedap',
+  sistema text,
   usuario_service text,
   senha_service text,
   numero_licenca text,
@@ -778,6 +778,9 @@ create policy "fazenda_dados_restritos_select_admin" on public.fazenda_dados_res
 create policy "fazenda_dados_restritos_insert_admin" on public.fazenda_dados_restritos for insert with check (public.can_write_fazenda(fazenda_id));
 create policy "fazenda_dados_restritos_update_admin" on public.fazenda_dados_restritos for update using (public.can_write_fazenda(fazenda_id)) with check (public.can_write_fazenda(fazenda_id));
 create policy "fazenda_dados_restritos_delete_admin" on public.fazenda_dados_restritos for delete using (public.can_write_fazenda(fazenda_id));
+
+alter table public.fazenda_dados_restritos
+alter column sistema drop default;
 
 create index if not exists fazenda_dados_restritos_fazenda_idx on public.fazenda_dados_restritos(fazenda_id);
 
