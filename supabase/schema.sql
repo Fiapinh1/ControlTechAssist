@@ -375,12 +375,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select exists (
-    select 1
-    from public.fazendas f
-    where f.id = target_fazenda_id
-      and public.can_access_central(f.central, target_user_id)
-  )
+  select public.farm_role(target_fazenda_id, target_user_id) is not null
 $$;
 
 create or replace function public.can_write_fazenda(target_fazenda_id uuid, target_user_id uuid default auth.uid())
@@ -958,3 +953,19 @@ end;
 $$;
 
 grant execute on function public.promote_first_admin() to authenticated;
+
+-- V3.15: isolamento real por fazenda
+-- A central do usuario limita criacao/edicao, mas nao libera leitura global.
+-- Fazendas e dados vinculados so aparecem para proprietario ou membro liberado.
+create or replace function public.can_view_fazenda(target_fazenda_id uuid, target_user_id uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select public.user_profile_active(target_user_id)
+     and public.farm_role(target_fazenda_id, target_user_id) is not null
+$$;
+
+grant execute on function public.can_view_fazenda(uuid, uuid) to authenticated;
