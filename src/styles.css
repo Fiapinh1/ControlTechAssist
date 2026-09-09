@@ -4331,8 +4331,15 @@ body,
 .appSwitchLink span,.appSwitchLink b,.appSwitchLink small{display:block;min-width:0}
 .appSwitchLink b{font-size:13px;line-height:1.1}
 .appSwitchLink small{margin-top:3px;color:#a7f3d0;font-size:11px;line-height:1.1}
-.bottomNav .appExternalNav{color:var(--muted);display:grid;place-items:center;align-content:center;gap:3px;font-size:11px;font-weight:800;text-decoration:none}
-.bottomNav .appExternalNav img{width:22px;height:22px;object-fit:contain}
+.bottomMoreBackdrop{position:fixed;inset:0;border:0;background:rgba(15,23,42,.20);z-index:999}
+.bottomMoreSheet{position:fixed;right:14px;bottom:84px;z-index:1001;width:min(250px,calc(100vw - 28px));display:grid;gap:7px;padding:10px;border:1px solid var(--line);border-radius:20px;background:#fff;box-shadow:0 24px 70px rgba(15,23,42,.24)}
+.bottomMoreTitle{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:3px 3px 8px;color:#64748b;font-size:12px;font-weight:900;text-transform:uppercase;letter-spacing:.08em}
+.bottomMoreTitle button{width:30px;height:30px;border:0;border-radius:10px;background:#f1f5f9;color:#0f172a;display:grid;place-items:center}
+.bottomMoreSheet>button,.bottomMoreSheet>a{display:flex;align-items:center;gap:10px;min-height:42px;border:0;border-radius:14px;background:#fff;color:#0f172a;text-decoration:none;padding:10px 12px;font-size:13px;font-weight:900;text-align:left}
+.bottomMoreSheet>button:hover,.bottomMoreSheet>a:hover,.bottomMoreSheet>button.active{background:#ecfdf5;color:#047857}
+.bottomMoreSheet .mobileLogout{color:#dc2626}
+.bottomMoreSheet .mobileLogout:hover{background:#fef2f2;color:#b91c1c}
+.bottomMoreSheet .appExternalNav img{width:24px;height:24px;object-fit:contain;flex:0 0 auto}
 
 .farmListFoot {
   display: grid;
