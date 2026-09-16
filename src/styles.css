@@ -2445,6 +2445,11 @@ body,
   border-color: #bbf7d0;
 }
 
+.visitCard.resolved {
+  border-color: #bbf7d0;
+  background: linear-gradient(180deg, #fff, #f0fdf4);
+}
+
 .visitCard.pending {
   border-color: #fed7aa;
   background: linear-gradient(180deg, #fff, #fff7ed);
@@ -2463,6 +2468,11 @@ body,
 .visitCard.pending .visitStateIcon {
   color: #ea580c;
   background: #ffedd5;
+}
+
+.visitCard.resolved .visitStateIcon {
+  color: #047857;
+  background: #d1fae5;
 }
 
 .visitCardMain {
@@ -2507,10 +2517,37 @@ body,
   color: #9a3412;
 }
 
+.visitCard.resolved .visitCardTop em {
+  background: #dcfce7;
+  color: #047857;
+}
+
 .visitCard p {
   margin: 10px 0 0;
   color: #334155;
   line-height: 1.45;
+}
+
+.visitReturnLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  max-width: 100%;
+  margin-top: 7px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.visitReturnLink.resolved {
+  border-color: #bbf7d0;
+  background: #ecfdf5;
+  color: #047857;
 }
 
 .visitOkBox,
@@ -2612,6 +2649,11 @@ body,
 .visitDetailSection.pending {
   border-color: #fed7aa;
   background: #fff7ed;
+}
+
+.visitDetailSection.return {
+  border-color: #bfdbfe;
+  background: #eff6ff;
 }
 
 .visitDetailSection h3 {

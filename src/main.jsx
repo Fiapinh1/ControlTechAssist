@@ -808,12 +808,17 @@ const VISIT_TYPES = ['Instalação', 'Manutenção', 'Diagnóstico', 'Retorno', 
 const VISIT_STATUS_OPEN = 'Aberta';
 const VISIT_STATUS_DONE = 'Concluída';
 const VISIT_STATUS_PENDING = 'Com pendência';
+const VISIT_STATUS_WAITING_RETURN = 'Aguardando retorno';
+const VISIT_STATUS_RESOLVED_RETURN = 'Resolvida por retorno';
 const visitHasPending = v => Boolean(String(v?.pendencias||'').trim() || String(v?.proxima_acao||'').trim());
 const visitSummaryText = v => String(v?.resumo||'').trim() || `${v?.tipo||'Visita'} registrada em ${brDate(v?.data_visita)} sem pendências.`;
-const isOpenVisit = v => String(v?.status||'').trim() === VISIT_STATUS_OPEN || (v?.iniciada_em && !v?.finalizada_em && String(v?.status||'').trim() !== VISIT_STATUS_DONE && String(v?.status||'').trim() !== VISIT_STATUS_PENDING);
-const visitDisplayStatus = v => isOpenVisit(v) ? VISIT_STATUS_OPEN : visitHasPending(v) ? VISIT_STATUS_PENDING : VISIT_STATUS_DONE;
-const visitStatusTone = v => isOpenVisit(v) ? 'open' : visitHasPending(v) ? 'pending' : 'ok';
-const closeVisitPayload = visit => ({...visit,status:visitHasPending(visit)?VISIT_STATUS_PENDING:VISIT_STATUS_DONE,finalizada_em:visit.finalizada_em||nowISO(),resumo:String(visit.resumo||'').trim()||visitSummaryText(visit),updated_at:nowISO()});
+const visitResolvedByReturn = v => String(v?.status||'').trim() === VISIT_STATUS_RESOLVED_RETURN || Boolean(v?.resolved_by_visit_id || v?.resolved_at);
+const visitNeedsReturn = v => !visitResolvedByReturn(v) && (String(v?.status||'').trim() === VISIT_STATUS_WAITING_RETURN || v?.retorno_necessario === true);
+const visitHasOpenPending = v => !visitResolvedByReturn(v) && visitHasPending(v);
+const isOpenVisit = v => String(v?.status||'').trim() === VISIT_STATUS_OPEN || (v?.iniciada_em && !v?.finalizada_em && ![VISIT_STATUS_DONE,VISIT_STATUS_PENDING,VISIT_STATUS_WAITING_RETURN,VISIT_STATUS_RESOLVED_RETURN].includes(String(v?.status||'').trim()));
+const visitDisplayStatus = v => isOpenVisit(v) ? VISIT_STATUS_OPEN : visitResolvedByReturn(v) ? VISIT_STATUS_RESOLVED_RETURN : visitNeedsReturn(v) ? VISIT_STATUS_WAITING_RETURN : visitHasPending(v) ? VISIT_STATUS_PENDING : VISIT_STATUS_DONE;
+const visitStatusTone = v => isOpenVisit(v) ? 'open' : visitResolvedByReturn(v) ? 'resolved' : (visitNeedsReturn(v) || visitHasPending(v)) ? 'pending' : 'ok';
+const closeVisitPayload = visit => ({...visit,status:visitHasPending(visit)?(visitNeedsReturn(visit)?VISIT_STATUS_WAITING_RETURN:VISIT_STATUS_PENDING):VISIT_STATUS_DONE,finalizada_em:visit.finalizada_em||nowISO(),resumo:String(visit.resumo||'').trim()||visitSummaryText(visit),updated_at:nowISO()});
 const LOCAL_SUGGESTIONS = ['Ordenha', 'Sala de leite', 'Curral', 'Galpão 01', 'Galpão 02', 'Compost barn', 'Free stall', 'Piquete', 'Bezerreiro', 'Pré-parto', 'Pós-parto', 'Casa de máquinas', 'Escritório', 'Sala técnica', 'Torre', 'Caixa d’água', 'Barracão', 'Cocho', 'Pista de trato', 'Outro'];
 const OBSTACLE_TYPES = ['Parede de alvenaria','Parede de concreto','Estrutura metálica','Telhado metálico','Barracão/galpão','Mata densa','Desnível/relevo','Outro'];
 const COVERAGE_RESULTS = ['Leitura boa','Leitura instável','Sem leitura'];
@@ -1800,7 +1805,7 @@ const centralMatches = (farm, value) => {
   if (value === 'Outra / Não informado') return centralTone(farm.central) === 'other';
   return (farm.central || '') === value;
 };
-const farmHasPending = (farm, data) => farmStatus(farm) === 'Com pendência' || collarHasPending(farm) || data.visitas.some(v => v.fazenda_id === farm.id && v.pendencias);
+const farmHasPending = (farm, data) => farmStatus(farm) === 'Com pendência' || collarHasPending(farm) || data.visitas.some(v => v.fazenda_id === farm.id && visitHasOpenPending(v));
 const latestFarmVisit = (farm, data) => data.visitas.filter(v => v.fazenda_id === farm.id).sort((a,b) => String(b.data_visita || '').localeCompare(String(a.data_visita || '')))[0];
 const FARM_VIEW_MODES = [
   ['cards','Cards',Layers],
@@ -2249,10 +2254,10 @@ function FazendaDetalhe({farm,data,onBack}){
     setDeletingFarm(false);
     if(result.ok){setDeleteConfirm(false);onBack();}
   };
-  const saveVisitFromDetail=async(row)=>{const clean={...row,status:row.status || (row.iniciada_em&&!row.finalizada_em?VISIT_STATUS_OPEN:visitHasPending(row)?VISIT_STATUS_PENDING:VISIT_STATUS_DONE),updated_at:nowISO()};const result=await data.saveVisita(clean);if(result.ok)setVisitModal(false);return result;};
+  const saveVisitFromDetail=async(row)=>{const clean={...row,status:row.status || (row.iniciada_em&&!row.finalizada_em?VISIT_STATUS_OPEN:visitNeedsReturn(row)?VISIT_STATUS_WAITING_RETURN:visitHasPending(row)?VISIT_STATUS_PENDING:VISIT_STATUS_DONE),updated_at:nowISO()};const result=await data.saveVisita(clean);if(result.ok)setVisitModal(false);return result;};
   const startService=async()=>{
     if(!access.canEdit)return;
-    const startedAt=farm.servico_inicio_em||nowISO();
+    const startedAt=serviceActive&&farm.servico_inicio_em?farm.servico_inicio_em:nowISO();
     const result=await data.saveFazenda({...farm,servico_inicio_em:startedAt,servico_fim_em:null,servico_responsavel:farm.servico_responsavel||currentResponsible||farm.regional_nome||farm.responsavel||'',status:'Em andamento'});
     if(!result.ok)return;
     if(!openVisit){
@@ -2261,6 +2266,18 @@ function FazendaDetalhe({farm,data,onBack}){
       return;
     }
     notify(`Serviço iniciado. Visita aberta mantida: ${brDate(openVisit.data_visita)}.`);
+  };
+  const startReturnFromVisit=async(sourceVisit)=>{
+    if(!access.canEdit||!sourceVisit)return;
+    if(openVisit){notify(`Já existe uma visita aberta desde ${brDate(openVisit.data_visita)}. Encerre ou continue a visita atual antes de iniciar o retorno.`,'warning');setTab('visitas');return;}
+    const startedAt=nowISO();
+    const serviceResult=await data.saveFazenda({...farm,servico_inicio_em:startedAt,servico_fim_em:null,servico_responsavel:farm.servico_responsavel||currentResponsible||farm.regional_nome||farm.responsavel||'',status:'Em andamento'});
+    if(!serviceResult.ok)return;
+    const returnVisit={id:uid(),fazenda_id:farm.id,tipo:'Retorno',data_visita:todayInput(),resumo:`Retorno iniciado para resolver pendência da visita de ${brDate(sourceVisit.data_visita)}.`,status:VISIT_STATUS_OPEN,iniciada_em:startedAt,parent_visit_id:sourceVisit.id,retorno_necessario:false,created_at:startedAt,updated_at:startedAt};
+    await data.saveVisita(returnVisit);
+    await data.saveVisita({...sourceVisit,status:VISIT_STATUS_WAITING_RETURN,retorno_necessario:true,updated_at:startedAt});
+    setTab('visitas');
+    notify('Retorno iniciado. Uma nova visita foi aberta vinculada à pendência anterior.');
   };
   const finishService=()=>{if(access.canEdit)setServiceModal('finish');};
   const saveService=async(payload)=>{
@@ -2282,7 +2299,14 @@ function FazendaDetalhe({farm,data,onBack}){
       status
     });
     if(!result.ok)return result;
-    if(finishing&&openVisit)await data.saveVisita(closeVisitPayload({...openVisit,finalizada_em:endedAt}));
+    if(finishing&&openVisit){
+      const closedVisit=closeVisitPayload({...openVisit,finalizada_em:endedAt});
+      await data.saveVisita(closedVisit);
+      if(openVisit.parent_visit_id&&!visitHasOpenPending(closedVisit)){
+        const parent=visits.find(v=>v.id===openVisit.parent_visit_id);
+        if(parent)await data.saveVisita({...parent,status:VISIT_STATUS_RESOLVED_RETURN,retorno_necessario:false,resolved_by_visit_id:openVisit.id,resolved_at:endedAt,updated_at:endedAt});
+      }
+    }
     setServiceModal(null);
     notify(finishing?(openVisit&&visitHasPending(openVisit)?'Serviço finalizado com pendência registrada na visita.':'Serviço finalizado e visita encerrada.'):'Ajuste do serviço salvo.');
     return result;
@@ -2305,7 +2329,7 @@ function FazendaDetalhe({farm,data,onBack}){
     {!access.canEdit&&<PermissionNotice/>}
     <div className="tabs farmTabs">{tabs.map(([id,label,Icon])=><button key={id} onClick={()=>setTab(id)} className={tab===id?'active':''}><Icon size={17}/>{label}</button>)}</div>
     {tab==='resumo'&&<FarmExecutiveSummary farm={farm} visits={visits} checks={checks} diags={diags} equips={equips} evidencias={evidencias} canEdit={access.canEdit} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)} onAdjustService={()=>setServiceModal('adjust')} onNewVisit={openVisitModal} onOpenMap={()=>setTab('mapa')} onNavigate={goTab}/>}
-    {tab==='checklists'&&<ChecklistsFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='equipamentos'&&<EquipamentosFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={()=>setEquipModal({})}/>} {tab==='mapa'&&<MapaFazenda farm={farm} data={data} canEdit={access.canEdit} onEditEquip={openEquipmentFromMap}/>} {tab==='visitas'&&<VisitasFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={openVisitModal}/>} {tab==='evidencias'&&<EvidenciasFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='relatorio'&&<RelatorioFazenda farm={farm} data={data}/>} {tab==='restrito'&&access.canEdit&&<DadosRestritosFazenda farm={farm} data={data}/>} {tab==='acessos'&&<AcessosFazenda farm={farm} data={data} access={access}/>}
+    {tab==='checklists'&&<ChecklistsFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='equipamentos'&&<EquipamentosFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={()=>setEquipModal({})}/>} {tab==='mapa'&&<MapaFazenda farm={farm} data={data} canEdit={access.canEdit} onEditEquip={openEquipmentFromMap}/>} {tab==='visitas'&&<VisitasFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={openVisitModal} onStartReturn={startReturnFromVisit}/>} {tab==='evidencias'&&<EvidenciasFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='relatorio'&&<RelatorioFazenda farm={farm} data={data}/>} {tab==='restrito'&&access.canEdit&&<DadosRestritosFazenda farm={farm} data={data}/>} {tab==='acessos'&&<AcessosFazenda farm={farm} data={data} access={access}/>}
     <FarmBottomNav farm={farm} tabs={tabs} tab={tab} setTab={setTab} onBack={onBack} access={access} serviceActive={serviceActive} serviceDone={serviceDone} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)} onNewVisit={openVisitModal}/>
     {edit&&access.canEdit&&<FazendaModal farm={farm} data={data} onClose={()=>setEdit(false)} onSave={async(r)=>{const result=await data.saveFazenda(r);if(result.ok)setEdit(false)}}/>}{serviceModal&&access.canEdit&&<ServiceModal farm={farm} data={data} mode={serviceModal} pendingEquips={equips.filter(isEquipmentPendingInstall)} onClose={()=>setServiceModal(null)} onSave={saveService}/>} {equipModal&&access.canEdit&&<EquipModal farm={farm} data={data} equip={equipModal} onClose={()=>setEquipModal(null)} onSave={async(r)=>{const result=await data.saveEquipamento(r);if(result.ok)setEquipModal(null)}}/>}{visitModal&&access.canEdit&&<VisitModal farm={farm} onClose={()=>setVisitModal(false)} onSave={saveVisitFromDetail}/>} {deleteConfirm&&<DeleteFarmModal farm={farm} busy={deletingFarm} onCancel={()=>setDeleteConfirm(false)} onConfirm={deleteFarm}/>}
   </div>
@@ -2374,7 +2398,7 @@ function FarmExecutiveSummary({farm,visits,checks,diags,equips,evidencias=[],can
   const predicted=num(farm.qtd_colares_prevista), installed=collarInstalled(farm), delivered=collarDelivered(farm), handled=collarHandled(farm);
   const progress=collarProgress(farm);
   const status=farmStatus(farm), active=Boolean(farm.servico_inicio_em&&!farm.servico_fim_em), done=Boolean(farm.servico_inicio_em&&farm.servico_fim_em);
-  const hasLocation=farm.latitude&&farm.longitude, mapped=equips.filter(e=>e.latitude&&e.longitude).length, pendingVisits=visits.filter(v=>v.pendencias).length;
+  const hasLocation=farm.latitude&&farm.longitude, mapped=equips.filter(e=>e.latitude&&e.longitude).length, pendingVisits=visits.filter(visitHasOpenPending).length;
   const remaining=collarRemaining(farm);
   const cityUf=`${farm.cidade||''}${getFarmUF(farm)?` / ${getFarmUF(farm)}`:''}`.trim();
   const serviceState=done?'Encerrado':active?'Em andamento':'Não iniciada';
@@ -2586,11 +2610,12 @@ function MapaFazenda({farm,data,canEdit=false,onEditEquip}){
     {!all.length&&<Empty icon={MapIcon} title="Nenhum equipamento no mapa" text="Nenhum equipamento com coordenadas nesta fazenda."/>}
   </section>
 }
-function VisitasFazenda({farm,data,openNew,canEdit=true}){
+function VisitasFazenda({farm,data,openNew,onStartReturn,canEdit=true}){
   const [viewing,setViewing]=useState(null),[editing,setEditing]=useState(null),[photoVisit,setPhotoVisit]=useState(null);
   const visits=data.visitas.filter(v=>v.fazenda_id===farm.id).sort((a,b)=>new Date(b.data_visita||b.created_at||0)-new Date(a.data_visita||a.created_at||0));
-  const openVisit=visits.find(isOpenVisit), pending=visits.filter(v=>visitDisplayStatus(v)===VISIT_STATUS_PENDING), done=visits.filter(v=>visitDisplayStatus(v)===VISIT_STATUS_DONE).length, last=visits[0];
+  const openVisit=visits.find(isOpenVisit), pending=visits.filter(v=>[VISIT_STATUS_PENDING,VISIT_STATUS_WAITING_RETURN].includes(visitDisplayStatus(v))), done=visits.filter(v=>[VISIT_STATUS_DONE,VISIT_STATUS_RESOLVED_RETURN].includes(visitDisplayStatus(v))).length, last=visits[0];
   const evidenceCount=id=>(data.evidencias||[]).filter(ev=>ev.visita_id===id).length;
+  const visitById=id=>visits.find(v=>v.id===id);
   return <section className="panel visitsPanel">
     <div className="sectionTitle visitsHead"><div><span className="eyebrow">Campo</span><h2><CalendarDays size={22}/> Visitas</h2></div>{canEdit&&<button className="btn primary" onClick={openNew}><Plus size={17}/> Nova visita</button>}</div>
     {!canEdit&&<PermissionNotice/>}
@@ -2602,29 +2627,33 @@ function VisitasFazenda({farm,data,openNew,canEdit=true}){
     </div>
     {openVisit&&<div className="visitOpenBanner"><div><PlayCircle size={20}/><span><b>Visita aberta</b>{openVisit.tipo} iniciada em {brDate(openVisit.data_visita)}</span></div><div>{canEdit&&<button className="btn light" onClick={()=>setPhotoVisit(openVisit)}><Camera size={16}/> Fotos</button>}{canEdit&&<button className="btn primary" onClick={()=>setEditing(openVisit)}><ClipboardPenLine size={16}/> Continuar</button>}</div></div>}
     <div className="visitTimeline">{visits.map(v=>{
-      const tone=visitStatusTone(v), status=visitDisplayStatus(v), hasPending=visitHasPending(v), summary=visitSummaryText(v), photos=evidenceCount(v.id);
+      const tone=visitStatusTone(v), status=visitDisplayStatus(v), hasPending=visitHasOpenPending(v), summary=visitSummaryText(v), photos=evidenceCount(v.id), parent=visitById(v.parent_visit_id), resolvedBy=visitById(v.resolved_by_visit_id), canStartReturn=canEdit&&hasPending&&!isOpenVisit(v)&&!v.resolved_by_visit_id;
       return <article className={`visitCard ${tone}`} key={v.id}>
         <div className="visitStateIcon">{tone==='open'?<PlayCircle size={19}/>:hasPending?<AlertTriangle size={19}/>:<CheckCircle2 size={19}/>}</div>
         <div className="visitCardMain">
           <div className="visitCardTop"><div><h3>{v.tipo}</h3><span>{brDate(v.data_visita)}{photos>0&&` • ${photos} foto(s)`}</span></div><em>{status}</em></div>
+          {parent&&<div className="visitReturnLink"><Route size={14}/> Retorno da visita de {brDate(parent.data_visita)}</div>}
+          {resolvedBy&&<div className="visitReturnLink resolved"><CheckCircle2 size={14}/> Resolvida pelo retorno de {brDate(resolvedBy.data_visita)}</div>}
           <p>{summary}</p>
-          {tone==='open'?<div className="visitOpenBox"><PlayCircle size={15}/> Em andamento</div>:hasPending?<div className="visitPendingBox"><AlertTriangle size={15}/><span><b>Pendência</b>{v.pendencias||v.proxima_acao}</span></div>:<div className="visitOkBox"><CheckCircle2 size={15}/> Sem pendências registradas</div>}
-          <footer><button className="btn light" onClick={()=>setViewing(v)}><Info size={15}/> Ver</button>{canEdit&&<button className="btn light" onClick={()=>setPhotoVisit(v)}><Camera size={15}/> Fotos</button>}{canEdit&&<button className="btn light" onClick={()=>setEditing(v)}><Pencil size={15}/> Editar</button>}{canEdit&&<button className="btn light dangerInline" onClick={()=>data.delVisita(v.id)}><Trash2 size={15}/> Excluir</button>}</footer>
+          {tone==='open'?<div className="visitOpenBox"><PlayCircle size={15}/> Em andamento</div>:hasPending?<div className="visitPendingBox"><AlertTriangle size={15}/><span><b>{status===VISIT_STATUS_WAITING_RETURN?'Aguardando retorno':'Pendência'}</b>{v.pendencias||v.proxima_acao}</span></div>:<div className="visitOkBox"><CheckCircle2 size={15}/>{status===VISIT_STATUS_RESOLVED_RETURN?'Pendência resolvida por retorno':'Sem pendências registradas'}</div>}
+          <footer><button className="btn light" onClick={()=>setViewing(v)}><Info size={15}/> Ver</button>{canStartReturn&&<button className="btn primary" onClick={()=>onStartReturn?.(v)}><Route size={15}/> Iniciar retorno</button>}{canEdit&&<button className="btn light" onClick={()=>setPhotoVisit(v)}><Camera size={15}/> Fotos</button>}{canEdit&&<button className="btn light" onClick={()=>setEditing(v)}><Pencil size={15}/> Editar</button>}{canEdit&&<button className="btn light dangerInline" onClick={()=>data.delVisita(v.id)}><Trash2 size={15}/> Excluir</button>}</footer>
         </div>
       </article>
     })}</div>
     {visits.length===0&&<Empty icon={CalendarDays} title="Nenhuma visita registrada" text="Registre instalação, diagnóstico, retorno ou suporte."/>}
-    {viewing&&<VisitDetailModal visit={viewing} evidencias={(data.evidencias||[]).filter(ev=>ev.visita_id===viewing.id)} onClose={()=>setViewing(null)}/>}
+    {viewing&&<VisitDetailModal visit={viewing} visits={visits} evidencias={(data.evidencias||[]).filter(ev=>ev.visita_id===viewing.id)} onClose={()=>setViewing(null)}/>}
     {photoVisit&&canEdit&&<EvidenceUploadModal farm={farm} data={data} visita={photoVisit} onClose={()=>setPhotoVisit(null)}/>}
     {editing&&canEdit&&<VisitModal farm={farm} visit={editing} onClose={()=>setEditing(null)} onSave={async(r)=>{await data.saveVisita(r);setEditing(null)}}/>}
   </section>
 }
-function VisitDetailModal({visit,evidencias=[],onClose}){
-  const hasPending=visitHasPending(visit), status=visitDisplayStatus(visit), open=isOpenVisit(visit);
+function VisitDetailModal({visit,visits=[],evidencias=[],onClose}){
+  const hasPending=visitHasOpenPending(visit), status=visitDisplayStatus(visit), open=isOpenVisit(visit), parent=visits.find(v=>v.id===visit.parent_visit_id), resolvedBy=visits.find(v=>v.id===visit.resolved_by_visit_id);
   const photos=evidencias.filter(item=>evidenceSrc(item));
   const details=[['Problemas',visit.problemas,AlertTriangle],['Solução',visit.solucao,CheckCircle2],['Próxima ação',visit.proxima_acao,Navigation]].filter(([,value])=>String(value||'').trim());
   return <Modal title={`${visit.tipo} • ${brDate(visit.data_visita)}`} onClose={onClose}><div className="modalBody visitDetailModal">
-    <div className={`visitDetailStatus ${open?'open':hasPending?'pending':'ok'}`}>{open?<PlayCircle size={24}/>:hasPending?<AlertTriangle size={24}/>:<CheckCircle2 size={24}/>}<div><b>{status}</b><span>{open?'Visita em andamento.':hasPending?'Existe uma ação pendente registrada.':'Sem pendências registradas.'}</span></div></div>
+    <div className={`visitDetailStatus ${open?'open':hasPending?'pending':'ok'}`}>{open?<PlayCircle size={24}/>:hasPending?<AlertTriangle size={24}/>:<CheckCircle2 size={24}/>}<div><b>{status}</b><span>{open?'Visita em andamento.':hasPending?'Existe uma ação pendente registrada.':status===VISIT_STATUS_RESOLVED_RETURN?'Pendência resolvida por retorno.':'Sem pendências registradas.'}</span></div></div>
+    {parent&&<section className="visitDetailSection return"><h3>Retorno vinculado</h3><p>Esta visita é retorno da visita de {brDate(parent.data_visita)}.</p></section>}
+    {resolvedBy&&<section className="visitDetailSection return"><h3>Resolvida por retorno</h3><p>Resolvida pela visita de retorno de {brDate(resolvedBy.data_visita)}.</p></section>}
     <section className="visitDetailSection"><h3>Resumo</h3><p>{visitSummaryText(visit)}</p></section>
     {hasPending&&<section className="visitDetailSection pending"><h3>Pendência</h3><p>{visit.pendencias||visit.proxima_acao}</p></section>}
     {photos.length>0&&<section className="visitDetailPhotos"><h3>Fotos da visita</h3><div>{photos.slice(0,4).map(item=><img key={item.id} src={evidenceSrc(item)} alt={item.descricao||item.categoria}/>)}</div></section>}
@@ -2709,25 +2738,26 @@ function EvidenceEditModal({item,equips,visits,onClose,onSave}){
 }
 
 function VisitModal({farm,visit={},onClose,onSave}){
-  const [form,setForm]=useState({id:visit.id||uid(),fazenda_id:farm.id,tipo:visit.tipo||'Instalação',data_visita:visit.data_visita||todayInput(),resumo:visit.resumo||'',problemas:visit.problemas||'',solucao:visit.solucao||'',pendencias:visit.pendencias||'',proxima_acao:visit.proxima_acao||'',status:visit.status||'',iniciada_em:visit.iniciada_em||'',finalizada_em:visit.finalizada_em||'',created_at:visit.created_at||nowISO()});
+  const [form,setForm]=useState({id:visit.id||uid(),fazenda_id:farm.id,tipo:visit.tipo||'Instalação',data_visita:visit.data_visita||todayInput(),resumo:visit.resumo||'',problemas:visit.problemas||'',solucao:visit.solucao||'',pendencias:visit.pendencias||'',proxima_acao:visit.proxima_acao||'',status:visit.status||'',iniciada_em:visit.iniciada_em||'',finalizada_em:visit.finalizada_em||'',parent_visit_id:visit.parent_visit_id||null,resolved_by_visit_id:visit.resolved_by_visit_id||null,resolved_at:visit.resolved_at||null,retorno_necessario:visit.retorno_necessario||visitNeedsReturn(visit),created_at:visit.created_at||nowISO()});
   const [hasPending,setHasPending]=useState(visitHasPending(visit));
+  const [needsReturn,setNeedsReturn]=useState(visitNeedsReturn(visit));
   const [keepOpen,setKeepOpen]=useState(isOpenVisit(visit));
   const set=(k,v)=>setForm(prev=>({...prev,[k]:v}));
   const defaultOkSummary=()=>`${form.tipo} realizada em ${brDate(form.data_visita)}. Sem pendências registradas.`;
   const applyQuick=(kind)=>{
-    if(kind==='ok'){setHasPending(false);setForm(prev=>({...prev,resumo:prev.resumo||`${prev.tipo} concluída em ${brDate(prev.data_visita)}. Tudo certo no campo.`,pendencias:'',proxima_acao:''}));}
+    if(kind==='ok'){setHasPending(false);setNeedsReturn(false);setForm(prev=>({...prev,resumo:prev.resumo||`${prev.tipo} concluída em ${brDate(prev.data_visita)}. Tudo certo no campo.`,pendencias:'',proxima_acao:'',retorno_necessario:false}));}
     if(kind==='validado')setForm(prev=>({...prev,resumo:prev.resumo||'Equipamentos conferidos e operação validada em campo.'}));
-    if(kind==='pending'){setHasPending(true);}
-    if(kind==='return'){setHasPending(true);setForm(prev=>({...prev,pendencias:prev.pendencias||'Retorno necessário para concluir a validação.',proxima_acao:prev.proxima_acao||'Agendar retorno técnico.'}));}
+    if(kind==='pending'){setHasPending(true);setNeedsReturn(false);setForm(prev=>({...prev,retorno_necessario:false}));}
+    if(kind==='return'){setHasPending(true);setNeedsReturn(true);setForm(prev=>({...prev,retorno_necessario:true,pendencias:prev.pendencias||'Retorno necessário para concluir a validação.',proxima_acao:prev.proxima_acao||'Agendar retorno técnico.'}));}
   };
   const submit=e=>{
     e.preventDefault();
     const pendingText=String(form.pendencias||form.proxima_acao||'').trim();
     if(hasPending&&!pendingText){notify('Informe a pendência ou próxima ação.','warning');return;}
-    const status=keepOpen?VISIT_STATUS_OPEN:hasPending?VISIT_STATUS_PENDING:VISIT_STATUS_DONE;
+    const status=keepOpen?VISIT_STATUS_OPEN:hasPending?(needsReturn?VISIT_STATUS_WAITING_RETURN:VISIT_STATUS_PENDING):VISIT_STATUS_DONE;
     const finishedAt=keepOpen?null:(form.finalizada_em||nowISO());
-    const clean={...form,status,iniciada_em:form.iniciada_em||(keepOpen?nowISO():null),finalizada_em:finishedAt,resumo:String(form.resumo||'').trim()||`${form.tipo} registrada ${hasPending?'com pendência':'sem pendências'} em ${brDate(form.data_visita)}.`};
-    if(!hasPending){clean.pendencias='';clean.proxima_acao='';}
+    const clean={...form,status,retorno_necessario:hasPending&&needsReturn,iniciada_em:form.iniciada_em||(keepOpen?nowISO():null),finalizada_em:finishedAt,resumo:String(form.resumo||'').trim()||`${form.tipo} registrada ${hasPending?'com pendência':'sem pendências'} em ${brDate(form.data_visita)}.`};
+    if(!hasPending){clean.pendencias='';clean.proxima_acao='';clean.retorno_necessario=false;}
     onSave(clean);
   };
   return <Modal title={visit.id?'Editar visita':'Nova visita'} onClose={onClose}><form className="form modern visitEditor" onSubmit={submit}>
@@ -2954,7 +2984,7 @@ function RelatorioFazenda({farm,data}){
     const evidenceSectionHtml=evidenceRows?`<section class="section evidenceSection"><h2>Registro fotográfico da instalação</h2><div class="evidenceGrid">${evidenceRows}</div></section>`:'';
     const evidenceAppendixHtml=evidencePrintItems.length?`<section class="section evidenceAppendix"><h2>Anexo de evidências ampliadas</h2>${evidencePrintItems.map(({item,src,anchor},i)=>`<article id="${anchor}" class="evidenceFullPage"><div><b>${safe(`Imagem ${i+1} - ${item.categoria}`)}</b><span>${safe(evidenceLinkedText(item,equips,visits))}</span></div><a href="${safe(src)}" target="_blank" rel="noreferrer"><img src="${safe(src)}" alt="${safe(item.categoria)}"></a></article>`).join('')}</section>`:'';
     const predicted=num(farm.qtd_colares_prevista),installed=collarInstalled(farm),delivered=collarDelivered(farm),handled=collarHandled(farm),progress=collarProgress(farm);
-    const mappedCount=mapped.length,missingCoords=equips.filter(e=>!e.latitude||!e.longitude).length,pendingVisits=reportVisits.filter(v=>v.pendencias).length;
+    const mappedCount=mapped.length,missingCoords=equips.filter(e=>!e.latitude||!e.longitude).length,pendingVisits=reportVisits.filter(visitHasOpenPending).length;
     const executiveHtml=`<section class="section executive"><h2>Resumo executivo</h2><p>${safe(`Relatório ${reportScopeLabel.toLowerCase()} da fazenda ${farm.nome}. Status ${displayStatus}, ${installed} colares instalados, ${delivered} entregues ao cliente/reserva, ${handled} de ${predicted} colares atendidos, ${equips.length} equipamento(s) cadastrado(s), ${mappedCount} com coordenadas e ${reportVisits.length} visita(s) no escopo.`)}</p><div class="execGrid"><div><span>Escopo</span><b>${safe(reportScopeLabel)}</b></div><div><span>Progresso atendido</span><b>${predicted?`${progress}%`:'-'}</b></div><div><span>Equipamentos mapeados</span><b>${mappedCount}/${equips.length}</b></div><div><span>Pendências em visitas</span><b>${opts.pend?pendingVisits:'-'}</b></div></div></section>`;
     const attentionItems=[
       missingCoords?`${missingCoords} equipamento(s) sem coordenadas no mapa técnico.`:'',
@@ -3349,7 +3379,7 @@ function Relatorios({data}){
   const inProgress=farms.filter(f=>f.servico_inicio_em&&!f.servico_fim_em);
   const notStarted=farms.filter(f=>farmStatus(f)==='Não iniciada'&&!f.servico_inicio_em&&!f.servico_fim_em);
   const operationalFarmIds=new Set(farms.filter(f=>!notStarted.some(n=>n.id===f.id)).map(f=>f.id));
-  const pendingVisits=visitsInPeriod.filter(v=>v.pendencias);
+  const pendingVisits=visitsInPeriod.filter(visitHasOpenPending);
   const missingGps=equips.filter(e=>!e.latitude||!e.longitude);
   const missingGpsOperational=missingGps.filter(e=>operationalFarmIds.has(e.fazenda_id));
   const incompleteServiceDates=farms.filter(f=>(farmStatus(f)===FARM_STATUS_DONE||f.servico_fim_em)&&(!f.servico_inicio_em||!f.servico_fim_em));
