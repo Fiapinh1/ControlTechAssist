@@ -2443,7 +2443,7 @@ function FarmExecutiveSummary({farm,visits,checks,diags,equips,evidencias=[],can
   const hasLocation=farm.latitude&&farm.longitude, mapped=equips.filter(e=>e.latitude&&e.longitude).length, pendingVisits=visits.filter(visitHasOpenPending).length;
   const remaining=collarRemaining(farm);
   const cityUf=`${farm.cidade||''}${getFarmUF(farm)?` / ${getFarmUF(farm)}`:''}`.trim();
-  const serviceState=active?'Em andamento':serviceSessions.length?'Com histórico':'Não iniciada';
+  const serviceState=active?'Em andamento':serviceSessions.length?'Serviço encerrado':'Não iniciada';
   const serviceHint=active?`Início atual ${brDateTime(farm.servico_inicio_em)}`:serviceSessions.length?`${serviceSessions.length} período(s) • ${totalServiceLabel}`:'Aguardando início';
   const alerts=[
     !hasLocation&&{text:'Fazenda sem GPS definido',Icon:MapPinned,tab:'mapa'},
@@ -2470,7 +2470,7 @@ function FarmExecutiveSummary({farm,visits,checks,diags,equips,evidencias=[],can
     canEdit&&farm.observacoes&&['Observações internas',farm.observacoes,Info],
     canEdit&&farm.servico_observacoes&&['Observações do serviço',farm.servico_observacoes,Info]
   ].filter(Boolean);
-  const serviceAction=active?['Finalizar',CheckCircle2,onFinish]:['Iniciar',PlayCircle,onStart];
+  const serviceAction=active?['Finalizar',CheckCircle2,onFinish]:[serviceSessions.length?'Novo serviço':'Iniciar',PlayCircle,onStart];
   const serviceAdjustButton=canEdit&&farm.servico_inicio_em?<button type="button" className="iconBtn serviceMiniAdjust" aria-label="Ajustar serviço" title="Ajustar serviço" onClick={onAdjustService}><Clock size={17}/></button>:null;
   return <section className="panel executiveSummaryPanel compactExecutiveSummary">
     <div className="execSummaryHead">
@@ -2491,7 +2491,6 @@ function FarmExecutiveSummary({farm,visits,checks,diags,equips,evidencias=[],can
     </div>
     {alerts.length>0&&<div className="execAlerts">{alerts.map(({text,Icon,tab,action})=><button type="button" key={text} onClick={()=>action?action():onNavigate?.(tab)}><Icon size={15}/>{text}</button>)}</div>}
     <details className="farmFullDetails compactFarmDetails"><summary><span>Dados da fazenda</span><b>{fullDetails.length}</b></summary><div className="farmFullGrid">{fullDetails.map(([label,value,Icon])=><article key={label}><span><Icon size={15}/>{label}</span><b>{value}</b></article>)}<article><span><CalendarDays size={15}/>Última visita</span><b>{visits[0]?brDate(visits[0].data_visita):'Sem visita'}</b></article><article><span><ClipboardCheck size={15}/>Checklists</span><b>{checks.length}</b></article><article><span><Stethoscope size={15}/>Diagnósticos</span><b>{diags.length}</b></article><article><span><ImageIcon size={15}/>Evidências</span><b>{evidencias.length}</b></article></div></details>
-    <ServiceControl farm={farm} visits={visits} canEdit={canEdit} onStart={onStart} onFinish={onFinish} onEdit={onAdjustService}/>
   </section>
 }
 

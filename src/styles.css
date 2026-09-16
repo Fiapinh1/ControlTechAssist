@@ -5546,6 +5546,8 @@ body,
 
 .compactExecutiveSummary {
   padding: 18px;
+  display: grid;
+  gap: 12px;
 }
 
 .compactExecutiveSummary .execSummaryHead {
@@ -5585,9 +5587,9 @@ body,
   gap: 12px;
   align-items: center;
   border: 1px solid #dbe4ef;
-  border-radius: 20px;
-  padding: 12px;
-  background: linear-gradient(135deg, #fff, #f8fafc);
+  border-radius: 18px;
+  padding: 14px 16px;
+  background: #fff;
 }
 
 .serviceMiniBar.active {
@@ -5597,13 +5599,13 @@ body,
 
 .serviceMiniBar.done {
   border-color: #bbf7d0;
-  background: linear-gradient(135deg, #ecfdf5, #fff);
+  background: #f7fef9;
 }
 
 .serviceMiniIcon {
-  width: 40px;
-  height: 40px;
-  border-radius: 15px;
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
   display: grid;
   place-items: center;
   background: #0f172a;
@@ -5639,7 +5641,7 @@ body,
   display: block;
   margin-top: 2px;
   color: #07152d;
-  font-size: 18px;
+  font-size: 17px;
   line-height: 1.1;
 }
 
@@ -5680,8 +5682,8 @@ body,
 
 .serviceMiniPrimary {
   min-height: 40px;
-  border-radius: 14px;
-  padding: 10px 13px;
+  border-radius: 13px;
+  padding: 9px 13px;
   white-space: nowrap;
 }
 
@@ -5692,8 +5694,8 @@ body,
 }
 
 .compactExecutiveSummary .execCompactCards {
-  grid-template-columns: 1.15fr .8fr .8fr;
-  margin-top: 12px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .85fr) minmax(0, .85fr);
+  margin-top: 0;
 }
 
 .compactExecutiveSummary .execCard {
@@ -5701,20 +5703,21 @@ body,
   grid-template-columns: auto minmax(0, 1fr);
   column-gap: 10px;
   align-items: center;
-  min-height: 82px;
-  padding: 12px;
+  min-height: 76px;
+  padding: 11px 12px;
+  border-radius: 16px;
 }
 
 .compactExecutiveSummary .execCardIcon {
   grid-row: 1 / 4;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   margin: 0;
 }
 
 .compactExecutiveSummary .execCard b {
   margin-top: 2px;
-  font-size: 21px;
+  font-size: 20px;
 }
 
 .compactExecutiveSummary .execCard small {
@@ -5728,17 +5731,29 @@ body,
 }
 
 .compactExecutiveSummary .execAlerts {
-  margin-top: 10px;
-  padding: 8px;
+  margin-top: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
-.compactExecutiveSummary .execAlerts span {
-  padding: 6px 9px;
+.compactExecutiveSummary .execAlerts button {
+  width: 100%;
+  justify-content: flex-start;
+  border-radius: 14px;
+  padding: 11px 14px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
   font-size: 12px;
 }
 
 .compactFarmDetails {
-  margin-top: 10px;
+  margin-top: 0;
+}
+
+.compactFarmDetails summary {
+  min-height: 48px;
 }
 
 @media (max-width: 700px) {
