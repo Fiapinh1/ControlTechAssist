@@ -3189,9 +3189,17 @@ function Produtividade({data,onOpen}){
   const visibleCentrais=allowedCentrais(data);
   useEffect(()=>{if(central!=='Todas'&&!visibleCentrais.includes(central))setCentral('Todas');},[central,visibleCentrais.join('|')]);
   const workConfig={start:workStart||DEFAULT_WORKDAY.start,end:workEnd||DEFAULT_WORKDAY.end,lunchMinutes:num(lunchMinutes),includeWeekends};
-  const concluded=data.fazendas.filter(f=>f.servico_inicio_em&&f.servico_fim_em&&serviceHours(f)>0);
+  const farmById=Object.fromEntries(data.fazendas.map(f=>[f.id,f]));
+  const visitSessions=data.visitas.map(v=>{
+    const farm=farmById[v.fazenda_id];
+    if(!farm||!v.iniciada_em||!v.finalizada_em)return null;
+    return {...farm,session_id:v.id,session_tipo:v.tipo||'Visita',session_status:v.status,servico_inicio_em:v.iniciada_em,servico_fim_em:v.finalizada_em,servico_responsavel:farm.servico_responsavel||personName(data.currentUser)||farm.regional_nome||farm.responsavel||'',_sessionFromVisit:true};
+  }).filter(Boolean).filter(s=>serviceHours(s)>0);
+  const sessionFarmIds=new Set(visitSessions.map(s=>s.id));
+  const fallbackSessions=data.fazendas.filter(f=>f.servico_inicio_em&&f.servico_fim_em&&serviceHours(f)>0&&!sessionFarmIds.has(f.id)).map(f=>({...f,session_id:`farm-${f.id}`,session_tipo:'Serviço'}));
+  const concluded=[...visitSessions,...fallbackSessions];
   const years=[...new Set(concluded.map(f=>new Date(f.servico_fim_em).getFullYear()).filter(Boolean))].sort((a,b)=>b-a);
-  const responsaveis=[...new Set(data.fazendas.map(f=>f.servico_responsavel||f.regional_nome||f.responsavel).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const responsaveis=[...new Set(concluded.map(f=>f.servico_responsavel||f.regional_nome||f.responsavel).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
   const monthNames=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const dailyHours=Math.max(workdayHours(workConfig),0.1);
   const workedHoursFor=f=>businessHoursBetween(f.servico_inicio_em,f.servico_fim_em,workConfig);
@@ -3209,7 +3217,8 @@ function Produtividade({data,onOpen}){
   const inProgress=data.fazendas.filter(f=>f.servico_inicio_em&&!f.servico_fim_em);
   const totalHours=farms.reduce((a,f)=>a+workedHoursFor(f),0);
   const totalElapsedHours=farms.reduce((a,f)=>a+serviceHours(f),0);
-  const totalCollars=farms.reduce((a,f)=>a+collarsFor(f),0);
+  const uniqueFarmRows=[...new Map(farms.map(f=>[f.id,f])).values()];
+  const totalCollars=uniqueFarmRows.reduce((a,f)=>a+collarsFor(f),0);
   const avgHours=farms.length?totalHours/farms.length:0;
   const productiveDays=totalHours/dailyHours;
   const avgLabel=avgHours?`${avgHours.toFixed(1)} h úteis`:'-';
@@ -3221,7 +3230,7 @@ function Produtividade({data,onOpen}){
       && (central==='Todas'||(f.central||'')===central||(!f.central&&central.startsWith('Outra')))
       && (resp==='Todos'||owner===resp);
   });
-  const monthlyCollars=monthNames.map((label,i)=>({label,value:monthlyBase.filter(f=>new Date(f.servico_fim_em).getMonth()===i).reduce((a,f)=>a+collarsFor(f),0)}));
+  const monthlyCollars=monthNames.map((label,i)=>({label,value:[...new Map(monthlyBase.filter(f=>new Date(f.servico_fim_em).getMonth()===i).map(f=>[f.id,f])).values()].reduce((a,f)=>a+collarsFor(f),0)}));
   const monthlyHours=monthNames.map((label,i)=>({label,value:monthlyBase.filter(f=>new Date(f.servico_fim_em).getMonth()===i).reduce((a,f)=>a+workedHoursFor(f),0)}));
   const monthlyCount=monthNames.map((label,i)=>({label,value:monthlyBase.filter(f=>new Date(f.servico_fim_em).getMonth()===i).length}));
   const chartRows=chartMetric==='horas'?monthlyHours:monthlyCollars;
@@ -3237,7 +3246,8 @@ function Produtividade({data,onOpen}){
     const useful=workedHoursFor(f),collars=collarsFor(f);
     acc[owner] ||= {owner,farms:0,collars:0,hours:0};
     acc[owner].farms += 1;
-    acc[owner].collars += collars;
+    if(!acc[owner].farmIds)acc[owner].farmIds=new Set();
+    if(!acc[owner].farmIds.has(f.id)){acc[owner].collars += collars;acc[owner].farmIds.add(f.id);}
     acc[owner].hours += useful;
     return acc;
   },{})).sort((a,b)=>b.collars-a.collars||b.hours-a.hours).slice(0,5);
@@ -3253,7 +3263,7 @@ function Produtividade({data,onOpen}){
     setYear('Todos');setMonth('Todos');setCentral('Todas');setResp('Todos');
     setWorkStart(DEFAULT_WORKDAY.start);setWorkEnd(DEFAULT_WORKDAY.end);setLunchMinutes(DEFAULT_WORKDAY.lunchMinutes);setIncludeWeekends(false);
   };
-  const exportData=()=>{const jornada=`${workConfig.start}-${workConfig.end}; almoço ${workConfig.lunchMinutes} min; ${workConfig.includeWeekends?'inclui finais de semana':'dias úteis'}`;const rows=[['Fazenda','Central','Cidade','Responsavel produtividade','Inicio','Fim','Horas uteis','Dias uteis equivalentes','Tempo corrido horas','Colares instalados','Colares previstos','Colares por dia util','Jornada considerada'],...farms.map(f=>{const useful=workedHoursFor(f),collars=collarsFor(f);return [f.nome,centralOfficialName(f.central),f.cidade,f.servico_responsavel||f.regional_nome||f.responsavel,brDateTime(f.servico_inicio_em),brDateTime(f.servico_fim_em),useful.toFixed(2),(useful/dailyHours).toFixed(2),serviceHours(f).toFixed(2),num(f.qtd_colares_instalada),num(f.qtd_colares_prevista),useful?(collars/(useful/dailyHours)).toFixed(2):'0',jornada]})];download('produtividade-fazendas.tsv',rows.map(r=>r.join(String.fromCharCode(9))).join(String.fromCharCode(10)));};
+  const exportData=()=>{const jornada=`${workConfig.start}-${workConfig.end}; almoço ${workConfig.lunchMinutes} min; ${workConfig.includeWeekends?'inclui finais de semana':'dias úteis'}`;const rows=[['Fazenda','Tipo de periodo','Central','Cidade','Responsavel produtividade','Inicio','Fim','Horas uteis','Dias uteis equivalentes','Tempo corrido horas','Colares instalados','Colares previstos','Colares por dia util','Jornada considerada'],...farms.map(f=>{const useful=workedHoursFor(f),collars=collarsFor(f);return [f.nome,f.session_tipo||'Serviço',centralOfficialName(f.central),f.cidade,f.servico_responsavel||f.regional_nome||f.responsavel,brDateTime(f.servico_inicio_em),brDateTime(f.servico_fim_em),useful.toFixed(2),(useful/dailyHours).toFixed(2),serviceHours(f).toFixed(2),num(f.qtd_colares_instalada),num(f.qtd_colares_prevista),useful?(collars/(useful/dailyHours)).toFixed(2):'0',jornada]})];download('produtividade-fazendas.tsv',rows.map(r=>r.join(String.fromCharCode(9))).join(String.fromCharCode(10)));};
   return <div className="productivityPage">
     <PageHead eyebrow="Produtividade" title="Controle de produtividade">
       <button className={`btn light prodFilterBtn ${activeFilters?'active':''}`} onClick={()=>setFiltersOpen(true)}><Filter size={18}/> Filtros</button>
@@ -3303,8 +3313,8 @@ function Produtividade({data,onOpen}){
       <div className="sectionTitle"><div><h2><ClipboardList size={20}/> Fazendas do período</h2></div><span className="pill">{totalCollars} colares</span></div>
       {recentFarms.length?<div className="prodFarmRows">{recentFarms.map(f=>{
         const useful=workedHoursFor(f),collars=collarsFor(f),days=useful/dailyHours,rate=days?collars/days:0;
-        return <button className="prodFarmRow" key={f.id} onClick={()=>onOpen(f.id)}>
-          <span className="prodFarmIdentity"><b>{f.nome}</b><small><MapPin size={13}/>{f.cidade||'sem cidade'} • {centralOfficialName(f.central)||'sem central'}</small></span>
+        return <button className="prodFarmRow" key={f.session_id||f.id} onClick={()=>onOpen(f.id)}>
+          <span className="prodFarmIdentity"><b>{f.nome}</b><small><MapPin size={13}/>{f.cidade||'sem cidade'} • {centralOfficialName(f.central)||'sem central'} • {f.session_tipo||'Serviço'}</small></span>
           <span className="prodFarmMetric"><small>Período</small><b>{brDate(f.servico_inicio_em)} - {brDate(f.servico_fim_em)}</b></span>
           <span className="prodFarmMetric"><small>Horas úteis</small><b>{workDurationLabel(useful,workConfig)}</b></span>
           <span className="prodFarmMetric"><small>Colares/dia</small><b>{rate?rate.toFixed(1):'-'}</b></span>
