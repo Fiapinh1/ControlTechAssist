@@ -1773,7 +1773,7 @@ const farmIntegrationLink = (farm,data) => data.integrationLinks?.find(link=>lin
 function FarmIntegrationBadge({farm,data,compact=false}){
   const link=farmIntegrationLink(farm,data);
   if(!link)return null;
-  return <span className={`farmIntegrationBadge ${compact?'compact':''}`} title={`Criada via Routine Assist em ${brDate(link.created_at)}`}><Sparkles size={compact?12:14}/>{compact?'Routine':'Nova do Routine'}</span>;
+  return <span className={`farmIntegrationBadge iconOnly ${compact?'compact':''}`} title={`Criada via Routine Assist em ${brDate(link.created_at)}`} aria-label="Criada via Routine Assist"><Sparkles size={compact?13:15}/></span>;
 }
 function PermissionNotice(){return <div className="permissionNotice"><ShieldCheck size={18}/><span>Você está como visualizador. Pode consultar informações e relatórios, mas não alterar dados desta fazenda.</span></div>}
 
@@ -1861,15 +1861,18 @@ const FARM_VIEW_MODES = [
   ['lista','Lista',ClipboardList],
   ['carrossel','Carrossel',Sparkles]
 ];
+const FARM_PAGE_SIZES = { cards: 9, lista: 10, carrossel: 6 };
 
 function Fazendas({data,onOpen}){
   const initialFilters=useMemo(readFarmFilters,[]);
   const [q,setQ]=useState(initialFilters.q),[modal,setModal]=useState(false),[central,setCentral]=useState(initialFilters.central),[status,setStatus]=useState(initialFilters.status),[filtersOpen,setFiltersOpen]=useState(false),[settingsOpen,setSettingsOpen]=useState(false);
+  const [page,setPage]=useState(1);
   const [viewMode,setViewMode]=useState(()=>{
     try{const saved=localStorage.getItem(FARM_VIEW_KEY);return FARM_VIEW_MODES.some(([id])=>id===saved)?saved:'cards';}catch{return 'cards';}
   });
   useEffect(()=>{try{localStorage.setItem(FARM_VIEW_KEY,viewMode)}catch{}},[viewMode]);
   useEffect(()=>{try{localStorage.setItem(FARM_FILTER_KEY,JSON.stringify({q,central,status}))}catch{}},[q,central,status]);
+  useEffect(()=>{setPage(1)},[q,central,status,viewMode]);
   const visibleCentrais=allowedCentrais(data);
   useEffect(()=>{if(central!=='Todas'&&!visibleCentrais.includes(central))setCentral('Todas');},[central,visibleCentrais.join('|')]);
   const farmEquipments = (farm) => data.equipamentos.filter(e=>e.fazenda_id===farm.id);
@@ -1898,11 +1901,18 @@ function Fazendas({data,onOpen}){
   const hasActiveFilters=Boolean(q)||central!=='Todas'||status!=='Todos';
   const greetingName=shortDisplayName(personName(data.currentUser)||'Usuário');
   const saveFarm=async(r)=>{const result=await data.saveFazenda(r);if(result.ok)setModal(false)};
+  const pageSize=FARM_PAGE_SIZES[viewMode]||FARM_PAGE_SIZES.cards;
+  const totalPages=Math.max(1,Math.ceil(farms.length/pageSize));
+  const currentPage=Math.min(page,totalPages);
+  const pageStart=(currentPage-1)*pageSize;
+  const pageEnd=Math.min(pageStart+pageSize,farms.length);
+  const pagedFarms=farms.slice(pageStart,pageEnd);
+  useEffect(()=>{if(page>totalPages)setPage(totalPages)},[page,totalPages]);
   const renderFarmResults=()=>{
     if(farms.length===0) return <Empty title="Nenhuma fazenda encontrada" text="Altere os filtros ou cadastre uma nova fazenda."/>;
-    if(viewMode==='lista') return <div className="farmListView">{farms.map(f=><FarmListItem key={f.id} farm={f} data={data} onOpen={()=>onOpen(f.id)}/>)}</div>;
-    if(viewMode==='carrossel') return <div className="farmCarouselView">{farms.map(f=><FarmCard key={f.id} farm={f} data={data} onOpen={()=>onOpen(f.id)}/>)}</div>;
-    return <div className="farmGrid finderGrid farmGridModern">{farms.map(f=><FarmCard key={f.id} farm={f} data={data} onOpen={()=>onOpen(f.id)}/>)}</div>;
+    if(viewMode==='lista') return <div className="farmListView">{pagedFarms.map(f=><FarmListItem key={f.id} farm={f} data={data} onOpen={()=>onOpen(f.id)}/>)}</div>;
+    if(viewMode==='carrossel') return <div className="farmCarouselView">{pagedFarms.map(f=><FarmCard key={f.id} farm={f} data={data} onOpen={()=>onOpen(f.id)}/>)}</div>;
+    return <div className="farmGrid finderGrid farmGridModern">{pagedFarms.map(f=><FarmCard key={f.id} farm={f} data={data} onOpen={()=>onOpen(f.id)}/>)}</div>;
   };
   return <div className="farmsHome">
     <section className="farmsHeroHome">
@@ -1949,9 +1959,14 @@ function Fazendas({data,onOpen}){
 
     <section className="farmResultsPanel">
       <div className="farmResultsHeader">
-        <div><span className="eyebrow">Localizar fazenda</span><h2>{farms.length} resultado(s)</h2></div>
+        <div><span className="eyebrow">Localizar fazenda</span><h2>{farms.length} resultado(s)</h2>{farms.length>0&&<small>{pageStart+1}-{pageEnd} de {farms.length}</small>}</div>
       </div>
       {renderFarmResults()}
+      {farms.length>pageSize&&<div className="farmPagination">
+        <button type="button" className="btn light" disabled={currentPage===1} onClick={()=>setPage(p=>Math.max(1,p-1))}><ChevronLeft size={17}/> Anterior</button>
+        <span>Página <b>{currentPage}</b> de <b>{totalPages}</b></span>
+        <button type="button" className="btn light" disabled={currentPage===totalPages} onClick={()=>setPage(p=>Math.min(totalPages,p+1))}>Próxima <ChevronLeft className="rotate" size={17}/></button>
+      </div>}
     </section>
 
     <div className="fieldMapSecondary farmsMapPreview"><BrasilAtuacaoMap fazendas={data.fazendas} onOpen={onOpen} centrais={visibleCentrais}/></div>

@@ -4105,6 +4105,14 @@ body,
   letter-spacing: 0;
 }
 
+.farmResultsHeader small {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .farmViewSwitcher {
   display: inline-flex;
   align-items: center;
@@ -4380,6 +4388,72 @@ body,
 .farmIntegrationBadge.compact {
   min-height: 26px;
   padding: 5px 8px;
+}
+
+.farmIntegrationBadge.iconOnly {
+  width: 34px;
+  height: 30px;
+  min-height: 30px;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
+}
+
+.farmIntegrationBadge.iconOnly.compact {
+  width: 30px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+
+.farmPagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.farmPagination span {
+  min-width: 116px;
+  text-align: center;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.farmPagination span b {
+  color: #0f172a;
+}
+
+.farmPagination .btn {
+  min-height: 38px;
+  padding: 9px 13px;
+}
+
+.farmPagination .btn:disabled {
+  opacity: .48;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (max-width: 640px) {
+  .farmPagination {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .farmPagination span {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .farmPagination .btn {
+    width: 100%;
+  }
 }
 
 /* Cross-app shortcuts */
