@@ -2439,14 +2439,15 @@ function DadosRestritosFazenda({farm,data}){
   const existing=(data.dadosRestritos||[]).find(item=>item.fazenda_id===farm.id)||{};
   const [showSecret,setShowSecret]=useState(false);
   const [saving,setSaving]=useState(false);
+  const defaultServiceUser='service';
   const [form,setForm]=useState({
     sistema:existing.sistema||'',
-    usuario_service:existing.usuario_service||'',
-    senha_service:existing.senha_service||'',
+    usuario_service:defaultServiceUser,
+    senha_service:'',
     numero_licenca:existing.numero_licenca||'',
     observacoes_restritas:existing.observacoes_restritas||''
   });
-  useEffect(()=>setForm({sistema:existing.sistema||'',usuario_service:existing.usuario_service||'',senha_service:existing.senha_service||'',numero_licenca:existing.numero_licenca||'',observacoes_restritas:existing.observacoes_restritas||''}),[existing.id,farm.id]);
+  useEffect(()=>{setShowSecret(false);setForm({sistema:existing.sistema||'',usuario_service:defaultServiceUser,senha_service:'',numero_licenca:existing.numero_licenca||'',observacoes_restritas:existing.observacoes_restritas||''})},[existing.id,farm.id]);
   const set=(k,v)=>setForm(prev=>({...prev,[k]:v}));
   const copyValue=async(label,value)=>{if(!value){notify(`${label} vazio.`, 'warning');return;}try{await navigator.clipboard.writeText(value);notify(`${label} copiado.`);}catch{notify('Não foi possível copiar automaticamente.','error');}};
   const save=async(e)=>{e.preventDefault();setSaving(true);await data.saveDadosRestritos({...existing,...form,fazenda_id:farm.id});setSaving(false);};
@@ -2455,9 +2456,9 @@ function DadosRestritosFazenda({farm,data}){
       <div className="restrictedHeroIcon"><ShieldCheck size={24}/></div>
       <div><span className="eyebrow">Acesso restrito</span><h2>Dados internos</h2><p>Licenças, usuário de serviço e senhas ficam fora dos relatórios e ocultos para visualizadores.</p></div>
     </div>
-    <form className="restrictedForm" onSubmit={save}>
-      <div className="grid2"><Field label="Domínio"><input value={form.sistema} onChange={e=>set('sistema',e.target.value)} placeholder="Ex: fazenda.vpu-online.com"/></Field><Field label="Número da licença"><div className="secretInput"><input value={form.numero_licenca} onChange={e=>set('numero_licenca',e.target.value)} placeholder="Chave ou licença"/><button type="button" onClick={()=>copyValue('Licença',form.numero_licenca)}><Copy size={16}/></button></div></Field></div>
-      <div className="grid2"><Field label="Usuário service"><div className="secretInput"><input value={form.usuario_service} onChange={e=>set('usuario_service',e.target.value)} placeholder="Usuário de serviço"/><button type="button" onClick={()=>copyValue('Usuário',form.usuario_service)}><Copy size={16}/></button></div></Field><Field label="Senha service"><div className="secretInput"><input type={showSecret?'text':'password'} value={form.senha_service} onChange={e=>set('senha_service',e.target.value)} placeholder="Senha"/><button type="button" onClick={()=>setShowSecret(v=>!v)}><Eye size={16}/></button><button type="button" onClick={()=>copyValue('Senha',form.senha_service)}><Copy size={16}/></button></div></Field></div>
+    <form className="restrictedForm" onSubmit={save} autoComplete="off">
+      <div className="grid2"><Field label="Domínio"><input value={form.sistema} onChange={e=>set('sistema',e.target.value)} placeholder="Ex: fazenda.vpu-online.com" autoComplete="off"/></Field><Field label="Número da licença"><div className="secretInput"><input value={form.numero_licenca} onChange={e=>set('numero_licenca',e.target.value)} placeholder="Chave ou licença" autoComplete="off" name={`license-${farm.id}`}/><button type="button" onClick={()=>copyValue('Licença',form.numero_licenca)}><Copy size={16}/></button></div></Field></div>
+      <div className="grid2"><Field label="Usuário service"><div className="secretInput"><input value={form.usuario_service} onChange={e=>set('usuario_service',e.target.value)} placeholder="Usuário de serviço" autoComplete="off" autoCapitalize="none" spellCheck="false" name={`service-user-${farm.id}`}/><button type="button" onClick={()=>copyValue('Usuário',form.usuario_service)}><Copy size={16}/></button></div></Field><Field label="Senha service"><div className="secretInput"><input type={showSecret?'text':'password'} value={form.senha_service} onChange={e=>set('senha_service',e.target.value)} placeholder="Senha" autoComplete="new-password" autoCapitalize="none" spellCheck="false" name={`service-password-${farm.id}`}/><button type="button" onClick={()=>setShowSecret(v=>!v)}><Eye size={16}/></button><button type="button" onClick={()=>copyValue('Senha',form.senha_service)}><Copy size={16}/></button></div></Field></div>
       <Field label="Observações restritas"><textarea value={form.observacoes_restritas} onChange={e=>set('observacoes_restritas',e.target.value)} placeholder="Configurações Nedap, acessos, IPs, contatos internos ou qualquer dado que não deve aparecer para visualizadores."/></Field>
       <div className="restrictedActions"><button className="btn primary" disabled={saving}><Save size={18}/> {saving?'Salvando...':'Salvar dados restritos'}</button>{existing.updated_at&&<small>Última atualização: {brDateTime(existing.updated_at)}</small>}</div>
     </form>
