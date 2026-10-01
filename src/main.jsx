@@ -2442,12 +2442,12 @@ function DadosRestritosFazenda({farm,data}){
   const defaultServiceUser='service';
   const [form,setForm]=useState({
     sistema:existing.sistema||'',
-    usuario_service:defaultServiceUser,
-    senha_service:'',
+    usuario_service:existing.usuario_service||defaultServiceUser,
+    senha_service:existing.senha_service||'',
     numero_licenca:existing.numero_licenca||'',
     observacoes_restritas:existing.observacoes_restritas||''
   });
-  useEffect(()=>{setShowSecret(false);setForm({sistema:existing.sistema||'',usuario_service:defaultServiceUser,senha_service:'',numero_licenca:existing.numero_licenca||'',observacoes_restritas:existing.observacoes_restritas||''})},[existing.id,farm.id]);
+  useEffect(()=>{setShowSecret(false);setForm({sistema:existing.sistema||'',usuario_service:existing.usuario_service||defaultServiceUser,senha_service:existing.senha_service||'',numero_licenca:existing.numero_licenca||'',observacoes_restritas:existing.observacoes_restritas||''})},[existing.id,farm.id]);
   const set=(k,v)=>setForm(prev=>({...prev,[k]:v}));
   const copyValue=async(label,value)=>{if(!value){notify(`${label} vazio.`, 'warning');return;}try{await navigator.clipboard.writeText(value);notify(`${label} copiado.`);}catch{notify('Não foi possível copiar automaticamente.','error');}};
   const save=async(e)=>{e.preventDefault();setSaving(true);await data.saveDadosRestritos({...existing,...form,fazenda_id:farm.id});setSaving(false);};
