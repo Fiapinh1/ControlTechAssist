@@ -112,6 +112,7 @@ const visitServiceSessions = (farm, visits = []) => visits
     status: visitDisplayStatus(v),
     start: v.iniciada_em,
     end: v.finalizada_em || null,
+    responsible: v.responsavel_tecnico || farm?.servico_responsavel || '',
     open: Boolean(v.iniciada_em && !v.finalizada_em),
     visit: v
   }))
@@ -126,6 +127,7 @@ const farmServiceSessions = (farm, visits = []) => {
     status: farmStatus(farm),
     start: farm.servico_inicio_em,
     end: farm.servico_fim_em || null,
+    responsible: farm.servico_responsavel || '',
     open: Boolean(farm.servico_inicio_em && !farm.servico_fim_em),
     visit: null
   }];
@@ -145,6 +147,14 @@ const hoursLabel = hours => {
 const serviceTotalLabel = (farm, visits = []) => hoursLabel(serviceTotalHours(farm, visits));
 const firstServiceStart = sessions => sessions[0]?.start || '';
 const lastServiceEnd = sessions => [...sessions].reverse().find(session => session.end)?.end || '';
+const serviceResponsibleLabel = (farm, visits = []) => {
+  const names = farmServiceSessions(farm, visits)
+    .map(session => cleanDisplayName(session.responsible))
+    .filter(Boolean)
+    .filter((name, index, list) => list.findIndex(item => item.toLowerCase() === name.toLowerCase()) === index);
+  if (!names.length && farm?.servico_responsavel) names.push(cleanDisplayName(farm.servico_responsavel));
+  return names.join(', ');
+};
 const serviceSessionText = (session) => {
   if (!session?.start) return '';
   const endText = session.end ? brDateTime(session.end) : 'em andamento';
@@ -2298,8 +2308,58 @@ function ServiceModal({farm,data,mode='adjust',pendingEquips=[],onClose,onSave})
   </Modal>
 }
 
+function ServicePeriodsModal({farm,visits=[],canEdit=false,onClose,onEditVisit,onEditLegacy}){
+  const sessions=[...farmServiceSessions(farm,visits)].reverse();
+  return <Modal title="Atendimentos da fazenda" onClose={onClose}>
+    <div className="modalBody servicePeriodsModal">
+      <div className="servicePeriodsIntro"><Clock size={22}/><div><span className="eyebrow">Histórico de produtividade</span><h3>{sessions.length} atendimento(s)</h3><p>Corrija horários e técnico no período correspondente. O tempo total será recalculado automaticamente.</p></div></div>
+      <div className="servicePeriodList">{sessions.map((session,index)=><article key={session.id} className={session.open?'open':''}>
+        <div className="servicePeriodNumber">{sessions.length-index}</div>
+        <div className="servicePeriodContent"><div><b>{session.tipo}</b><span>{serviceSessionText(session)}</span></div><small><UserCheck size={14}/>{session.responsible||'Técnico não informado'}</small></div>
+        {canEdit&&<button type="button" className="iconBtn" aria-label={`Editar atendimento ${session.tipo}`} title="Corrigir horário ou técnico" onClick={()=>session.visit?onEditVisit(session.visit):onEditLegacy()}><Pencil size={17}/></button>}
+      </article>)}</div>
+      {!sessions.length&&<Empty icon={Clock} title="Nenhum atendimento registrado" text="Inicie o serviço para criar o primeiro período."/>}
+      <div className="servicePeriodsTotal"><span>Tempo total registrado</span><b>{serviceTotalLabel(farm,visits)}</b></div>
+    </div>
+  </Modal>
+}
+
+function ServiceSessionEditModal({farm,visit,data,onClose,onSave}){
+  const currentUserName=personName(data.currentUser);
+  const options=serviceResponsibleOptions(data,farm,currentUserName);
+  const [form,setForm]=useState({
+    iniciada_em:dateTimeInput(visit.iniciada_em),
+    finalizada_em:dateTimeInput(visit.finalizada_em),
+    responsavel_tecnico:visit.responsavel_tecnico||farm.servico_responsavel||currentUserName||''
+  });
+  const [saving,setSaving]=useState(false);
+  const set=(key,value)=>setForm(prev=>({...prev,[key]:value}));
+  const submit=async event=>{
+    event.preventDefault();
+    const start=toIsoOrNull(form.iniciada_em);
+    const end=toIsoOrNull(form.finalizada_em);
+    if(!start){notify('Informe o início do atendimento.','warning');return;}
+    if(end&&new Date(end)<=new Date(start)){notify('O fim precisa ser posterior ao início.','warning');return;}
+    if(!cleanDisplayName(form.responsavel_tecnico)){notify('Informe o técnico responsável.','warning');return;}
+    setSaving(true);
+    const result=await onSave({...visit,data_visita:dateInputFromIso(start),iniciada_em:start,finalizada_em:end,responsavel_tecnico:cleanDisplayName(form.responsavel_tecnico),updated_at:nowISO()});
+    setSaving(false);
+    if(result?.ok!==false)onClose();
+  };
+  return <Modal title="Ajustar atendimento" onClose={onClose}>
+    <form className="form modern serviceSessionEdit" onSubmit={submit}>
+      <div className="serviceSessionEditHero"><div><Clock size={22}/></div><span><small>{visit.tipo||'Visita'} • {brDate(visit.data_visita)}</small><b>Corrigir período registrado</b><p>Use quando o início ou o fim não foi registrado no horário correto.</p></span></div>
+      <div className="grid2"><Field label="Início do atendimento" icon={PlayCircle}><input type="datetime-local" value={form.iniciada_em} onChange={e=>set('iniciada_em',e.target.value)} required/></Field><Field label="Fim do atendimento" icon={CheckCircle2}><input type="datetime-local" value={form.finalizada_em} onChange={e=>set('finalizada_em',e.target.value)}/></Field></div>
+      <ResponsibleServiceField value={form.responsavel_tecnico} onChange={value=>set('responsavel_tecnico',value)} options={options}/>
+      <div className="serviceEditNotice"><Info size={16}/><span>Essa correção atualiza o histórico, os relatórios e o total de horas da fazenda.</span></div>
+      <div className="stickyFormActions"><button type="button" className="btn light" onClick={onClose} disabled={saving}>Cancelar</button><button className="btn primary" disabled={saving}><Save size={18}/>{saving?'Salvando...':'Salvar correção'}</button></div>
+    </form>
+  </Modal>
+}
+
 function FazendaDetalhe({farm,data,onBack}){
   const [tab,setTab]=useState('resumo'),[edit,setEdit]=useState(false),[equipModal,setEquipModal]=useState(null),[visitModal,setVisitModal]=useState(false),[serviceModal,setServiceModal]=useState(null);
+  const [servicePeriodsOpen,setServicePeriodsOpen]=useState(false),[serviceSessionEdit,setServiceSessionEdit]=useState(null);
   const [deleteConfirm,setDeleteConfirm]=useState(false),[deletingFarm,setDeletingFarm]=useState(false);
   const access=farmAccess(farm,data);
   const equips=data.equipamentos.filter(e=>e.fazenda_id===farm.id), visits=data.visitas.filter(v=>v.fazenda_id===farm.id), checks=data.checklists.filter(c=>c.fazenda_id===farm.id), diags=data.diagnosticos.filter(d=>d.fazenda_id===farm.id), evidencias=(data.evidencias||[]).filter(e=>e.fazenda_id===farm.id);
@@ -2325,10 +2385,11 @@ function FazendaDetalhe({farm,data,onBack}){
     const result=await data.saveFazenda({...farm,servico_inicio_em:startedAt,servico_fim_em:null,servico_responsavel:farm.servico_responsavel||currentResponsible||farm.regional_nome||farm.responsavel||'',status:'Em andamento'});
     if(!result.ok)return;
     if(!openVisit){
-      await data.saveVisita({id:uid(),fazenda_id:farm.id,tipo:'Instalação',data_visita:todayInput(),resumo:'Serviço iniciado em campo.',status:VISIT_STATUS_OPEN,iniciada_em:startedAt,created_at:startedAt,updated_at:startedAt});
+      await data.saveVisita({id:uid(),fazenda_id:farm.id,tipo:'Instalação',data_visita:todayInput(),resumo:'Serviço iniciado em campo.',status:VISIT_STATUS_OPEN,iniciada_em:startedAt,responsavel_tecnico:farm.servico_responsavel||currentResponsible||farm.regional_nome||farm.responsavel||'',created_at:startedAt,updated_at:startedAt});
       notify('Serviço iniciado e visita aberta.');
       return;
     }
+    await data.saveVisita({...openVisit,iniciada_em:openVisit.iniciada_em||startedAt,responsavel_tecnico:openVisit.responsavel_tecnico||farm.servico_responsavel||currentResponsible||farm.regional_nome||farm.responsavel||'',updated_at:nowISO()});
     notify(`Serviço iniciado. Visita aberta mantida: ${brDate(openVisit.data_visita)}.`);
   };
   const startReturnFromVisit=async(sourceVisit)=>{
@@ -2337,7 +2398,7 @@ function FazendaDetalhe({farm,data,onBack}){
     const startedAt=nowISO();
     const serviceResult=await data.saveFazenda({...farm,servico_inicio_em:startedAt,servico_fim_em:null,servico_responsavel:farm.servico_responsavel||currentResponsible||farm.regional_nome||farm.responsavel||'',status:'Em andamento'});
     if(!serviceResult.ok)return;
-    const returnVisit={id:uid(),fazenda_id:farm.id,tipo:'Retorno',data_visita:todayInput(),resumo:`Retorno iniciado para resolver pendência da visita de ${brDate(sourceVisit.data_visita)}.`,status:VISIT_STATUS_OPEN,iniciada_em:startedAt,parent_visit_id:sourceVisit.id,retorno_necessario:false,created_at:startedAt,updated_at:startedAt};
+    const returnVisit={id:uid(),fazenda_id:farm.id,tipo:'Retorno',data_visita:todayInput(),resumo:`Retorno iniciado para resolver pendência da visita de ${brDate(sourceVisit.data_visita)}.`,status:VISIT_STATUS_OPEN,iniciada_em:startedAt,responsavel_tecnico:farm.servico_responsavel||currentResponsible||farm.regional_nome||farm.responsavel||'',parent_visit_id:sourceVisit.id,retorno_necessario:false,created_at:startedAt,updated_at:startedAt};
     await data.saveVisita(returnVisit);
     await data.saveVisita({...sourceVisit,status:VISIT_STATUS_WAITING_RETURN,retorno_necessario:true,updated_at:startedAt});
     setTab('visitas');
@@ -2368,7 +2429,8 @@ function FazendaDetalhe({farm,data,onBack}){
         ...openVisit,
         data_visita:dateInputFromIso(startedAt),
         iniciada_em:startedAt,
-        finalizada_em:endedAt
+        finalizada_em:endedAt,
+        responsavel_tecnico:payload.servico_responsavel||openVisit.responsavel_tecnico||''
       });
       await data.saveVisita(closedVisit);
       if(openVisit.parent_visit_id&&!visitHasOpenPending(closedVisit)){
@@ -2381,6 +2443,7 @@ function FazendaDetalhe({farm,data,onBack}){
         data_visita:startedAt?dateInputFromIso(startedAt):openVisit.data_visita,
         iniciada_em:startedAt||openVisit.iniciada_em,
         finalizada_em:endedAt||null,
+        responsavel_tecnico:payload.servico_responsavel||openVisit.responsavel_tecnico||'',
         updated_at:nowISO()
       };
       await data.saveVisita(endedAt?closeVisitPayload(adjustedVisit):{...adjustedVisit,status:VISIT_STATUS_OPEN});
@@ -2388,6 +2451,19 @@ function FazendaDetalhe({farm,data,onBack}){
     setServiceModal(null);
     notify(finishing?(openVisit&&visitHasPending(openVisit)?'Serviço finalizado com pendência registrada na visita.':'Serviço finalizado e visita encerrada.'):'Ajuste do serviço salvo.');
     return result;
+  };
+  const saveServiceSession=async row=>{
+    if(!access.canEdit)return {ok:false};
+    const visitResult=await data.saveVisita(row);
+    if(!visitResult.ok)return visitResult;
+    const nextVisits=visits.map(item=>item.id===row.id?row:item);
+    const latest=[...nextVisits].filter(item=>item.iniciada_em).sort((a,b)=>new Date(b.iniciada_em)-new Date(a.iniciada_em))[0];
+    if(latest?.id===row.id){
+      const farmResult=await data.saveFazenda({...farm,servico_inicio_em:row.iniciada_em,servico_fim_em:row.finalizada_em||null,servico_responsavel:row.responsavel_tecnico||farm.servico_responsavel||'',status:autoServiceStatus(row.iniciada_em,row.finalizada_em,farm.status)});
+      if(!farmResult.ok)return farmResult;
+    }
+    notify('Atendimento corrigido. Horas e técnico foram atualizados.');
+    return {ok:true};
   };
   return <div className="farmDetail">
     <button className="back" onClick={onBack}><ChevronLeft size={18}/> Voltar para fazendas</button>
@@ -2406,10 +2482,10 @@ function FazendaDetalhe({farm,data,onBack}){
     </section>
     {!access.canEdit&&<PermissionNotice/>}
     <div className="tabs farmTabs">{tabs.map(([id,label,Icon])=><button key={id} onClick={()=>setTab(id)} className={tab===id?'active':''}><Icon size={17}/>{label}</button>)}</div>
-    {tab==='resumo'&&<FarmExecutiveSummary farm={farm} visits={visits} checks={checks} diags={diags} equips={equips} evidencias={evidencias} canEdit={access.canEdit} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)} onAdjustService={()=>setServiceModal('adjust')} onNewVisit={openVisitModal} onOpenMap={()=>setTab('mapa')} onNavigate={goTab}/>}
+    {tab==='resumo'&&<FarmExecutiveSummary farm={farm} visits={visits} checks={checks} diags={diags} equips={equips} evidencias={evidencias} canEdit={access.canEdit} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)} onAdjustService={()=>farmServiceSessions(farm,visits).some(session=>session.visit)?setServicePeriodsOpen(true):setServiceModal('adjust')} onNewVisit={openVisitModal} onOpenMap={()=>setTab('mapa')} onNavigate={goTab}/>}
     {tab==='checklists'&&<ChecklistsFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='equipamentos'&&<EquipamentosFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={()=>setEquipModal({})}/>} {tab==='mapa'&&<MapaFazenda farm={farm} data={data} canEdit={access.canEdit} onEditEquip={openEquipmentFromMap}/>} {tab==='visitas'&&<VisitasFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={openVisitModal} onStartReturn={startReturnFromVisit}/>} {tab==='evidencias'&&<EvidenciasFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='relatorio'&&<RelatorioFazenda farm={farm} data={data}/>} {tab==='restrito'&&access.canEdit&&<DadosRestritosFazenda farm={farm} data={data}/>} {tab==='acessos'&&<AcessosFazenda farm={farm} data={data} access={access}/>}
     <FarmBottomNav farm={farm} tabs={tabs} tab={tab} setTab={setTab} onBack={onBack} access={access} serviceActive={serviceActive} serviceDone={serviceDone} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)} onNewVisit={openVisitModal}/>
-    {edit&&access.canEdit&&<FazendaModal farm={farm} data={data} onClose={()=>setEdit(false)} onSave={async(r)=>{const result=await data.saveFazenda(r);if(result.ok)setEdit(false)}}/>}{serviceModal&&access.canEdit&&<ServiceModal farm={farm} data={data} mode={serviceModal} pendingEquips={equips.filter(isEquipmentPendingInstall)} onClose={()=>setServiceModal(null)} onSave={saveService}/>} {equipModal&&access.canEdit&&<EquipModal farm={farm} data={data} equip={equipModal} onClose={()=>setEquipModal(null)} onSave={async(r)=>{const result=await data.saveEquipamento(r);if(result.ok)setEquipModal(null)}}/>}{visitModal&&access.canEdit&&<VisitModal farm={farm} onClose={()=>setVisitModal(false)} onSave={saveVisitFromDetail}/>} {deleteConfirm&&<DeleteFarmModal farm={farm} busy={deletingFarm} onCancel={()=>setDeleteConfirm(false)} onConfirm={deleteFarm}/>}
+    {edit&&access.canEdit&&<FazendaModal farm={farm} data={data} onClose={()=>setEdit(false)} onSave={async(r)=>{const result=await data.saveFazenda(r);if(result.ok)setEdit(false)}}/>}{serviceModal&&access.canEdit&&<ServiceModal farm={farm} data={data} mode={serviceModal} pendingEquips={equips.filter(isEquipmentPendingInstall)} onClose={()=>setServiceModal(null)} onSave={saveService}/>} {servicePeriodsOpen&&<ServicePeriodsModal farm={farm} visits={visits} canEdit={access.canEdit} onClose={()=>setServicePeriodsOpen(false)} onEditLegacy={()=>{setServicePeriodsOpen(false);setServiceModal('adjust')}} onEditVisit={visit=>{setServicePeriodsOpen(false);setServiceSessionEdit(visit)}}/>}{serviceSessionEdit&&access.canEdit&&<ServiceSessionEditModal farm={farm} visit={serviceSessionEdit} data={data} onClose={()=>setServiceSessionEdit(null)} onSave={saveServiceSession}/>} {equipModal&&access.canEdit&&<EquipModal farm={farm} data={data} equip={equipModal} onClose={()=>setEquipModal(null)} onSave={async(r)=>{const result=await data.saveEquipamento(r);if(result.ok)setEquipModal(null)}}/>}{visitModal&&access.canEdit&&<VisitModal farm={farm} data={data} onClose={()=>setVisitModal(false)} onSave={saveVisitFromDetail}/>} {deleteConfirm&&<DeleteFarmModal farm={farm} busy={deletingFarm} onCancel={()=>setDeleteConfirm(false)} onConfirm={deleteFarm}/>}
   </div>
 }
 
@@ -2478,6 +2554,7 @@ function FarmExecutiveSummary({farm,visits,checks,diags,equips,evidencias=[],can
   const progress=collarProgress(farm);
   const status=farmStatus(farm), active=Boolean(farm.servico_inicio_em&&!farm.servico_fim_em), done=Boolean(farm.servico_inicio_em&&farm.servico_fim_em);
   const serviceSessions=farmServiceSessions(farm,visits), firstStart=firstServiceStart(serviceSessions), lastEnd=lastServiceEnd(serviceSessions), totalServiceLabel=serviceTotalLabel(farm,visits);
+  const responsibleLabel=serviceResponsibleLabel(farm,visits);
   const hasLocation=farm.latitude&&farm.longitude, mapped=equips.filter(e=>e.latitude&&e.longitude).length, pendingVisits=visits.filter(visitHasOpenPending).length;
   const remaining=collarRemaining(farm);
   const cityUf=`${farm.cidade||''}${getFarmUF(farm)?` / ${getFarmUF(farm)}`:''}`.trim();
@@ -2501,7 +2578,7 @@ function FarmExecutiveSummary({farm,visits,checks,diags,equips,evidencias=[],can
     firstStart&&['Primeiro início do serviço',brDateTime(firstStart),Clock],
     lastEnd&&['Último fim do serviço',brDateTime(lastEnd),CheckCircle2],
     serviceSessions.length&&['Atendimentos',serviceSessions.length,CalendarDays],
-    farm.servico_responsavel&&['Responsável técnico',farm.servico_responsavel,User],
+    responsibleLabel&&['Responsável técnico',responsibleLabel,User],
     delivered>0&&['Colares entregues ao cliente',delivered,BadgeCheck],
     farm.motivo_colares_restantes&&['Motivo dos colares restantes',farm.motivo_colares_restantes,AlertTriangle],
     farm.observacoes_colares&&['Observação dos colares',farm.observacoes_colares,Info],
@@ -2509,7 +2586,7 @@ function FarmExecutiveSummary({farm,visits,checks,diags,equips,evidencias=[],can
     canEdit&&farm.servico_observacoes&&['Observações do serviço',farm.servico_observacoes,Info]
   ].filter(Boolean);
   const serviceAction=active?['Finalizar',CheckCircle2,onFinish]:[serviceSessions.length?'Novo serviço':'Iniciar',PlayCircle,onStart];
-  const serviceAdjustButton=null;
+  const serviceAdjustButton=canEdit&&serviceSessions.length?<button type="button" className="serviceMiniEdit" onClick={onAdjustService} aria-label="Ajustar atendimentos" title="Corrigir horários ou técnico"><Pencil size={15}/></button>:null;
   return <section className="panel executiveSummaryPanel compactExecutiveSummary">
     <div className="execSummaryHead">
       <div><span className="eyebrow">Resumo</span><h2><Gauge size={22}/> Operação</h2></div>
@@ -2697,6 +2774,20 @@ function VisitasFazenda({farm,data,openNew,onStartReturn,canEdit=true}){
   const openVisit=visits.find(isOpenVisit), pending=visits.filter(v=>[VISIT_STATUS_PENDING,VISIT_STATUS_WAITING_RETURN].includes(visitDisplayStatus(v))), done=visits.filter(v=>[VISIT_STATUS_DONE,VISIT_STATUS_RESOLVED_RETURN].includes(visitDisplayStatus(v))).length, last=visits[0];
   const evidenceCount=id=>(data.evidencias||[]).filter(ev=>ev.visita_id===id).length;
   const visitById=id=>visits.find(v=>v.id===id);
+  const saveEditedVisit=async row=>{
+    const result=await data.saveVisita(row);
+    if(!result.ok)return result;
+    if(row.iniciada_em){
+      const nextVisits=visits.map(item=>item.id===row.id?row:item);
+      const latest=[...nextVisits].filter(item=>item.iniciada_em).sort((a,b)=>new Date(b.iniciada_em)-new Date(a.iniciada_em))[0];
+      if(latest?.id===row.id){
+        const farmResult=await data.saveFazenda({...farm,servico_inicio_em:row.iniciada_em,servico_fim_em:row.finalizada_em||null,servico_responsavel:row.responsavel_tecnico||farm.servico_responsavel||'',status:autoServiceStatus(row.iniciada_em,row.finalizada_em,farm.status)});
+        if(!farmResult.ok)return farmResult;
+      }
+    }
+    notify('Visita atualizada.');
+    return {ok:true};
+  };
   return <section className="panel visitsPanel">
     <div className="sectionTitle visitsHead"><div><span className="eyebrow">Campo</span><h2><CalendarDays size={22}/> Visitas</h2></div>{canEdit&&<button className="btn primary" onClick={openNew}><Plus size={17}/> Nova visita</button>}</div>
     {!canEdit&&<PermissionNotice/>}
@@ -2717,6 +2808,7 @@ function VisitasFazenda({farm,data,openNew,onStartReturn,canEdit=true}){
           {parent&&<div className="visitReturnLink"><Route size={14}/> Retorno da visita de {brDate(parent.data_visita)}</div>}
           {resolvedBy&&<div className="visitReturnLink resolved"><CheckCircle2 size={14}/> Resolvida pelo retorno de {brDate(resolvedBy.data_visita)}</div>}
           {serviceText&&<div className="visitServicePeriod"><Clock size={14}/> {serviceText}</div>}
+          {v.responsavel_tecnico&&<div className="visitTechnician"><UserCheck size={14}/> {v.responsavel_tecnico}</div>}
           <p>{summary}</p>
           {tone==='open'?<div className="visitOpenBox"><PlayCircle size={15}/> Em andamento</div>:hasPending?<div className="visitPendingBox"><AlertTriangle size={15}/><span><b>{status===VISIT_STATUS_WAITING_RETURN?'Aguardando retorno':'Pendência'}</b>{v.pendencias||v.proxima_acao}</span></div>:<div className="visitOkBox"><CheckCircle2 size={15}/>{status===VISIT_STATUS_RESOLVED_RETURN?'Pendência resolvida por retorno':'Sem pendências registradas'}</div>}
           <footer><button className="btn light" onClick={()=>setViewing(v)}><Info size={15}/> Ver</button>{canStartReturn&&<button className="btn primary" onClick={()=>onStartReturn?.(v)}><Route size={15}/> Iniciar retorno</button>}{canEdit&&<button className="btn light" onClick={()=>setPhotoVisit(v)}><Camera size={15}/> Fotos</button>}{canEdit&&<button className="btn light" onClick={()=>setEditing(v)}><Pencil size={15}/> Editar</button>}{canEdit&&<button className="btn light dangerInline" onClick={()=>data.delVisita(v.id)}><Trash2 size={15}/> Excluir</button>}</footer>
@@ -2726,14 +2818,14 @@ function VisitasFazenda({farm,data,openNew,onStartReturn,canEdit=true}){
     {visits.length===0&&<Empty icon={CalendarDays} title="Nenhuma visita registrada" text="Registre instalação, diagnóstico, retorno ou suporte."/>}
     {viewing&&<VisitDetailModal visit={viewing} visits={visits} evidencias={(data.evidencias||[]).filter(ev=>ev.visita_id===viewing.id)} onClose={()=>setViewing(null)}/>}
     {photoVisit&&canEdit&&<EvidenceUploadModal farm={farm} data={data} visita={photoVisit} onClose={()=>setPhotoVisit(null)}/>}
-    {editing&&canEdit&&<VisitModal farm={farm} visit={editing} onClose={()=>setEditing(null)} onSave={async(r)=>{await data.saveVisita(r);setEditing(null)}}/>}
+    {editing&&canEdit&&<VisitModal farm={farm} visit={editing} data={data} onClose={()=>setEditing(null)} onSave={async(r)=>{const result=await saveEditedVisit(r);if(result.ok)setEditing(null)}}/>}
   </section>
 }
 function VisitDetailModal({visit,visits=[],evidencias=[],onClose}){
   const hasPending=visitHasOpenPending(visit), status=visitDisplayStatus(visit), open=isOpenVisit(visit), parent=visits.find(v=>v.id===visit.parent_visit_id), resolvedBy=visits.find(v=>v.id===visit.resolved_by_visit_id);
   const photos=evidencias.filter(item=>evidenceSrc(item));
   const serviceText=visitServiceText(visit);
-  const details=[['Problemas',visit.problemas,AlertTriangle],['Solução',visit.solucao,CheckCircle2],['Próxima ação',visit.proxima_acao,Navigation]].filter(([,value])=>String(value||'').trim());
+  const details=[['Técnico responsável',visit.responsavel_tecnico,UserCheck],['Problemas',visit.problemas,AlertTriangle],['Solução',visit.solucao,CheckCircle2],['Próxima ação',visit.proxima_acao,Navigation]].filter(([,value])=>String(value||'').trim());
   return <Modal title={`${visit.tipo} • ${brDate(visit.data_visita)}`} onClose={onClose}><div className="modalBody visitDetailModal">
     <div className={`visitDetailStatus ${open?'open':hasPending?'pending':'ok'}`}>{open?<PlayCircle size={24}/>:hasPending?<AlertTriangle size={24}/>:<CheckCircle2 size={24}/>}<div><b>{status}</b><span>{open?'Visita em andamento.':hasPending?'Existe uma ação pendente registrada.':status===VISIT_STATUS_RESOLVED_RETURN?'Pendência resolvida por retorno.':'Sem pendências registradas.'}</span></div></div>
     {parent&&<section className="visitDetailSection return"><h3>Retorno vinculado</h3><p>Esta visita é retorno da visita de {brDate(parent.data_visita)}.</p></section>}
@@ -2822,8 +2914,11 @@ function EvidenceEditModal({item,equips,visits,onClose,onSave}){
   return <Modal title="Editar evidência" onClose={onClose}><form className="form" onSubmit={e=>{e.preventDefault();onSave({...form,descricao:''})}}><Field label="Categoria"><select value={form.categoria} onChange={e=>set('categoria',e.target.value)}>{EVIDENCE_CATEGORIES.map(c=><option key={c}>{c}</option>)}</select></Field><div className="grid2"><Field label="Equipamento"><select value={form.equipamento_id||''} onChange={e=>{set('equipamento_id',e.target.value);if(e.target.value)set('visita_id','')}}><option value="">Registro geral</option>{equips.map(eq=><option key={eq.id} value={eq.id}>{eq.apelido||eq.local_nome||eq.tipo}</option>)}</select></Field><Field label="Visita"><select value={form.visita_id||''} onChange={e=>{set('visita_id',e.target.value);if(e.target.value)set('equipamento_id','')}}><option value="">Sem vínculo</option>{visits.map(v=><option key={v.id} value={v.id}>{v.tipo} - {brDate(v.data_visita)}</option>)}</select></Field></div><label className="optionCheck"><input type="checkbox" checked={form.inclui_relatorio} onChange={e=>set('inclui_relatorio',e.target.checked)}/> Incluir no relatório técnico</label><button className="btn primary full"><Save size={18}/> Salvar evidência</button></form></Modal>
 }
 
-function VisitModal({farm,visit={},onClose,onSave}){
-  const [form,setForm]=useState({id:visit.id||uid(),fazenda_id:farm.id,tipo:visit.tipo||'Instalação',data_visita:visit.data_visita||todayInput(),resumo:visit.resumo||'',problemas:visit.problemas||'',solucao:visit.solucao||'',pendencias:visit.pendencias||'',proxima_acao:visit.proxima_acao||'',status:visit.status||'',iniciada_em:visit.iniciada_em||'',finalizada_em:visit.finalizada_em||'',parent_visit_id:visit.parent_visit_id||null,resolved_by_visit_id:visit.resolved_by_visit_id||null,resolved_at:visit.resolved_at||null,retorno_necessario:visit.retorno_necessario||visitNeedsReturn(visit),created_at:visit.created_at||nowISO()});
+function VisitModal({farm,visit={},data={},onClose,onSave}){
+  const hasServicePeriod=Boolean(visit.iniciada_em||visit.finalizada_em);
+  const currentUserName=personName(data.currentUser);
+  const responsibleOptions=serviceResponsibleOptions(data,farm,currentUserName);
+  const [form,setForm]=useState({id:visit.id||uid(),fazenda_id:farm.id,tipo:visit.tipo||'Instalação',data_visita:visit.data_visita||todayInput(),resumo:visit.resumo||'',problemas:visit.problemas||'',solucao:visit.solucao||'',pendencias:visit.pendencias||'',proxima_acao:visit.proxima_acao||'',status:visit.status||'',iniciada_em:dateTimeInput(visit.iniciada_em),finalizada_em:dateTimeInput(visit.finalizada_em),responsavel_tecnico:visit.responsavel_tecnico||farm.servico_responsavel||currentUserName||'',parent_visit_id:visit.parent_visit_id||null,resolved_by_visit_id:visit.resolved_by_visit_id||null,resolved_at:visit.resolved_at||null,retorno_necessario:visit.retorno_necessario||visitNeedsReturn(visit),created_at:visit.created_at||nowISO()});
   const [hasPending,setHasPending]=useState(visitHasPending(visit));
   const [needsReturn,setNeedsReturn]=useState(visitNeedsReturn(visit));
   const [keepOpen,setKeepOpen]=useState(isOpenVisit(visit));
@@ -2839,14 +2934,19 @@ function VisitModal({farm,visit={},onClose,onSave}){
     e.preventDefault();
     const pendingText=String(form.pendencias||form.proxima_acao||'').trim();
     if(hasPending&&!pendingText){notify('Informe a pendência ou próxima ação.','warning');return;}
+    const startedAt=hasServicePeriod?toIsoOrNull(form.iniciada_em):null;
+    const enteredEnd=hasServicePeriod?toIsoOrNull(form.finalizada_em):null;
+    if(hasServicePeriod&&!startedAt){notify('Informe o início do atendimento.','warning');return;}
+    if(startedAt&&enteredEnd&&new Date(enteredEnd)<=new Date(startedAt)){notify('O fim precisa ser posterior ao início.','warning');return;}
     const status=keepOpen?VISIT_STATUS_OPEN:hasPending?(needsReturn?VISIT_STATUS_WAITING_RETURN:VISIT_STATUS_PENDING):VISIT_STATUS_DONE;
-    const finishedAt=keepOpen?null:(form.finalizada_em||nowISO());
-    const clean={...form,status,retorno_necessario:hasPending&&needsReturn,iniciada_em:form.iniciada_em||(keepOpen?nowISO():null),finalizada_em:finishedAt,resumo:String(form.resumo||'').trim()||`${form.tipo} registrada ${hasPending?'com pendência':'sem pendências'} em ${brDate(form.data_visita)}.`};
+    const finishedAt=keepOpen?null:(hasServicePeriod?(enteredEnd||nowISO()):nowISO());
+    const clean={...form,status,retorno_necessario:hasPending&&needsReturn,iniciada_em:hasServicePeriod?startedAt:(keepOpen?nowISO():null),finalizada_em:finishedAt,responsavel_tecnico:hasServicePeriod?cleanDisplayName(form.responsavel_tecnico):visit.responsavel_tecnico||null,resumo:String(form.resumo||'').trim()||`${form.tipo} registrada ${hasPending?'com pendência':'sem pendências'} em ${brDate(form.data_visita)}.`};
     if(!hasPending){clean.pendencias='';clean.proxima_acao='';clean.retorno_necessario=false;}
     onSave(clean);
   };
   return <Modal title={visit.id?'Editar visita':'Nova visita'} onClose={onClose}><form className="form modern visitEditor" onSubmit={submit}>
     <div className="grid2 visitEditorTop"><Field label="Tipo"><select value={form.tipo} onChange={e=>set('tipo',e.target.value)}>{VISIT_TYPES.map(t=><option key={t}>{t}</option>)}</select></Field><Field label="Data"><input type="date" value={form.data_visita} onChange={e=>set('data_visita',e.target.value)}/></Field></div>
+    {hasServicePeriod&&<section className="visitServiceEditor"><div className="visitServiceEditorTitle"><Clock size={18}/><div><b>Período do atendimento</b><span>Corrija horários ou o técnico quando o registro em campo ficar incorreto.</span></div></div><div className="grid2"><Field label="Início"><input type="datetime-local" value={form.iniciada_em} onChange={e=>{set('iniciada_em',e.target.value);if(e.target.value)set('data_visita',e.target.value.slice(0,10))}} required/></Field><Field label="Fim"><input type="datetime-local" value={form.finalizada_em} onChange={e=>set('finalizada_em',e.target.value)}/></Field></div><ResponsibleServiceField value={form.responsavel_tecnico} onChange={value=>set('responsavel_tecnico',value)} options={responsibleOptions}/></section>}
     <div className="visitOutcome"><button type="button" className={!hasPending?'active ok':''} onClick={()=>applyQuick('ok')}><CheckCircle2 size={18}/><b>Tudo certo</b><span>sem pendência</span></button><button type="button" className={hasPending?'active pending':''} onClick={()=>applyQuick('pending')}><AlertTriangle size={18}/><b>Com pendência</b><span>precisa ação</span></button></div>
     <div className="visitQuickChips"><button type="button" onClick={()=>applyQuick('ok')}><Check size={14}/> Concluída</button><button type="button" onClick={()=>applyQuick('validado')}><ClipboardCheck size={14}/> Validada</button><button type="button" onClick={()=>applyQuick('return')}><Route size={14}/> Precisa retorno</button></div>
     {(visit.id||keepOpen)&&<div className={`visitOpenEditor ${keepOpen?'active':''}`}><Clock size={17}/><div><b>{keepOpen?'Visita aberta':'Visita será encerrada'}</b><span>{keepOpen?'Use enquanto o serviço está em andamento.':'Ao salvar, entra no histórico da fazenda.'}</span></div>{keepOpen?<button type="button" className="btn light" onClick={()=>setKeepOpen(false)}><CheckCircle2 size={15}/> Encerrar ao salvar</button>:visit.id&&isOpenVisit(visit)&&<button type="button" className="btn light" onClick={()=>setKeepOpen(true)}><PlayCircle size={15}/> Manter aberta</button>}</div>}
@@ -2864,14 +2964,15 @@ function ReportPreview({farm,equips,visits,checks,mapped,evidencias=[]}){
   const displayStatus=farmStatus(farm);
   const reportBrand=reportBrandForCentral(farm.central);
   const serviceSessions=farmServiceSessions(farm,visits), firstStart=firstServiceStart(serviceSessions), lastEnd=lastServiceEnd(serviceSessions), totalServiceLabel=serviceTotalLabel(farm,visits);
+  const responsibleLabel=serviceResponsibleLabel(farm,visits);
   return <article className={`printReport professionalReport reportPreview theme-${reportBrand.key}`}>
     <header className="reportHeader"><div className="reportBrandPreview"><img src={reportBrand.logo} alt="" draggable="false"/><div><b>{reportBrand.name}</b><small>ControlTech Assist</small></div></div><div><span>RELATÓRIO TÉCNICO DE INSTALAÇÃO E CAMPO</span><small>Prévia conforme a fazenda selecionada</small></div></header>
     <section className="reportCover"><div><span className="reportTag">CONTROLTECH ASSIST</span><h1>{farm.nome}</h1><p>{farm.cidade||'Cidade não informada'} / {getFarmUF(farm)||'-'}</p></div><div className="reportStatus"><b>{displayStatus}</b><span>Situação da operação</span></div></section>
     <div className="reportMetrics"><div><b>{num(farm.qtd_colares_prevista)}</b><span>Colares previstos</span></div><div><b>{collarInstalled(farm)}</b><span>Instalados</span></div><div><b>{collarDelivered(farm)}</b><span>Entregues</span></div><div><b>{equips.length}</b><span>Equipamentos</span></div><div><b>{totalServiceLabel}</b><span>Tempo em campo</span></div></div>
-    <section className="reportSection"><h2>Dados da fazenda</h2><div className="reportInfoGrid"><div><span>Central</span><b>{centralOfficialName(farm.central)||'-'}</b></div><div><span>Regional</span><b>{farm.regional_nome||'-'}</b></div><div><span>Responsavel</span><b>{farm.responsavel||'-'}</b></div><div><span>Telefone</span><b>{farm.telefone||'-'}</b></div><div><span>Veterinario/Apoio</span><b>{farm.veterinario_apoio||'-'}</b></div><div><span>Endereco</span><b>{farm.endereco||'-'}</b></div><div><span>Primeiro inicio</span><b>{brDateTime(firstStart)}</b></div><div><span>Ultimo fim</span><b>{brDateTime(lastEnd)}</b></div><div><span>Atendimentos</span><b>{serviceSessions.length||'-'}</b></div><div><span>Responsavel tecnico</span><b>{farm.servico_responsavel||'-'}</b></div></div></section>
+    <section className="reportSection"><h2>Dados da fazenda</h2><div className="reportInfoGrid"><div><span>Central</span><b>{centralOfficialName(farm.central)||'-'}</b></div><div><span>Regional</span><b>{farm.regional_nome||'-'}</b></div><div><span>Responsavel</span><b>{farm.responsavel||'-'}</b></div><div><span>Telefone</span><b>{farm.telefone||'-'}</b></div><div><span>Veterinario/Apoio</span><b>{farm.veterinario_apoio||'-'}</b></div><div><span>Endereco</span><b>{farm.endereco||'-'}</b></div><div><span>Primeiro inicio</span><b>{brDateTime(firstStart)}</b></div><div><span>Ultimo fim</span><b>{brDateTime(lastEnd)}</b></div><div><span>Atendimentos</span><b>{serviceSessions.length||'-'}</b></div><div><span>Responsavel tecnico</span><b>{responsibleLabel||'-'}</b></div></div></section>
     {points.length>0&&<section className="reportSection"><h2>Mapa técnico</h2><div className="reportMap"><MapContainer center={center} zoom={17} className="bigMap" scrollWheelZoom={false}><HybridLayers layer="hibrido"/><FitBounds points={points} trigger={points.length}/>{farmPoint&&<Marker position={farmPoint} icon={farmMarkerIcon(farm)}/>} {mapped.map(e=><Marker key={e.id} position={[Number(e.latitude),Number(e.longitude)]} icon={equipmentMarkerIcon(e)}/>)}</MapContainer></div></section>}
     <section className="reportSection"><h2>Equipamentos e coordenadas</h2>{equips.length?<div className="reportEquipmentList">{equips.slice(0,8).map((e,i)=><article key={e.id}><div className="reportEquipIndex">{i+1}</div><div><h3>{e.apelido||e.local_nome||e.tipo}</h3><p>{e.tipo} - {equipmentStatusLabel(e)}</p><dl><div><dt>Local</dt><dd>{e.local_nome||'-'}</dd></div><div><dt>Coordenadas</dt><dd>{e.latitude&&e.longitude?`${Number(e.latitude).toFixed(6)}, ${Number(e.longitude).toFixed(6)}`:'-'}</dd></div><div><dt>Raio</dt><dd>{e.tipo?.includes('4102')?`${Number(e.raio_metros)||75} m`:'-'}</dd></div></dl></div></article>)}</div>:<p className="sourceText">Nenhum equipamento registrado nesta fazenda.</p>}</section>
-    <section className="reportSection"><h2>Histórico de visitas</h2>{visits.length?<div className="visit">{visits.slice(0,4).map(v=><article key={v.id}><h3>{brDate(v.data_visita)} - {v.tipo}</h3>{v.iniciada_em&&<p><b>Serviço:</b> {brDateTime(v.iniciada_em)} até {brDateTime(v.finalizada_em)} {v.finalizada_em?`(${hoursLabel(sessionHours({start:v.iniciada_em,end:v.finalizada_em}))})`:''}</p>}<p>{v.resumo||'Sem resumo.'}</p>{visitHasOpenPending(v)&&<p className="reportPending"><b>Pendências:</b> {v.pendencias||v.proxima_acao}</p>}</article>)}</div>:<p className="sourceText">Nenhuma visita registrada.</p>}</section>
+    <section className="reportSection"><h2>Histórico de visitas</h2>{visits.length?<div className="visit">{visits.slice(0,4).map(v=><article key={v.id}><h3>{brDate(v.data_visita)} - {v.tipo}</h3>{v.responsavel_tecnico&&<p><b>Técnico:</b> {v.responsavel_tecnico}</p>}{v.iniciada_em&&<p><b>Serviço:</b> {brDateTime(v.iniciada_em)} até {brDateTime(v.finalizada_em)} {v.finalizada_em?`(${hoursLabel(sessionHours({start:v.iniciada_em,end:v.finalizada_em}))})`:''}</p>}<p>{v.resumo||'Sem resumo.'}</p>{visitHasOpenPending(v)&&<p className="reportPending"><b>Pendências:</b> {v.pendencias||v.proxima_acao}</p>}</article>)}</div>:<p className="sourceText">Nenhuma visita registrada.</p>}</section>
     {evidencias.length>0&&<section className="reportSection"><h2>Registro fotográfico</h2><div className="reportEvidenceGrid">{evidencias.slice(0,6).map(item=><article key={item.id}>{evidenceSrc(item)&&<a href={evidenceSrc(item)} target="_blank" rel="noreferrer" className="reportEvidenceThumbPreview"><img src={evidenceSrc(item)} alt={item.categoria}/></a>}<b>{item.categoria}</b><span>{evidenceLinkedText(item,equips,visits)}</span></article>)}</div></section>}
     <section className="reportSection"><h2>Checklists</h2>{checks.length?<div className="reportChecklist">{checks.slice(0,5).map(c=><div key={c.id}><b>{c.titulo}</b><span>{brDate(c.created_at)} - {c.status}</span></div>)}</div>:<p className="sourceText">Nenhum checklist salvo.</p>}</section>
   </article>
@@ -2897,6 +2998,7 @@ function RelatorioFazenda({farm,data}){
   const reportEvidencias=visitScope==='single'&&activeVisitId?evidencias.filter(e=>e.visita_id===activeVisitId):evidencias;
   const reportScopeLabel=visitScope==='single'&&selectedVisit?`${selectedVisit.tipo||'Visita'} - ${brDate(selectedVisit.data_visita)}`:'Geral - todas as visitas';
   const reportServiceSessions=farmServiceSessions(farm,reportVisits), reportFirstStart=firstServiceStart(reportServiceSessions), reportLastEnd=lastServiceEnd(reportServiceSessions), reportServiceTotal=serviceTotalLabel(farm,reportVisits);
+  const reportResponsible=serviceResponsibleLabel(farm,reportVisits);
   const pendingCount=reportVisits.filter(visitHasOpenPending).length;
   const reportOptions=[
     ['equip','Equipamentos',Cpu,equips.length],
@@ -2920,7 +3022,7 @@ function RelatorioFazenda({farm,data}){
       ['Ultimo fim do servico',brDateTime(reportLastEnd)],
       ['Atendimentos',reportServiceSessions.length],
       ['Tempo em campo',reportServiceTotal],
-      ['Responsavel produtividade',farm.servico_responsavel||''],
+      ['Responsavel produtividade',reportResponsible||''],
       ['Colares previstos',farm.qtd_colares_prevista||0],
       ['Colares instalados',farm.qtd_colares_instalada||0],
       ['Colares entregues ao cliente',farm.qtd_colares_entregue_cliente||0],
@@ -2933,8 +3035,8 @@ function RelatorioFazenda({farm,data}){
       ...equips.map(e=>[e.tipo,e.apelido,e.local_nome,equipmentStatusLabel(e),e.raio_metros||'',e.latitude,e.longitude,e.observacoes||'']),
       [],
       ['VISITAS'],
-      ['Data','Tipo','Inicio','Fim','Tempo','Resumo','Problemas','Solução','Pendências','Próxima ação'],
-      ...reportVisits.map(v=>[v.data_visita,v.tipo,brDateTime(v.iniciada_em),brDateTime(v.finalizada_em),v.iniciada_em&&v.finalizada_em?hoursLabel(sessionHours({start:v.iniciada_em,end:v.finalizada_em})):'',v.resumo,v.problemas,v.solucao,v.pendencias,v.proxima_acao]),
+      ['Data','Tipo','Técnico responsável','Inicio','Fim','Tempo','Resumo','Problemas','Solução','Pendências','Próxima ação'],
+      ...reportVisits.map(v=>[v.data_visita,v.tipo,v.responsavel_tecnico||farm.servico_responsavel||'',brDateTime(v.iniciada_em),brDateTime(v.finalizada_em),v.iniciada_em&&v.finalizada_em?hoursLabel(sessionHours({start:v.iniciada_em,end:v.finalizada_em})):'',v.resumo,v.problemas,v.solucao,v.pendencias,v.proxima_acao]),
       [],
       ['EVIDÊNCIAS'],
       ['Data','Categoria','Descrição','Arquivo','Vínculo'],
@@ -3065,7 +3167,7 @@ function RelatorioFazenda({farm,data}){
     const mapStatsHtml=points.length?`<div class="mapStats"><span><b>${mapped.length}</b> item(ns) mapeado(s)</span><span><b>${equips.length-mapped.length}</b> sem coordenada</span><span><b>${points.length}</b> ponto(s) no mapa</span></div>`:'';
     const technicalMapHtml=points.length?`<section class="section mapSection"><h2>Mapa técnico da instalação</h2><div class="mapBox technicalMapPrint">${mapBaseHtml}${markerHtml}</div>${mapStatsHtml}<div class="mapKey">${mapKey}</div></section>`:'';
     const equipmentRows=equips.map((e,i)=>`<tr><td>${i+1}</td><td><b>${safe(e.apelido||e.local_nome||e.tipo)}</b><small>${safe(e.tipo)} - ${safe(equipmentStatusLabel(e))}</small></td><td>${safe(e.local_nome)}</td><td>${e.latitude&&e.longitude?`${Number(e.latitude).toFixed(6)}, ${Number(e.longitude).toFixed(6)}`:'-'}</td><td>${e.tipo?.includes('4102')?`${Number(e.raio_metros)||75} m`:'-'}</td></tr>`).join('');
-    const visitRows=reportVisits.map(v=>`<article><h3>${safe(brDate(v.data_visita))} - ${safe(v.tipo)}</h3>${v.iniciada_em?`<p><b>Serviço:</b> ${safe(brDateTime(v.iniciada_em))} até ${safe(brDateTime(v.finalizada_em))} ${v.finalizada_em?`(${safe(hoursLabel(sessionHours({start:v.iniciada_em,end:v.finalizada_em})))})`:''}</p>`:''}<p>${safe(v.resumo||'Sem resumo.')}</p>${opts.pend&&visitHasOpenPending(v)?`<p class="warn"><b>Pendências:</b> ${safe(v.pendencias||v.proxima_acao)}</p>`:''}${v.solucao?`<p><b>Solução:</b> ${safe(v.solucao)}</p>`:''}</article>`).join('');
+    const visitRows=reportVisits.map(v=>`<article><h3>${safe(brDate(v.data_visita))} - ${safe(v.tipo)}</h3>${v.responsavel_tecnico?`<p><b>Técnico:</b> ${safe(v.responsavel_tecnico)}</p>`:''}${v.iniciada_em?`<p><b>Serviço:</b> ${safe(brDateTime(v.iniciada_em))} até ${safe(brDateTime(v.finalizada_em))} ${v.finalizada_em?`(${safe(hoursLabel(sessionHours({start:v.iniciada_em,end:v.finalizada_em})))})`:''}</p>`:''}<p>${safe(v.resumo||'Sem resumo.')}</p>${opts.pend&&visitHasOpenPending(v)?`<p class="warn"><b>Pendências:</b> ${safe(v.pendencias||v.proxima_acao)}</p>`:''}${v.solucao?`<p><b>Solução:</b> ${safe(v.solucao)}</p>`:''}</article>`).join('');
     const checkRows=checks.map(c=>`<tr><td>${safe(brDate(c.created_at))}</td><td>${safe(c.titulo)}</td><td>${safe(c.status)}</td><td>${safe(c.observacoes||'-')}</td></tr>`).join('');
     const evidencePrintItems=reportEvidencias.filter(e=>evidenceSrc(e)).slice(0,8).map((e,i)=>({item:e,src:evidenceSrc(e),anchor:`evidence-full-${i+1}`}));
     const evidenceRows=evidencePrintItems.map(({item,src,anchor},i)=>`<a class="evidenceThumbCard" href="#${anchor}"><figure><img src="${safe(src)}" alt="${safe(item.categoria)}"><figcaption><strong>${safe(item.categoria)}</strong><span>${safe(evidenceLinkedText(item,equips,visits))}</span><small>Imagem ${i+1} • clique para ampliar</small></figcaption></figure></a>`).join('');
@@ -3091,6 +3193,7 @@ function RelatorioFazenda({farm,data}){
       .replace('<script>window.onload=()=>setTimeout(()=>window.print(),350)</script>',printReadyScript)
       .replace('</head>',`${printPolish}${reportBrandCss}${technicalMapCss}${evidencePrintCss}</head>`)
       .replace('<img src="/app-icon-192.png" alt=""><div><b>ControlTech</b><span>Assist</span></div>',`<img src="${safe(reportLogo)}" alt=""><div><b>${safe(reportBrand.name)}</b><span>ControlTech Assist</span></div>`)
+      .replace(/<b>Respons[^<]*cnico<\/b><span>[^<]*<\/span>/,`<b>Responsável técnico</b><span>${safe(reportResponsible)}</span>`)
       .replace(/<section class="section"><h2>Resumo executivo<\/h2><p>[\s\S]*?<\/p><\/section>/,`${executiveHtml}${attentionHtml}`)
       .replace(/<section class="section"><h2>Mapa técnico da instalação<\/h2>[\s\S]*?<\/section>/,technicalMapHtml)
       .replace('<section class="signature">',`${opts.evidencias?evidenceAppendixHtml:''}<section class="signature">`)
@@ -3103,7 +3206,7 @@ function RelatorioFazenda({farm,data}){
     win.document.open();win.document.write(polishedHtml);win.document.close();
   };
   const share=async()=>{
-    const text=`RELATÓRIO TÉCNICO — ${farm.nome}\nEscopo: ${reportScopeLabel}\n${farm.cidade||''} / ${getFarmUF(farm)}\nCentral: ${centralOfficialName(farm.central)||'-'}\nRegional: ${farm.regional_nome||'-'}\nStatus: ${displayStatus}\nAtendimentos: ${reportServiceSessions.length}\nTempo em campo: ${reportServiceTotal}\nPrimeiro início: ${brDateTime(reportFirstStart)}\nÚltimo fim: ${brDateTime(reportLastEnd)}\nColares: ${collarBreakdown(farm)}\nEquipamentos: ${equips.length}\nEvidências: ${reportEvidencias.length}\nPendências: ${pendingCount}`;
+    const text=`RELATÓRIO TÉCNICO — ${farm.nome}\nEscopo: ${reportScopeLabel}\n${farm.cidade||''} / ${getFarmUF(farm)}\nCentral: ${centralOfficialName(farm.central)||'-'}\nRegional: ${farm.regional_nome||'-'}\nStatus: ${displayStatus}\nAtendimentos: ${reportServiceSessions.length}\nTempo em campo: ${reportServiceTotal}\nPrimeiro início: ${brDateTime(reportFirstStart)}\nÚltimo fim: ${brDateTime(reportLastEnd)}\nTécnico(s): ${reportResponsible||'-'}\nColares: ${collarBreakdown(farm)}\nEquipamentos: ${equips.length}\nEvidências: ${reportEvidencias.length}\nPendências: ${pendingCount}`;
     try{if(navigator.share)await navigator.share({title:`Relatório técnico - ${farm.nome}`,text});else{await navigator.clipboard.writeText(text);notify('Resumo copiado para compartilhar.')}}catch{}
   };
   const optionControls=<div className="reportOptions compact">{reportOptions.map(([k,l,Icon,count])=><label className={`reportOption ${opts[k]?'active':''}`} key={k}><input type="checkbox" checked={opts[k]} onChange={()=>toggle(k)}/><span><Icon size={17}/><b>{l}</b><small>{count}</small></span></label>)}</div>;
@@ -3283,7 +3386,7 @@ function Produtividade({data,onOpen}){
   const visitSessions=data.visitas.map(v=>{
     const farm=farmById[v.fazenda_id];
     if(!farm||!v.iniciada_em||!v.finalizada_em)return null;
-    return {...farm,session_id:v.id,session_tipo:v.tipo||'Visita',session_status:v.status,servico_inicio_em:v.iniciada_em,servico_fim_em:v.finalizada_em,servico_responsavel:farm.servico_responsavel||personName(data.currentUser)||farm.regional_nome||farm.responsavel||'',_sessionFromVisit:true};
+    return {...farm,session_id:v.id,session_tipo:v.tipo||'Visita',session_status:v.status,servico_inicio_em:v.iniciada_em,servico_fim_em:v.finalizada_em,servico_responsavel:v.responsavel_tecnico||farm.servico_responsavel||personName(data.currentUser)||farm.regional_nome||farm.responsavel||'',_sessionFromVisit:true};
   }).filter(Boolean).filter(s=>serviceHours(s)>0);
   const sessionFarmIds=new Set(visitSessions.map(s=>s.id));
   const fallbackSessions=data.fazendas.filter(f=>f.servico_inicio_em&&f.servico_fim_em&&serviceHours(f)>0&&!sessionFarmIds.has(f.id)).map(f=>({...f,session_id:`farm-${f.id}`,session_tipo:'Serviço'}));

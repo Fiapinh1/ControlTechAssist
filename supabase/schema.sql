@@ -63,6 +63,7 @@ create table if not exists public.visitas (
   status text,
   iniciada_em timestamptz,
   finalizada_em timestamptz,
+  responsavel_tecnico text,
   parent_visit_id uuid references public.visitas(id) on delete set null,
   resolved_by_visit_id uuid references public.visitas(id) on delete set null,
   resolved_at timestamptz,
@@ -752,7 +753,8 @@ grant execute on function public.save_fazenda(jsonb) to authenticated;
 alter table public.visitas
 add column if not exists status text,
 add column if not exists iniciada_em timestamptz,
-add column if not exists finalizada_em timestamptz;
+add column if not exists finalizada_em timestamptz,
+add column if not exists responsavel_tecnico text;
 
 create index if not exists visitas_fazenda_status_idx on public.visitas(fazenda_id, status);
 create index if not exists visitas_iniciada_idx on public.visitas(iniciada_em);
