@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createClient } from '@supabase/supabase-js';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents, Circle, GeoJSON, Polyline, Polygon } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMapEvents, Circle, GeoJSON, Polyline, Polygon } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -13,7 +13,7 @@ import {
   ClipboardX, CircleAlert, Cable, Zap, Settings, Clock, Check, PlayCircle, Info,
   ClipboardPenLine, LifeBuoy, FileDown, Antenna, Gauge, ScanLine, Globe2, Filter, LocateFixed, Printer, Share2,
   BrickWall, Trees, Mountain, Warehouse, Signal, SignalLow, SignalZero, CloudOff, RefreshCw, Copy, UserCheck,
-  Image as ImageIcon, Camera, Upload, Eye, EyeOff, Link2, Milk, Mail
+  Image as ImageIcon, Camera, Upload, Eye, EyeOff, Link2, Milk, Mail, Maximize2, Minimize2
 } from 'lucide-react';
 import './styles.css';
 import appLogo from './assets/brand/controltech-logo.png';
@@ -35,15 +35,22 @@ const readAppContext = () => {
   try { return JSON.parse(localStorage.getItem(APP_CONTEXT_KEY) || '{}') || {}; } catch { return {}; }
 };
 const readFarmFilters = () => {
+  const empty = { q:'', central:'Todas', status:'Todos', visitFrom:'', visitTo:'', state:'Todos', city:'Todas', collarsMin:'', collarsMax:'' };
   try {
     const saved = JSON.parse(localStorage.getItem(FARM_FILTER_KEY) || '{}') || {};
     return {
       q: typeof saved.q === 'string' ? saved.q : '',
       central: typeof saved.central === 'string' ? saved.central : 'Todas',
-      status: typeof saved.status === 'string' ? saved.status : 'Todos'
+      status: typeof saved.status === 'string' ? saved.status : 'Todos',
+      visitFrom: typeof saved.visitFrom === 'string' ? saved.visitFrom : '',
+      visitTo: typeof saved.visitTo === 'string' ? saved.visitTo : '',
+      state: typeof saved.state === 'string' ? saved.state : 'Todos',
+      city: typeof saved.city === 'string' ? saved.city : 'Todas',
+      collarsMin: typeof saved.collarsMin === 'string' ? saved.collarsMin : '',
+      collarsMax: typeof saved.collarsMax === 'string' ? saved.collarsMax : ''
     };
   } catch {
-    return { q:'', central:'Todas', status:'Todos' };
+    return empty;
   }
 };
 const normalizeMainView = view => view === 'diagnostico' || view === 'guia' ? 'suporte' : view;
@@ -925,12 +932,62 @@ const UF_CODES = {
 const UF_NAMES = {
   AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins'
 };
-const STATE_CENTER = { MG:[-18.5122,-44.5550], SP:[-22.2569,-48.4804], RJ:[-22.2500,-42.6600], ES:[-19.1834,-40.3089], PR:[-24.89,-51.55], SC:[-27.33,-49.44], RS:[-30.03,-51.23], GO:[-16.64,-49.31], DF:[-15.78,-47.93], MS:[-20.51,-54.54], MT:[-12.64,-55.42], BA:[-12.97,-38.51], PE:[-8.05,-34.9], CE:[-3.73,-38.52], PA:[-1.45,-48.5] };
-const STATE_COLORS = { 'Alta Genetics':'#2563eb', 'Genex Brasil':'#22c55e', 'Outra / Não informado':'#14b8a6', mixed:'#8b5cf6', none:'#e5e7eb' };
+const STATE_CENTER = {
+  AC:[-9.02,-70.81], AL:[-9.57,-36.78], AP:[1.41,-51.77], AM:[-3.47,-65.10], BA:[-12.58,-41.70], CE:[-5.20,-39.53], DF:[-15.78,-47.93],
+  ES:[-19.58,-40.52], GO:[-15.98,-49.86], MA:[-5.42,-45.44], MT:[-12.64,-55.42], MS:[-20.51,-54.54], MG:[-18.51,-44.55], PA:[-3.79,-52.48],
+  PB:[-7.28,-36.72], PR:[-24.89,-51.55], PE:[-8.38,-37.86], PI:[-7.72,-42.73], RJ:[-22.25,-42.66], RN:[-5.81,-36.59], RS:[-30.03,-53.22],
+  RO:[-10.83,-63.34], RR:[1.99,-61.33], SC:[-27.33,-49.44], SP:[-22.26,-48.48], SE:[-10.57,-37.45], TO:[-10.18,-48.33]
+};
+const STATE_COLORS = { 'Alta Genetics':'#0b5cab', 'Genex Brasil':'#009d94', 'Outra / Não informado':'#8b5cf6', mixed:'#64748b', none:'#e5e7eb' };
 function getFarmUF(f){ return (f.estado_uf || parseUF(f.cidade) || '').toUpperCase(); }
 function parseUF(city=''){ const m=String(city).match(/\b([A-Z]{2})\b$/); return m?.[1] || ''; }
 function farmLatLng(f){ if(f.latitude && f.longitude) return [Number(f.latitude), Number(f.longitude)]; const uf=getFarmUF(f); return STATE_CENTER[uf] || [-14.2350,-51.9253]; }
-function centralForUF(fazendas, uf){ const list=fazendas.filter(f=>getFarmUF(f)===uf); if(!list.length) return 'none'; const counts={}; list.forEach(f=>{ const c=f.central||'Outra / Não informado'; counts[c]=(counts[c]||0)+1; }); const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]); return sorted.length>1 && sorted[0][1]===sorted[1][1] ? 'mixed' : sorted[0][0]; }
+function mapCentral(value){ return CENTRAIS.includes(value) ? value : 'Outra / Não informado'; }
+function centralForUF(fazendas, uf){ const list=fazendas.filter(f=>getFarmUF(f)===uf); if(!list.length) return 'none'; const counts={}; list.forEach(f=>{ const c=mapCentral(f.central); counts[c]=(counts[c]||0)+1; }); const sorted=Object.entries(counts).sort((a,b)=>b[1]-a[1]); return sorted.length>1 && sorted[0][1]===sorted[1][1] ? 'mixed' : sorted[0][0]; }
+function coverageFarmMarkerIcon(f){
+  const central=mapCentral(f?.central), color=STATE_COLORS[central]||STATE_COLORS.mixed;
+  const glyph='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.2 12 6l8 5.2V20H4z"/><path d="M8 20v-5.2h8V20"/><path d="M8.6 11.5h6.8"/></svg>';
+  return L.divIcon({
+    className:'coverage-farm-marker-wrap',
+    html:`<span class="coverage-farm-marker" style="--coverage-color:${color}">${glyph}</span>`,
+    iconSize:[34,40], iconAnchor:[17,34], popupAnchor:[0,-31]
+  });
+}
+function spreadCoverageFarms(farms){
+  const groups={};
+  farms.forEach(farm=>{
+    const lat=Number(farm.latitude), lng=Number(farm.longitude), exact=Number.isFinite(lat)&&Number.isFinite(lng)&&farm.latitude!==''&&farm.longitude!=='';
+    const base=exact?[lat,lng]:farmLatLng(farm), uf=getFarmUF(farm)||'BR';
+    const key=exact?`coord:${lat.toFixed(4)}:${lng.toFixed(4)}`:`state:${uf}`;
+    (groups[key] ||= []).push({farm,base,exact});
+  });
+  return Object.values(groups).flatMap(group=>group.map((item,index)=>{
+    if(group.length===1)return {...item.farm,_coveragePosition:item.base,_coverageExact:item.exact};
+    const ring=Math.floor(index/8), slot=index%8, slots=Math.min(8,group.length-ring*8);
+    const angle=(-Math.PI/2)+(Math.PI*2*slot/Math.max(slots,1));
+    const radius=(item.exact ? .018 : .28)+(ring*(item.exact ? .014 : .18));
+    const lat=item.base[0]+Math.sin(angle)*radius;
+    const lng=item.base[1]+Math.cos(angle)*radius/Math.max(Math.cos(item.base[0]*Math.PI/180),.42);
+    return {...item.farm,_coveragePosition:[lat,lng],_coverageExact:item.exact};
+  }));
+}
+function coverageGradient(parts,total){
+  if(!total)return STATE_COLORS.none;
+  let cursor=0;
+  const stops=parts.filter(item=>item.count>0).map(item=>{
+    const start=cursor; cursor+=(item.count/total)*100;
+    return `${item.color} ${start.toFixed(2)}% ${cursor.toFixed(2)}%`;
+  });
+  return `conic-gradient(${stops.join(',')})`;
+}
+function coverageStateIcon(state){
+  const gradient=coverageGradient(state.parts,state.total);
+  return L.divIcon({
+    className:'coverage-state-marker-wrap',
+    html:`<div class="coverage-state-marker" style="--coverage-gradient:${gradient}"><span><b>${state.total}</b></span><em>${state.uf}</em></div>`,
+    iconSize:[58,64], iconAnchor:[29,32], popupAnchor:[0,-29]
+  });
+}
 function getGeoUF(feature){ const p=feature?.properties||{}; const raw=p.sigla || p.SIGLA || p.uf || p.UF || p.codarea || p.CD_UF || p.id || p.ID; if(String(raw||'').length===2 && /[A-Z]{2}/.test(String(raw))) return String(raw).toUpperCase(); const str=String(raw||'').replace(/\D/g,''); return UF_CODES[Number(str)] || ''; }
 function flattenCoords(coords, out=[]){ if(!Array.isArray(coords)) return out; if(typeof coords[0]==='number' && typeof coords[1]==='number'){ out.push(coords); return out; } coords.forEach(c=>flattenCoords(c,out)); return out; }
 function centroidOfGeoJSON(geo){ const feature = geo?.type==='FeatureCollection' ? geo.features?.[0] : geo?.type==='Feature' ? geo : null; const pts = flattenCoords(feature?.geometry?.coordinates || []); if(!pts.length) return null; let lon=0, lat=0; pts.forEach(([x,y])=>{lon+=Number(x); lat+=Number(y)}); return [lat/pts.length, lon/pts.length]; }
@@ -1788,20 +1845,122 @@ function FarmIntegrationBadge({farm,data,compact=false}){
 function PermissionNotice(){return <div className="permissionNotice"><ShieldCheck size={18}/><span>Você está como visualizador. Pode consultar informações e relatórios, mas não alterar dados desta fazenda.</span></div>}
 
 
-function BrasilAtuacaoMap({fazendas,onOpen,centrais=CENTRAIS}){
-  const [geo,setGeo]=useState(null), [filter,setFilter]=useState('Todas'), [err,setErr]=useState('');
+function CoverageMapController({points,trigger}){
+  const map=useMapEvents({});
+  useEffect(()=>{
+    const timer=setTimeout(()=>{
+      map.invalidateSize();
+      const valid=points.filter(point=>Number.isFinite(point?.[0])&&Number.isFinite(point?.[1]));
+      if(!valid.length){map.setView([-15.8,-47.9],4);return;}
+      if(valid.length===1){map.setView(valid[0],7);return;}
+      map.fitBounds(L.latLngBounds(valid),{padding:[34,34],maxZoom:6});
+    },180);
+    return()=>clearTimeout(timer);
+  },[map,trigger,points.length]);
+  return null;
+}
+
+function BrasilAtuacaoMap({fazendas,onOpen,centrais=CENTRAIS,visitas=[]}){
+  const [geo,setGeo]=useState(null), [filter,setFilter]=useState('Todas'), [metric,setMetric]=useState('fazendas'), [err,setErr]=useState(''), [fullscreen,setFullscreen]=useState(false), [showAllStates,setShowAllStates]=useState(false);
   useEffect(()=>{if(filter!=='Todas'&&!centrais.includes(filter))setFilter('Todas');},[filter,centrais.join('|')]);
-  useEffect(()=>{ let alive=true; fetch('https://servicodados.ibge.gov.br/api/v3/malhas/paises/BR?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=UF').then(r=>r.json()).then(g=>alive&&setGeo(g)).catch(()=>alive&&setErr('Não foi possível carregar a malha dos estados pelo IBGE. Os pontos continuam disponíveis no mapa.')); return()=>{alive=false}; },[]);
-  const farms = fazendas.filter(f=>filter==='Todas'||(f.central||'Outra / Não informado')===filter);
-  const statesActive = new Set(farms.map(getFarmUF).filter(Boolean));
-  const styleFeature = (feature) => { const uf=getGeoUF(feature); const central=centralForUF(farms,uf); const active=statesActive.has(uf); return { color:'#ffffff', weight:1.2, fillColor: active ? (STATE_COLORS[central]||STATE_COLORS.mixed) : STATE_COLORS.none, fillOpacity: active ? .82 : .65 }; };
-  return <section className="panel coveragePanel"><div className="sectionTitle"><h2><Globe2 size={21}/> Mapa de atuação</h2><select value={filter} onChange={e=>setFilter(e.target.value)}><option>Todas</option>{centrais.map(c=><option key={c} value={c}>{centralOfficialName(c)}</option>)}</select></div>
-    <div className="legend">{centrais.map(c=><span key={c}><i style={{background:STATE_COLORS[c]||STATE_COLORS.mixed}}/> {centralOfficialName(c)}</span>)}<span><i style={{background:STATE_COLORS.mixed}}/> Mais de uma central</span><span><i style={{background:STATE_COLORS.none}}/> Sem atendimento</span></div>
-    <div className="brMap"><MapContainer center={[-15.8,-47.9]} zoom={4} minZoom={3} className="bigMap" scrollWheelZoom={false}>
+  useEffect(()=>{if(!fullscreen)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=previous}},[fullscreen]);
+  useEffect(()=>{
+    let alive=true;
+    fetch('https://servicodados.ibge.gov.br/api/v3/malhas/paises/BR?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=UF')
+      .then(r=>{if(!r.ok)throw new Error('IBGE indisponível');return r.json()})
+      .then(g=>{if(alive){setGeo(g);setErr('')}})
+      .catch(()=>alive&&setErr('Não foi possível carregar a malha dos estados pelo IBGE. Os pontos das fazendas continuam disponíveis.'));
+    return()=>{alive=false};
+  },[]);
+  const allFarmById=useMemo(()=>new Map(fazendas.map(f=>[f.id,f])),[fazendas]);
+  const farms=useMemo(()=>fazendas.filter(f=>filter==='Todas'||mapCentral(f.central)===filter),[fazendas,filter]);
+  const farmIds=useMemo(()=>new Set(farms.map(f=>f.id)),[farms]);
+  const filteredVisits=useMemo(()=>visitas.filter(v=>farmIds.has(v.fazenda_id)),[visitas,farmIds]);
+  const mappedFarms=useMemo(()=>spreadCoverageFarms(farms),[farms]);
+  const centralList=useMemo(()=>Array.from(new Set([...centrais,...fazendas.map(f=>mapCentral(f.central))])),[centrais.join('|'),fazendas]);
+  const metricLabel=metric==='visitas'?'atendimentos':'fazendas';
+  const metricUnit=metric==='visitas'?'atendimento':'fazenda';
+  const allCentralTotals=useMemo(()=>{
+    const totals=Object.fromEntries(centralList.map(c=>[c,0]));
+    if(metric==='fazendas')fazendas.forEach(f=>{const central=mapCentral(f.central);totals[central]=(totals[central]||0)+1});
+    else visitas.forEach(v=>{const farm=allFarmById.get(v.fazenda_id);if(farm){const central=mapCentral(farm.central);totals[central]=(totals[central]||0)+1}});
+    return totals;
+  },[metric,fazendas,visitas,allFarmById,centralList.join('|')]);
+  const stateStats=useMemo(()=>{
+    const states=new Map();
+    const ensure=uf=>{
+      if(!states.has(uf))states.set(uf,{uf,name:UF_NAMES[uf]||uf,farmCount:0,visitCount:0,counts:Object.fromEntries(centralList.map(c=>[c,0]))});
+      return states.get(uf);
+    };
+    farms.forEach(f=>{const uf=getFarmUF(f);if(uf)ensure(uf).farmCount+=1});
+    filteredVisits.forEach(v=>{const farm=allFarmById.get(v.fazenda_id),uf=getFarmUF(farm);if(uf)ensure(uf).visitCount+=1});
+    const metricFarms=metric==='fazendas'?farms:filteredVisits.map(v=>allFarmById.get(v.fazenda_id)).filter(Boolean);
+    metricFarms.forEach(f=>{const uf=getFarmUF(f);if(!uf)return;const central=mapCentral(f.central),state=ensure(uf);state.counts[central]=(state.counts[central]||0)+1});
+    return [...states.values()].map(state=>{
+      const parts=centralList.map(central=>({central,label:centralOfficialName(central),count:state.counts[central]||0,color:STATE_COLORS[central]||STATE_COLORS.mixed}));
+      const total=parts.reduce((sum,item)=>sum+item.count,0), dominant=[...parts].sort((a,b)=>b.count-a.count)[0];
+      return {...state,parts,total,dominant,dominance:total?dominant.count/total:0,center:STATE_CENTER[state.uf]};
+    }).sort((a,b)=>b.total-a.total||b.farmCount-a.farmCount||a.uf.localeCompare(b.uf));
+  },[farms,filteredVisits,metric,allFarmById,centralList.join('|')]);
+  const stateStatsByUF=useMemo(()=>new Map(stateStats.map(state=>[state.uf,state])),[stateStats]);
+  const totalMetric=metric==='visitas'?filteredVisits.length:farms.length;
+  const activeStates=stateStats.filter(state=>state.total>0);
+  const visibleStates=showAllStates?activeStates:activeStates.slice(0,6);
+  const filteredCentralTotals=centralList.map(central=>({central,count:stateStats.reduce((sum,state)=>sum+(state.counts[central]||0),0),color:STATE_COLORS[central]||STATE_COLORS.mixed}));
+  const leadingCentral=[...filteredCentralTotals].sort((a,b)=>b.count-a.count)[0];
+  const styleFeature=feature=>{
+    const state=stateStatsByUF.get(getGeoUF(feature)), active=Boolean(state?.total), color=active?(state.dominant?.color||STATE_COLORS.mixed):STATE_COLORS.none;
+    return {color:active?color:'#ffffff',weight:active?1.8:1,fillColor:color,fillOpacity:active ? .18+(.34*state.dominance) : .5};
+  };
+  const mapTrigger=`${filter}-${metric}-${fullscreen}-${mappedFarms.length}-${stateStats.map(s=>`${s.uf}:${s.total}`).join('|')}`;
+  const topShare=leadingCentral&&totalMetric?Math.round(leadingCentral.count/totalMetric*100):0;
+  return <section className={`panel coveragePanel coverageDashboard ${fullscreen?'mapFullscreen':''}`}>
+    <header className="coverageDashboardHeader">
+      <div><span className="eyebrow">Presença técnica</span><h2><Globe2 size={22}/> Mapa de atuação</h2><p>Veja onde as centrais atuam e como cada estado está distribuído.</p></div>
+      <button type="button" className="coverageExpandButton" onClick={()=>setFullscreen(value=>!value)} aria-label={fullscreen?'Fechar mapa ampliado':'Ampliar mapa'} title={fullscreen?'Fechar mapa ampliado':'Ampliar mapa'}>{fullscreen?<Minimize2 size={19}/>:<Maximize2 size={19}/>}<span>{fullscreen?'Fechar':'Ampliar'}</span></button>
+    </header>
+
+    <div className="coverageToolbar">
+      <div className="coverageMetricSwitch" role="group" aria-label="Métrica exibida">
+        <button type="button" className={metric==='fazendas'?'active':''} onClick={()=>setMetric('fazendas')} aria-pressed={metric==='fazendas'}><Building2 size={16}/> Fazendas</button>
+        <button type="button" className={metric==='visitas'?'active':''} onClick={()=>setMetric('visitas')} aria-pressed={metric==='visitas'}><ClipboardCheck size={16}/> Atendimentos</button>
+      </div>
+      <div className="coverageCentralFilters" aria-label="Filtrar mapa por central">
+        <button type="button" className={filter==='Todas'?'active all':''} onClick={()=>setFilter('Todas')}><i/>Todas <b>{Object.values(allCentralTotals).reduce((sum,count)=>sum+count,0)}</b></button>
+        {centrais.map(central=><button type="button" key={central} className={filter===central?'active':''} onClick={()=>setFilter(central)} style={{'--central-color':STATE_COLORS[central]||STATE_COLORS.mixed}}><i/>{centralShortName(central)} <b>{allCentralTotals[central]||0}</b></button>)}
+      </div>
+    </div>
+
+    <div className="coverageKpis">
+      <div><span className="coverageKpiIcon teal"><MapPinned size={18}/></span><p><b>{farms.length}</b><small>fazendas no mapa</small></p></div>
+      <div><span className="coverageKpiIcon blue"><ClipboardList size={18}/></span><p><b>{filteredVisits.length}</b><small>atendimentos registrados</small></p></div>
+      <div><span className="coverageKpiIcon purple"><Globe2 size={18}/></span><p><b>{stateStats.filter(state=>state.farmCount>0).length}</b><small>estados com presença</small></p></div>
+      <div><span className="coverageKpiIcon gold"><BarChart3 size={18}/></span><p><b>{leadingCentral?.count?`${centralShortName(leadingCentral.central)} ${topShare}%`:'-'}</b><small>maior participação em {metricLabel}</small></p></div>
+    </div>
+
+    <div className="coverageLegend">
+      <span>Leitura do mapa:</span>{centralList.map(central=><b key={central}><i style={{background:STATE_COLORS[central]||STATE_COLORS.mixed}}/>{centralShortName(central)}</b>)}<small>Os círculos nos estados dividem as cores pela participação de cada central.</small>
+    </div>
+
+    <div className="brMap coverageMapCanvas"><MapContainer center={[-15.8,-47.9]} zoom={4} minZoom={3} maxZoom={9} className="bigMap" scrollWheelZoom>
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="OpenStreetMap" />
-      {geo && <GeoJSON key={filter+fazendas.length} data={geo} style={styleFeature} onEachFeature={(feature,layer)=>{const uf=getGeoUF(feature); const count=farms.filter(f=>getFarmUF(f)===uf).length; layer.bindTooltip(`${uf || 'UF'} • ${count} fazenda(s)`);}} />}
-      {farms.map(f=><Marker key={f.id} position={farmLatLng(f)} icon={farmMarkerIcon(f)} eventHandlers={{click:()=>onOpen(f.id)}}><Popup><b>{f.nome}</b><br/>{f.cidade||'-'} {getFarmUF(f)&&`/ ${getFarmUF(f)}`}<br/>Central: {centralOfficialName(f.central)||'-'}<br/>Regional: {f.regional_nome||'-'}<br/>Colares: {collarBreakdown(f)}</Popup></Marker>)}
-    </MapContainer></div>{err&&<p className="sourceText">{err}</p>}</section>
+      <CoverageMapController points={mappedFarms.map(f=>f._coveragePosition)} trigger={mapTrigger}/>
+      {geo&&<GeoJSON key={mapTrigger} data={geo} style={styleFeature} onEachFeature={(feature,layer)=>{const uf=getGeoUF(feature),state=stateStatsByUF.get(uf),value=state?.total||0;layer.bindTooltip(`${UF_NAMES[uf]||uf||'Estado'} • ${value} ${metricLabel}`);}}/>}
+      {activeStates.filter(state=>state.center).map(state=><Marker key={`state-${state.uf}-${metric}`} position={state.center} icon={coverageStateIcon(state)} zIndexOffset={350}><Popup><div className="coveragePopup"><b>{state.name} ({state.uf})</b><span>{state.total} {state.total===1?metricUnit:metricLabel}</span>{state.parts.filter(part=>part.count>0).map(part=><small key={part.central}><i style={{background:part.color}}/>{part.label}: <b>{part.count}</b> ({Math.round(part.count/state.total*100)}%)</small>)}</div></Popup></Marker>)}
+      {mappedFarms.map(f=><Marker key={f.id} position={f._coveragePosition} icon={coverageFarmMarkerIcon(f)} zIndexOffset={500}><Tooltip direction="top" offset={[0,-24]}>{f.nome} • {centralShortName(mapCentral(f.central))}</Tooltip><Popup><div className="coveragePopup farm"><b>{f.nome}</b><span>{f.cidade||'-'} {getFarmUF(f)&&`/ ${getFarmUF(f)}`}</span><small><i style={{background:STATE_COLORS[mapCentral(f.central)]}}/>{centralOfficialName(mapCentral(f.central))}</small><small>Regional: <b>{f.regional_nome||'-'}</b></small><small>Colares: <b>{collarBreakdown(f)}</b></small>{!f._coverageExact&&<em>Posição aproximada pelo estado. Cadastre as coordenadas da fazenda para maior precisão.</em>}<button type="button" className="coverageOpenFarm" onClick={()=>onOpen(f.id)}>Abrir fazenda</button></div></Popup></Marker>)}
+    </MapContainer>{!geo&&!err&&<div className="coverageMapLoading"><RefreshCw size={18}/> Carregando estados...</div>}</div>
+    <p className="coverageMapHint"><Info size={15}/> Use a roda do mouse ou os botões para aproximar; toque nos gráficos dos estados e nos pontos para ver detalhes.</p>
+    {err&&<p className="sourceText coverageMapError">{err}</p>}
+
+    <section className="coverageStateSection">
+      <div className="coverageStateHeader"><div><span className="eyebrow">Distribuição regional</span><h3>Participação por estado</h3></div>{activeStates.length>6&&<button type="button" onClick={()=>setShowAllStates(value=>!value)}>{showAllStates?'Mostrar principais':'Ver todos os estados'}</button>}</div>
+      {visibleStates.length?<div className="coverageStateGrid">{visibleStates.map(state=><article key={state.uf}>
+        <header><span>{state.uf}</span><div><b>{state.name}</b><small>{state.farmCount} fazenda(s) • {state.visitCount} atendimento(s)</small></div><strong>{state.total}</strong></header>
+        <div className="coverageShareBar" aria-label={`Distribuição de ${state.name}`}>{state.parts.filter(part=>part.count>0).map(part=><i key={part.central} style={{width:`${part.count/state.total*100}%`,background:part.color}} title={`${part.label}: ${Math.round(part.count/state.total*100)}%`}/>)}</div>
+        <footer>{state.parts.filter(part=>part.count>0).map(part=><span key={part.central}><i style={{background:part.color}}/><b>{centralShortName(part.central)}</b> {part.count} • {Math.round(part.count/state.total*100)}%</span>)}</footer>
+      </article>)}</div>:<div className="coverageEmpty"><MapPinned size={24}/><span>Nenhum {metricUnit} encontrado para este filtro.</span></div>}
+    </section>
+  </section>
 }
 
 function centralTone(central) {
@@ -1868,30 +2027,38 @@ const farmHasPending = (farm, data) => farmStatus(farm) === 'Com pendência' || 
 const latestFarmVisit = (farm, data) => data.visitas.filter(v => v.fazenda_id === farm.id).sort((a,b) => String(b.data_visita || '').localeCompare(String(a.data_visita || '')))[0];
 const FARM_VIEW_MODES = [
   ['cards','Cards',Layers],
-  ['lista','Lista',ClipboardList],
-  ['carrossel','Carrossel',Sparkles]
+  ['lista','Lista',ClipboardList]
 ];
-const FARM_PAGE_SIZES = { cards: 9, lista: 10, carrossel: 6 };
+const FARM_PAGE_SIZES = { cards: 9, lista: 10 };
 
 function Fazendas({data,onOpen}){
   const initialFilters=useMemo(readFarmFilters,[]);
-  const [q,setQ]=useState(initialFilters.q),[modal,setModal]=useState(false),[central,setCentral]=useState(initialFilters.central),[status,setStatus]=useState(initialFilters.status),[filtersOpen,setFiltersOpen]=useState(false),[settingsOpen,setSettingsOpen]=useState(false);
+  const [q,setQ]=useState(initialFilters.q),[modal,setModal]=useState(false),[central,setCentral]=useState(initialFilters.central),[status,setStatus]=useState(initialFilters.status),[visitFrom,setVisitFrom]=useState(initialFilters.visitFrom),[visitTo,setVisitTo]=useState(initialFilters.visitTo),[stateFilter,setStateFilter]=useState(initialFilters.state),[cityFilter,setCityFilter]=useState(initialFilters.city),[collarsMin,setCollarsMin]=useState(initialFilters.collarsMin),[collarsMax,setCollarsMax]=useState(initialFilters.collarsMax),[filtersOpen,setFiltersOpen]=useState(false),[settingsOpen,setSettingsOpen]=useState(false);
   const [page,setPage]=useState(1);
   const [viewMode,setViewMode]=useState(()=>{
     try{const saved=localStorage.getItem(FARM_VIEW_KEY);return FARM_VIEW_MODES.some(([id])=>id===saved)?saved:'cards';}catch{return 'cards';}
   });
   useEffect(()=>{try{localStorage.setItem(FARM_VIEW_KEY,viewMode)}catch{}},[viewMode]);
-  useEffect(()=>{try{localStorage.setItem(FARM_FILTER_KEY,JSON.stringify({q,central,status}))}catch{}},[q,central,status]);
-  useEffect(()=>{setPage(1)},[q,central,status,viewMode]);
+  useEffect(()=>{try{localStorage.setItem(FARM_FILTER_KEY,JSON.stringify({q,central,status,visitFrom,visitTo,state:stateFilter,city:cityFilter,collarsMin,collarsMax}))}catch{}},[q,central,status,visitFrom,visitTo,stateFilter,cityFilter,collarsMin,collarsMax]);
+  useEffect(()=>{setPage(1)},[q,central,status,visitFrom,visitTo,stateFilter,cityFilter,collarsMin,collarsMax,viewMode]);
   const visibleCentrais=allowedCentrais(data);
   useEffect(()=>{if(central!=='Todas'&&!visibleCentrais.includes(central))setCentral('Todas');},[central,visibleCentrais.join('|')]);
+  const stateOptions=useMemo(()=>Array.from(new Set(data.fazendas.map(getFarmUF).filter(Boolean))).sort((a,b)=>(UF_NAMES[a]||a).localeCompare(UF_NAMES[b]||b,'pt-BR')),[data.fazendas]);
+  const cityOptions=useMemo(()=>Array.from(new Set(data.fazendas.filter(f=>stateFilter==='Todos'||getFarmUF(f)===stateFilter).map(f=>String(f.cidade||'').trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'pt-BR')),[data.fazendas,stateFilter]);
+  useEffect(()=>{if(cityFilter!=='Todas'&&!cityOptions.includes(cityFilter))setCityFilter('Todas')},[cityFilter,cityOptions.join('|')]);
   const farmEquipments = (farm) => data.equipamentos.filter(e=>e.fazenda_id===farm.id);
   const farms=data.fazendas.filter(f=>{
     const equipmentText=farmEquipments(f).map(e=>[e.tipo,e.apelido,e.local_nome].join(' ')).join(' ');
     const matchesText=[f.nome,f.cidade,f.estado_uf,f.responsavel,f.central,f.regional_nome,f.veterinario_apoio,equipmentText].join(' ').toLowerCase().includes(q.toLowerCase());
     const currentStatus=farmStatus(f);
     const matchesStatus=status==='Todos'||currentStatus===status;
-    return matchesText&&centralMatches(f,central)&&matchesStatus;
+    const lastVisit=latestFarmVisit(f,data), lastVisitDate=String(lastVisit?.data_visita||lastVisit?.created_at||'').slice(0,10);
+    const matchesVisitFrom=!visitFrom||Boolean(lastVisitDate&&lastVisitDate>=visitFrom);
+    const matchesVisitTo=!visitTo||Boolean(lastVisitDate&&lastVisitDate<=visitTo);
+    const matchesState=stateFilter==='Todos'||getFarmUF(f)===stateFilter;
+    const matchesCity=cityFilter==='Todas'||String(f.cidade||'').trim()===cityFilter;
+    const collars=num(f.qtd_colares_prevista), matchesMin=collarsMin===''||collars>=Number(collarsMin), matchesMax=collarsMax===''||collars<=Number(collarsMax);
+    return matchesText&&centralMatches(f,central)&&matchesStatus&&matchesVisitFrom&&matchesVisitTo&&matchesState&&matchesCity&&matchesMin&&matchesMax;
   });
   const counts={
     naoIniciadas:data.fazendas.filter(f=>farmStatus(f)==='Não iniciada').length,
@@ -1907,8 +2074,8 @@ function Fazendas({data,onOpen}){
       tone:centralTone(value)
     }))
   ];
-  const resetFilters=()=>{setQ('');setCentral('Todas');setStatus('Todos')};
-  const hasActiveFilters=Boolean(q)||central!=='Todas'||status!=='Todos';
+  const resetFilters=()=>{setQ('');setCentral('Todas');setStatus('Todos');setVisitFrom('');setVisitTo('');setStateFilter('Todos');setCityFilter('Todas');setCollarsMin('');setCollarsMax('')};
+  const hasActiveFilters=Boolean(q)||central!=='Todas'||status!=='Todos'||Boolean(visitFrom)||Boolean(visitTo)||stateFilter!=='Todos'||cityFilter!=='Todas'||collarsMin!==''||collarsMax!=='';
   const greetingName=shortDisplayName(personName(data.currentUser)||'Usuário');
   const saveFarm=async(r)=>{const result=await data.saveFazenda(r);if(result.ok)setModal(false)};
   const pageSize=FARM_PAGE_SIZES[viewMode]||FARM_PAGE_SIZES.cards;
@@ -1921,7 +2088,6 @@ function Fazendas({data,onOpen}){
   const renderFarmResults=()=>{
     if(farms.length===0) return <Empty title="Nenhuma fazenda encontrada" text="Altere os filtros ou cadastre uma nova fazenda."/>;
     if(viewMode==='lista') return <div className="farmListView">{pagedFarms.map(f=><FarmListItem key={f.id} farm={f} data={data} onOpen={()=>onOpen(f.id)}/>)}</div>;
-    if(viewMode==='carrossel') return <div className="farmCarouselView">{pagedFarms.map(f=><FarmCard key={f.id} farm={f} data={data} onOpen={()=>onOpen(f.id)}/>)}</div>;
     return <div className="farmGrid finderGrid farmGridModern">{pagedFarms.map(f=><FarmCard key={f.id} farm={f} data={data} onOpen={()=>onOpen(f.id)}/>)}</div>;
   };
   return <div className="farmsHome">
@@ -1979,13 +2145,27 @@ function Fazendas({data,onOpen}){
       </div>}
     </section>
 
-    <div className="fieldMapSecondary farmsMapPreview"><BrasilAtuacaoMap fazendas={data.fazendas} onOpen={onOpen} centrais={visibleCentrais}/></div>
+    <div className="fieldMapSecondary farmsMapPreview"><BrasilAtuacaoMap fazendas={data.fazendas} visitas={data.visitas} onOpen={onOpen} centrais={visibleCentrais}/></div>
     <button className="mobileFarmFab" onClick={()=>setModal(true)}><Plus size={22}/></button>
     {filtersOpen&&<div className="farmFilterSheetBackdrop" onClick={()=>setFiltersOpen(false)}>
       <aside className="farmFilterSheet" onClick={e=>e.stopPropagation()}>
         <header><div><span className="eyebrow">Filtros</span><h3>Refinar lista</h3></div><button type="button" onClick={()=>setFiltersOpen(false)}><X size={18}/></button></header>
-        <label>Central<select value={central} onChange={e=>setCentral(e.target.value)}><option>Todas</option>{visibleCentrais.map(c=><option key={c} value={c}>{centralOfficialName(c)}</option>)}</select></label>
-        <label>Status<select value={status} onChange={e=>setStatus(e.target.value)}><option>Todos</option>{FARM_STATUS.map(s=><option key={s}>{s}</option>)}</select></label>
+        <div className="farmFilterGrid">
+          <label>Central<select aria-label="Central" value={central} onChange={e=>setCentral(e.target.value)}><option>Todas</option>{visibleCentrais.map(c=><option key={c} value={c}>{centralOfficialName(c)}</option>)}</select></label>
+          <label>Status<select aria-label="Status" value={status} onChange={e=>setStatus(e.target.value)}><option>Todos</option>{FARM_STATUS.map(s=><option key={s}>{s}</option>)}</select></label>
+        </div>
+        <section className="farmFilterGroup">
+          <div className="farmFilterGroupTitle"><CalendarDays size={16}/><span><b>Data da última visita</b><small>Informe um período ou deixe em branco.</small></span></div>
+          <div className="farmFilterRange"><label>De<input aria-label="De" type="date" value={visitFrom} max={visitTo||undefined} onChange={e=>setVisitFrom(e.target.value)}/></label><label>Até<input aria-label="Até" type="date" value={visitTo} min={visitFrom||undefined} onChange={e=>setVisitTo(e.target.value)}/></label></div>
+        </section>
+        <section className="farmFilterGroup">
+          <div className="farmFilterGroupTitle"><MapPin size={16}/><span><b>Localização</b><small>A cidade acompanha o estado selecionado.</small></span></div>
+          <div className="farmFilterGrid"><label>Estado<select aria-label="Estado" value={stateFilter} onChange={e=>{setStateFilter(e.target.value);setCityFilter('Todas')}}><option value="Todos">Todos</option>{stateOptions.map(uf=><option key={uf} value={uf}>{UF_NAMES[uf]||uf} ({uf})</option>)}</select></label><label>Cidade<select aria-label="Cidade" value={cityFilter} onChange={e=>setCityFilter(e.target.value)}><option value="Todas">Todas</option>{cityOptions.map(city=><option key={city} value={city}>{city}</option>)}</select></label></div>
+        </section>
+        <section className="farmFilterGroup">
+          <div className="farmFilterGroupTitle"><Tags size={16}/><span><b>Quantidade de colares</b><small>Faixa da quantidade prevista na fazenda.</small></span></div>
+          <div className="farmFilterRange"><label>Mínimo<input aria-label="Mínimo" type="number" inputMode="numeric" min="0" value={collarsMin} onChange={e=>setCollarsMin(e.target.value)} placeholder="Ex.: 50"/></label><label>Máximo<input aria-label="Máximo" type="number" inputMode="numeric" min={collarsMin||0} value={collarsMax} onChange={e=>setCollarsMax(e.target.value)} placeholder="Ex.: 500"/></label></div>
+        </section>
         <div className="farmSheetQuick farmSheetView"><span>Visualização</span><div>{FARM_VIEW_MODES.map(([id,label,Icon])=><button type="button" key={id} className={viewMode===id?'active':''} onClick={()=>setViewMode(id)}><span><Icon size={15}/>{label}</span></button>)}</div></div>
         <div className="farmSheetActions"><button className="btn light" onClick={resetFilters}>Limpar filtros</button><button className="btn primary" onClick={()=>setFiltersOpen(false)}>Aplicar</button></div>
       </aside>

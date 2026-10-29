@@ -12949,3 +12949,858 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+/* V3.16 - mapa de atuação responsivo e distribuição por central */
+.coverageDashboard {
+  position: relative;
+  overflow: hidden;
+  padding: 22px;
+  border-color: #d8e3ef;
+  background:
+    radial-gradient(circle at 92% 0, rgba(0, 157, 148, .09), transparent 28%),
+    linear-gradient(180deg, #fff, #fbfdff);
+}
+
+.coverageDashboardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.coverageDashboardHeader h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 5px 0 4px;
+  font-size: 25px;
+  letter-spacing: -.035em;
+}
+
+.coverageDashboardHeader h2 svg {
+  color: #009d94;
+}
+
+.coverageDashboardHeader p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.coverageExpandButton {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 13px;
+  border: 1px solid #dbe4ef;
+  border-radius: 13px;
+  background: #fff;
+  color: #0f172a;
+  font-weight: 850;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .05);
+}
+
+.coverageToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.coverageMetricSwitch {
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid #dbe4ef;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.coverageMetricSwitch button,
+.coverageCentralFilters button {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  font-weight: 850;
+}
+
+.coverageMetricSwitch button {
+  min-height: 35px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 11px;
+  border-radius: 10px;
+  font-size: 12px;
+}
+
+.coverageMetricSwitch button.active {
+  color: #fff;
+  background: #0f172a;
+  box-shadow: 0 7px 16px rgba(15,23,42,.18);
+}
+
+.coverageCentralFilters {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 2px;
+  scrollbar-width: none;
+}
+
+.coverageCentralFilters::-webkit-scrollbar {
+  display: none;
+}
+
+.coverageCentralFilters button {
+  --central-color: #64748b;
+  flex: none;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid #dbe4ef;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 11px;
+}
+
+.coverageCentralFilters button i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--central-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--central-color) 15%, transparent);
+}
+
+.coverageCentralFilters button.all i {
+  background: conic-gradient(#0b5cab 0 50%, #009d94 50% 100%);
+}
+
+.coverageCentralFilters button b {
+  min-width: 20px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: #475569;
+  background: #f1f5f9;
+  text-align: center;
+  font-size: 10px;
+}
+
+.coverageCentralFilters button.active {
+  color: #0f172a;
+  border-color: color-mix(in srgb, var(--central-color) 42%, #dbe4ef);
+  background: color-mix(in srgb, var(--central-color) 9%, #fff);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--central-color) 8%, transparent);
+}
+
+.coverageCentralFilters button.active.all {
+  color: #fff;
+  border-color: #0f172a;
+  background: #0f172a;
+}
+
+.coverageCentralFilters button.active.all b {
+  color: #0f172a;
+  background: #fff;
+}
+
+.coverageKpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  margin-bottom: 12px;
+}
+
+.coverageKpis > div {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 11px;
+  border: 1px solid #e2e8f0;
+  border-radius: 15px;
+  background: rgba(255,255,255,.9);
+}
+
+.coverageKpiIcon {
+  width: 35px;
+  height: 35px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+}
+
+.coverageKpiIcon.teal { color: #007f78; background: #e6fffb; }
+.coverageKpiIcon.blue { color: #0b5cab; background: #eaf3ff; }
+.coverageKpiIcon.purple { color: #7c3aed; background: #f3e8ff; }
+.coverageKpiIcon.gold { color: #b45309; background: #fff7ed; }
+
+.coverageKpis p {
+  min-width: 0;
+  margin: 0;
+}
+
+.coverageKpis b,
+.coverageKpis small {
+  display: block;
+}
+
+.coverageKpis b {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 17px;
+  line-height: 1.15;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coverageKpis small {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.coverageLegend {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0 2px 10px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.coverageLegend > span {
+  font-weight: 850;
+}
+
+.coverageLegend b {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #334155;
+}
+
+.coverageLegend i,
+.coveragePopup small i,
+.coverageStateGrid footer i {
+  width: 9px;
+  height: 9px;
+  display: inline-block;
+  flex: none;
+  border-radius: 50%;
+}
+
+.coverageLegend small {
+  margin-left: auto;
+  text-align: right;
+}
+
+.fieldMapSecondary .coverageDashboard .brMap,
+.coverageMapCanvas {
+  position: relative;
+  height: 460px;
+  border: 1px solid #cfdbe8;
+  border-radius: 22px;
+  background: #eef5f8;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.55);
+}
+
+.coverageMapCanvas .leaflet-container {
+  background: #eef5f8;
+}
+
+.coverageMapLoading {
+  position: absolute;
+  z-index: 600;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 11px;
+  border: 1px solid #dbe4ef;
+  border-radius: 999px;
+  color: #475569;
+  background: rgba(255,255,255,.92);
+  box-shadow: 0 10px 25px rgba(15,23,42,.12);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.coverageMapLoading svg {
+  animation: spin .9s linear infinite;
+}
+
+.coverageMapHint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 3px 0;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.coverageMapError {
+  margin: 9px 0 0;
+}
+
+.coverage-farm-marker-wrap,
+.coverage-state-marker-wrap {
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.coverage-farm-marker {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 3px solid #fff;
+  border-radius: 50% 50% 50% 8px;
+  transform: rotate(-45deg);
+  color: #fff;
+  background: var(--coverage-color);
+  box-shadow: 0 7px 18px rgba(15,23,42,.38), 0 0 0 2px color-mix(in srgb, var(--coverage-color) 40%, transparent);
+}
+
+.coverage-farm-marker svg {
+  width: 16px;
+  height: 16px;
+  transform: rotate(45deg);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.coverage-state-marker {
+  width: 58px;
+  display: grid;
+  justify-items: center;
+  filter: drop-shadow(0 8px 12px rgba(15,23,42,.22));
+}
+
+.coverage-state-marker > span {
+  position: relative;
+  width: 47px;
+  height: 47px;
+  display: grid;
+  place-items: center;
+  border: 3px solid rgba(255,255,255,.96);
+  border-radius: 50%;
+  background: var(--coverage-gradient);
+}
+
+.coverage-state-marker > span::after {
+  content: '';
+  position: absolute;
+  inset: 9px;
+  z-index: 1;
+  border-radius: 50%;
+  background: rgba(255,255,255,.95);
+  box-shadow: inset 0 0 0 1px rgba(148,163,184,.2);
+}
+
+.coverage-state-marker b {
+  position: relative;
+  z-index: 2;
+  color: #0f172a;
+  font-size: 12px;
+}
+
+.coverage-state-marker em {
+  margin-top: -2px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  color: #fff;
+  background: #0f172a;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: .06em;
+}
+
+.coverageMapCanvas .leaflet-tooltip {
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 9px;
+  color: #fff;
+  background: rgba(15,23,42,.94);
+  box-shadow: 0 8px 20px rgba(15,23,42,.24);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.coverageMapCanvas .leaflet-tooltip::before {
+  border-top-color: rgba(15,23,42,.94);
+}
+
+.coveragePopup {
+  min-width: 180px;
+  display: grid;
+  gap: 5px;
+  color: #334155;
+}
+
+.coveragePopup > b {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.coveragePopup > span {
+  color: #64748b;
+  font-weight: 750;
+}
+
+.coveragePopup small {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.coveragePopup em {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid #e2e8f0;
+  color: #92400e;
+  font-size: 10px;
+  font-style: normal;
+  line-height: 1.35;
+}
+
+.coverageOpenFarm {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 9px;
+  color: #fff;
+  background: #0f172a;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.coverageStateSection {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.coverageStateHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.coverageStateHeader h3 {
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+
+.coverageStateHeader button {
+  border: 0;
+  color: #0b5cab;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.coverageStateGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.coverageStateGrid article {
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid #e2e8f0;
+  border-radius: 15px;
+  background: #fff;
+}
+
+.coverageStateGrid article > header {
+  display: grid;
+  grid-template-columns: 34px minmax(0,1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.coverageStateGrid article > header > span {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  color: #fff;
+  background: #0f172a;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.coverageStateGrid article > header b,
+.coverageStateGrid article > header small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.coverageStateGrid article > header b {
+  color: #0f172a;
+  font-size: 12px;
+}
+
+.coverageStateGrid article > header small {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 9px;
+}
+
+.coverageStateGrid article > header strong {
+  color: #0f172a;
+  font-size: 20px;
+}
+
+.coverageShareBar {
+  height: 7px;
+  display: flex;
+  overflow: hidden;
+  margin: 10px 0 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.coverageShareBar i {
+  height: 100%;
+  min-width: 2px;
+}
+
+.coverageStateGrid footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 9px;
+}
+
+.coverageStateGrid footer span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #64748b;
+  font-size: 9px;
+}
+
+.coverageStateGrid footer b {
+  color: #334155;
+}
+
+.coverageEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 76px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 15px;
+  color: #64748b;
+  background: #f8fafc;
+  font-weight: 750;
+}
+
+.coverageDashboard.mapFullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  margin: 0;
+  overflow-y: auto;
+  border: 0;
+  border-radius: 0;
+  padding: 18px;
+  background: #f8fafc;
+}
+
+.coverageDashboard.mapFullscreen .coverageMapCanvas {
+  height: min(68dvh, 760px);
+}
+
+@media (max-width: 980px) {
+  .coverageKpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .coverageStateGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .farmsHeroHome { order: 1; }
+  .farmsCommandBar { order: 2; }
+  .farmsHome > .farmCentralRail { order: 3; }
+  .farmsMapPreview { order: 4; }
+  .farmResultsPanel { order: 5; }
+
+  .farmsMapPreview {
+    display: block !important;
+  }
+
+  .fieldMapSecondary .coveragePanel {
+    margin-top: 4px;
+  }
+
+  .coverageDashboard {
+    padding: 14px !important;
+    border-radius: 22px !important;
+  }
+
+  .coverageDashboardHeader {
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .coverageDashboardHeader h2 {
+    font-size: 21px;
+  }
+
+  .coverageDashboardHeader p {
+    font-size: 12px;
+  }
+
+  .coverageExpandButton {
+    width: 42px;
+    flex: none;
+    padding: 0;
+  }
+
+  .coverageExpandButton span {
+    display: none;
+  }
+
+  .coverageToolbar {
+    display: grid;
+    gap: 9px;
+  }
+
+  .coverageMetricSwitch {
+    width: 100%;
+  }
+
+  .coverageCentralFilters {
+    justify-content: flex-start;
+    margin-inline: -2px;
+    padding: 2px;
+  }
+
+  .coverageKpis {
+    gap: 7px;
+  }
+
+  .coverageKpis > div {
+    padding: 9px;
+  }
+
+  .coverageKpiIcon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .coverageKpis b {
+    font-size: 15px;
+  }
+
+  .coverageLegend {
+    align-items: center;
+    overflow-x: auto;
+    padding-bottom: 3px;
+    scrollbar-width: none;
+  }
+
+  .coverageLegend > * {
+    flex: none;
+  }
+
+  .coverageLegend small {
+    display: none;
+  }
+
+  .fieldMapSecondary .coverageDashboard .brMap,
+  .coverageMapCanvas {
+    height: 58dvh;
+    min-height: 390px;
+    max-height: 560px;
+    border-radius: 18px;
+  }
+
+  .coverageStateGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .coverageDashboard.mapFullscreen {
+    padding: 12px !important;
+    border-radius: 0 !important;
+  }
+
+  .coverageDashboard.mapFullscreen .coverageKpis,
+  .coverageDashboard.mapFullscreen .coverageStateSection,
+  .coverageDashboard.mapFullscreen .coverageMapHint {
+    display: none;
+  }
+
+  .coverageDashboard.mapFullscreen .coverageMapCanvas {
+    height: calc(100dvh - 210px);
+    min-height: 420px;
+    max-height: none;
+  }
+}
+
+@media (max-width: 430px) {
+  .coverageKpis small {
+    font-size: 9px;
+  }
+
+  .coverageKpiIcon {
+    display: none;
+  }
+
+  .coverageDashboardHeader p {
+    max-width: 245px;
+  }
+
+  .coverageStateHeader {
+    align-items: flex-start;
+  }
+}
+
+/* V3.17 - filtros avançados de fazendas */
+.farmFilterSheetBackdrop {
+  z-index: 1600;
+}
+
+.farmFilterSheet {
+  width: min(520px, calc(100vw - 64px));
+}
+
+.farmFilterGrid,
+.farmFilterRange {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.farmFilterSheet input,
+.farmFilterSheet select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #dbe4ef;
+  border-radius: 13px;
+  background: #fff;
+  padding: 11px 12px;
+  color: #0f172a;
+  outline: none;
+  font-weight: 800;
+}
+
+.farmFilterSheet input:focus,
+.farmFilterSheet select:focus {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15,118,110,.1);
+}
+
+.farmFilterGroup {
+  display: grid;
+  gap: 9px;
+  padding: 11px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.farmFilterGroupTitle {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: #0f766e;
+}
+
+.farmFilterGroupTitle > span {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.farmFilterGroupTitle b {
+  color: #0f172a;
+  font-size: 12px;
+}
+
+.farmFilterGroupTitle small {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.farmFilterGroup label,
+.farmFilterGrid label,
+.farmFilterRange label {
+  gap: 5px;
+  font-size: 11px;
+}
+
+.farmSheetView > div {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 900px) {
+  .farmFilterSheetBackdrop {
+    overflow-y: auto;
+  }
+
+  .farmFilterSheet {
+    max-height: 90dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .farmFilterSheet > header {
+    position: sticky;
+    top: -18px;
+    z-index: 3;
+    margin: -18px -18px 0;
+    padding: 18px 18px 10px;
+    background: #fff;
+  }
+
+  .farmSheetActions {
+    position: sticky;
+    bottom: -18px;
+    z-index: 3;
+    margin: 0 -18px -18px;
+    padding: 10px 18px 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,.88), #fff 35%);
+  }
+}
+
+@media (max-width: 430px) {
+  .farmFilterGrid,
+  .farmFilterRange {
+    grid-template-columns: 1fr;
+  }
+}
