@@ -24,7 +24,7 @@ import genexLogo from '../LOGO_GENEX.png';
 import urusLogo from '../LOGO_URUS.png';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
-const APP_VERSION = '3.0.7';
+const APP_VERSION = '3.0.8';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
 const FARM_VIEW_KEY = 'cta_farm_view_mode';
@@ -1643,7 +1643,7 @@ function App(){
   if(!supabase && !localMode) return <SupabaseSetup onUseLocal={()=>{localStorage.setItem(LOCAL_MODE_KEY,'true'); setLocalMode(true)}}/>;
   if(supabase && recoveryMode && user && !localMode) return <PasswordRecovery onDone={()=>{setRecoveryMode(false); window.history.replaceState({}, document.title, window.location.origin + window.location.pathname);}}/>;
   if(supabase && !user && !localMode) return <Login onUseLocal={()=>{localStorage.setItem(LOCAL_MODE_KEY,'true'); setLocalMode(true)}}/>;
-  const goFarm = id => { setSelectedFarmId(id); setView('fazenda'); saveAppContext('fazenda', id); };
+  const goFarm = id => { setSelectedFarmId(id); setView('fazenda'); saveAppContext('fazenda', id); requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'})); };
   const setMainView = v => { const next=normalizeMainView(v); setView(next); if(next!=='fazenda') setSelectedFarmId(null); saveAppContext(next, next==='fazenda'?selectedFarmId:null); };
   const exitLocalMode = () => { localStorage.removeItem(LOCAL_MODE_KEY); saveAppContext('fazendas', null); setLocalMode(false); setSelectedFarmId(null); setView('fazendas'); };
   const logout = async () => { if(localMode){ exitLocalMode(); return; } await supabase?.auth.signOut(); };
@@ -2792,7 +2792,7 @@ function AcessosFazenda({farm,data,access}){
 function InfoCard({title,rows}){return <div className="infoCard"><h3>{title}</h3>{rows.map(([a,b])=><div className="infoRow" key={a}><span>{a}</span><b>{b||'-'}</b></div>)}</div>}
 function FarmDetailGroup({title,Icon,rows=[],children}){
   return <details className="farmDetailGroup">
-    <summary><span className="farmDetailGroupTitle"><span className="farmDetailGroupIcon"><Icon size={17}/></span><b>{title}</b></span><span className="farmDetailGroupMeta"><small>{rows.length||''}</small><ChevronLeft size={17}/></span></summary>
+    <summary><span className="farmDetailGroupTitle"><span className="farmDetailGroupIcon"><Icon size={17}/></span><b>{title}</b></span><span className="farmDetailGroupMeta">{rows.length>0&&<small>{rows.length}</small>}<ChevronLeft size={17}/></span></summary>
     <div className="farmDetailGroupBody">
       {rows.length>0&&<div className="farmDetailRows">{rows.map(([label,value,RowIcon,wide])=><article className={wide?'wide':''} key={label}><span><RowIcon size={15}/>{label}</span><b>{value||'-'}</b></article>)}</div>}
       {children}
@@ -2861,7 +2861,7 @@ function FarmExecutiveSummary({farm,visits,checks,diags,equips,evidencias=[],can
     </div>
     <div className="execCards execCompactCards">
       <article className="execCard execProgressCard"><div className="execCardIcon"><Hash size={19}/></div><span>Colares</span><b>{handled} / {predicted||'-'}</b><div className="execProgress"><i style={{width:`${progress}%`}}/></div><small>{delivered?`${installed} instalados • ${delivered} entregues`:`${progress}% concluído`}</small></article>
-      <button type="button" className="execCard execMapCard" onClick={onOpenMap} aria-label="Abrir mapa técnico"><div className="execCardIcon"><MapPinned size={19}/></div><span>Mapa</span><b>{mapped} / {equips.length}</b><small>equipamentos com GPS • abrir mapa</small></button>
+      <button type="button" className="execCard execMapCard" onClick={onOpenMap} aria-label="Abrir mapa técnico"><div className="execCardIcon"><MapPinned size={19}/></div><span>Mapa</span><b>{mapped} / {equips.length}</b><small>Com GPS</small></button>
       <article className="execCard execTimeCard"><div className="execCardIcon"><Clock size={19}/></div><span>Tempo em campo</span><b>{totalServiceLabel}</b><small>{serviceSessions.length?`${serviceSessions.length} atendimento(s)`:'sem início'}</small></article>
     </div>
     {alerts.length>0&&<div className="execAlerts">{alerts.map(({text,Icon,tab,action})=><button type="button" key={text} onClick={()=>action?action():onNavigate?.(tab)}><Icon size={15}/>{text}</button>)}</div>}

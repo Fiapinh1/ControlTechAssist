@@ -16064,3 +16064,273 @@ textarea {
     font-size: 12px;
   }
 }
+
+/* V3.0.8: acabamento final do resumo da fazenda */
+.farmDetail .farmHero {
+  z-index: 30;
+  overflow: visible;
+}
+
+.farmDetail .farmHero::after {
+  inset: 0;
+  height: auto;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 88% 110%, rgba(var(--brand-rgb), .24), transparent 48%),
+    linear-gradient(100deg, transparent 54%, rgba(255,255,255,.035));
+  transform: none;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.farmDetail .farmHero > div:first-child {
+  position: relative;
+  z-index: 1;
+}
+
+.farmDetail .farmHero:not(.compactHero) {
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 12px;
+  padding: clamp(18px, 2vw, 24px);
+}
+
+.farmDetail .farmHero h1 {
+  margin: 4px 0 6px;
+}
+
+.farmDetail .farmHero .farmHeroMeta {
+  margin: 6px 0 8px;
+  row-gap: 5px;
+}
+
+.farmHeroPrimaryActions {
+  align-self: center;
+}
+
+.farmHeroAction,
+.farmHeroMoreButton {
+  min-height: 40px;
+}
+
+.farmHeroMenu {
+  top: calc(100% + 7px);
+  z-index: 7;
+}
+
+.farmHeroMenuBackdrop {
+  z-index: 6;
+}
+
+.farmTabs {
+  margin-bottom: 12px;
+}
+
+.compactExecutiveSummary {
+  min-height: 0;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 16px;
+}
+
+.compactExecutiveSummary .execSummaryHead {
+  margin-bottom: 0;
+}
+
+.compactExecutiveSummary .serviceMiniBar {
+  padding: 12px 14px;
+}
+
+.compactExecutiveSummary .execCompactCards {
+  gap: 9px;
+}
+
+.compactExecutiveSummary .execCard {
+  min-width: 0;
+}
+
+.compactExecutiveSummary .execCard > span,
+.compactExecutiveSummary .execCard > small {
+  line-height: 1.35;
+  word-break: normal;
+  overflow-wrap: normal;
+  hyphens: none;
+  text-wrap: balance;
+}
+
+.compactExecutiveSummary .execCard > span {
+  font-size: 11px;
+}
+
+.compactExecutiveSummary .execCard > small {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+button.execCard.execMapCard {
+  min-height: 100%;
+  touch-action: manipulation;
+}
+
+button.execCard.execMapCard:focus-visible {
+  outline: 3px solid rgba(var(--brand-rgb), .24);
+  outline-offset: 2px;
+}
+
+.farmInformationSection {
+  gap: 9px;
+  margin-top: 0;
+  padding-top: 13px;
+}
+
+.farmDetailGroups {
+  gap: 8px;
+}
+
+.farmDetailGroup {
+  box-shadow: 0 5px 14px rgba(15,23,42,.025);
+}
+
+.farmDetailGroup > summary {
+  min-height: 54px;
+  padding: 8px 11px;
+  transition: color .18s ease, background .18s ease;
+}
+
+.farmDetailGroup:not([open]) > summary:hover {
+  background: #f8fafc;
+}
+
+.farmDetailGroup[open] {
+  border-color: color-mix(in srgb, var(--brand) 38%, #dbe4ef);
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(var(--brand-rgb), .09);
+}
+
+.farmDetailGroup[open] > summary {
+  color: var(--brand);
+  background: linear-gradient(90deg, var(--brand3), #fff 78%);
+  box-shadow: inset 3px 0 0 var(--brand);
+}
+
+.farmDetailGroup[open] .farmDetailGroupIcon {
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand), var(--brand2));
+  box-shadow: 0 8px 18px rgba(var(--brand-rgb), .18);
+}
+
+.farmDetailGroup > summary:focus-visible {
+  outline: 3px solid rgba(var(--brand-rgb), .20);
+  outline-offset: -3px;
+}
+
+.farmDetailGroupBody {
+  padding-bottom: 11px;
+}
+
+@media (max-width: 760px) {
+  .farmDetail {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .farmDetail .farmHero:not(.compactHero) {
+    gap: 13px;
+    margin-inline: 0;
+    margin-bottom: 10px;
+    padding: 15px !important;
+  }
+
+  .farmDetail .farmHero h1 {
+    margin-bottom: 5px;
+    font-size: clamp(23px, 7vw, 29px) !important;
+    line-height: 1.08;
+  }
+
+  .farmDetail .farmHero .farmHeroMeta {
+    margin: 5px 0 7px;
+  }
+
+  .farmHeroPrimaryActions {
+    gap: 7px;
+  }
+
+  .farmHeroAction,
+  .farmHeroMoreButton {
+    min-height: 40px;
+    border-radius: 13px;
+  }
+
+  .farmHeroMenu {
+    right: 0;
+    width: min(280px, calc(100vw - 30px));
+  }
+
+  .farmTabs {
+    margin-bottom: 10px;
+  }
+
+  .compactExecutiveSummary {
+    gap: 9px;
+    margin-inline: 0;
+    margin-bottom: 10px;
+    padding: 12px !important;
+  }
+
+  .compactExecutiveSummary .execSummaryHead {
+    margin-bottom: 0;
+  }
+
+  .compactExecutiveSummary .serviceMiniBar {
+    padding: 10px;
+  }
+
+  .compactExecutiveSummary .execCompactCards {
+    gap: 7px;
+    margin-top: 0;
+  }
+
+  .compactExecutiveSummary .execCard,
+  .compactExecutiveSummary .execProgressCard,
+  .compactExecutiveSummary .execMapCard,
+  .compactExecutiveSummary .execTimeCard {
+    min-height: 102px;
+    padding: 9px;
+  }
+
+  .compactExecutiveSummary .execCard > span,
+  .compactExecutiveSummary .execCard > small {
+    font-size: 10px;
+    line-height: 1.3;
+  }
+
+  .farmInformationSection {
+    padding-top: 11px;
+  }
+
+  .farmDetailGroup > summary {
+    min-height: 52px;
+  }
+}
+
+@media (max-width: 390px) {
+  .farmHeroAction {
+    padding-inline: 9px;
+  }
+
+  .compactExecutiveSummary .execCompactCards {
+    grid-template-columns: repeat(3, minmax(88px, 1fr));
+  }
+
+  .compactExecutiveSummary .execCard,
+  .compactExecutiveSummary .execProgressCard,
+  .compactExecutiveSummary .execMapCard,
+  .compactExecutiveSummary .execTimeCard {
+    min-height: 98px;
+    padding: 8px;
+  }
+
+  .compactExecutiveSummary .execCard > span,
+  .compactExecutiveSummary .execCard > small {
+    font-size: 9.5px;
+  }
+}
