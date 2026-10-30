@@ -8100,6 +8100,613 @@ body,
   }
 }
 
+/* V3.0.11: acabamento da jornada de visitas */
+.visitsPanel {
+  overflow: visible;
+}
+
+.visitSummaryStrip {
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.visitSummaryStrip article {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  min-height: 66px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+.visitSummaryStrip article > svg {
+  grid-row: 1 / 3;
+  width: 34px;
+  height: 34px;
+  padding: 8px;
+  border-radius: 12px;
+  background: #ecfdf5;
+}
+
+.visitSummaryStrip article.warn > svg {
+  background: #fff7ed;
+}
+
+.visitSummaryStrip article.open > svg {
+  background: #eff6ff;
+}
+
+.visitSummaryStrip b {
+  margin: 0;
+  font-size: 18px;
+}
+
+.visitSummaryStrip span {
+  margin: 1px 0 0;
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.visitTimeline {
+  gap: 10px;
+}
+
+.visitCard {
+  position: relative;
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: 11px;
+  padding: 12px;
+  border-radius: 19px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .045);
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+.visitCard.isClickable {
+  cursor: pointer;
+}
+
+.visitCard.isClickable:hover,
+.visitCard.isClickable:focus-visible {
+  border-color: color-mix(in srgb, var(--green) 45%, #cbd5e1);
+  box-shadow: 0 13px 30px rgba(15, 23, 42, .08);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.visitStateIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+}
+
+.visitCardTop {
+  align-items: center;
+}
+
+.visitCardTop h3 {
+  font-size: 17px;
+  line-height: 1.15;
+}
+
+.visitCardTop span {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+.visitCardTop span svg:not(:first-child) {
+  margin-left: 4px;
+}
+
+.visitCardTop em {
+  padding: 5px 8px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.visitRelations,
+.visitCardMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.visitReturnLink,
+.visitServicePeriod,
+.visitTechnician {
+  margin-top: 0;
+}
+
+.visitCardMeta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: rgba(248, 250, 252, .88);
+  color: #475569;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.visitCardMeta > span svg {
+  flex: 0 0 auto;
+  color: var(--green2);
+}
+
+.visitCard p.visitCardSummary {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 8px;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.visitOkBox,
+.visitPendingBox,
+.visitOpenBox {
+  min-height: 36px;
+  margin-top: 9px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.visitPendingBox span {
+  min-width: 0;
+}
+
+.visitPendingBox span:not(:has(b)) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.visitCard footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(226, 232, 240, .9);
+}
+
+.visitCardHint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.visitCardActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.visitCard footer .btn.compact {
+  width: auto;
+  min-height: 34px;
+  padding: 7px 10px;
+  border-radius: 11px;
+  font-size: 11px;
+}
+
+.visitActionWrap {
+  position: relative;
+}
+
+.visitMoreButton {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+}
+
+.visitMoreButton.active {
+  border-color: color-mix(in srgb, var(--green) 45%, #cbd5e1);
+  color: var(--green2);
+  background: #ecfdf5;
+}
+
+.visitActionBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  border: 0;
+  background: transparent;
+}
+
+.visitActionMenu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 71;
+  width: 230px;
+  overflow: hidden;
+  padding: 6px;
+  border: 1px solid #dbe4ef;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 22px 52px rgba(15, 23, 42, .18);
+}
+
+.visitActionMenu > button {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  width: 100%;
+  padding: 9px;
+  border: 0;
+  border-radius: 11px;
+  color: #334155;
+  background: transparent;
+  text-align: left;
+}
+
+.visitActionMenu > button:hover {
+  background: #f8fafc;
+}
+
+.visitActionMenu > button > svg {
+  width: 32px;
+  height: 32px;
+  padding: 8px;
+  border-radius: 10px;
+  color: var(--green2);
+  background: #ecfdf5;
+}
+
+.visitActionMenu span,
+.visitActionMenu b,
+.visitActionMenu small {
+  display: block;
+}
+
+.visitActionMenu b {
+  font-size: 12px;
+}
+
+.visitActionMenu small {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.visitActionMenu > button.danger {
+  color: #b91c1c;
+}
+
+.visitActionMenu > button.danger > svg {
+  color: #dc2626;
+  background: #fff1f2;
+}
+
+.visitDeleteSummary span {
+  text-transform: none;
+}
+
+.visitDetailPhotos > div {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.visitDetailPhotos a {
+  position: relative;
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  border-radius: 13px;
+  background: #e2e8f0;
+}
+
+.visitDetailPhotos img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.visitDetailPhotos a span {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 7px;
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(15, 23, 42, .78);
+  font-size: 9px;
+  font-weight: 850;
+}
+
+.visitEditorModal {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(820px, 100%);
+  max-height: 92dvh;
+  overflow: hidden;
+}
+
+.visitEditorModal > header {
+  position: relative;
+  padding: 16px 20px;
+}
+
+.visitEditorModal .visitEditor {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 !important;
+}
+
+.visitEditorScroll {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 20px 18px;
+  scrollbar-width: thin;
+}
+
+.visitEditorIntro {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 11px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #dbe4ef;
+  border-radius: 17px;
+  background: linear-gradient(135deg, #f8fafc, #fff);
+}
+
+.visitEditorIntroIcon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: var(--green2);
+  background: #ecfdf5;
+}
+
+.visitEditorIntro b,
+.visitEditorIntro small {
+  display: block;
+}
+
+.visitEditorIntro b {
+  margin-top: 2px;
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.visitEditorIntro small {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.35;
+}
+
+.visitFormGroup {
+  display: grid;
+  gap: 11px;
+  padding: 13px;
+  border: 1px solid #e2e8f0;
+  border-radius: 17px;
+  background: #fff;
+}
+
+.visitFormGroupTitle span,
+.visitFormGroupTitle small {
+  display: block;
+}
+
+.visitFormGroupTitle span {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.visitFormGroupTitle small {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.visitFormGroup .visitQuickChips {
+  padding-top: 1px;
+}
+
+.visitFormGroup .advancedVisit {
+  margin-top: 1px;
+}
+
+.visitFormActions {
+  display: grid;
+  grid-template-columns: .8fr 1.2fr;
+  gap: 10px;
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, .97);
+  box-shadow: 0 -12px 28px rgba(15, 23, 42, .055);
+  backdrop-filter: blur(16px);
+}
+
+.visitFormActions .btn {
+  width: 100%;
+  min-height: 44px;
+}
+
+@media (max-width: 700px) {
+  .visitSummaryStrip article {
+    grid-template-columns: 30px minmax(0, 1fr);
+    min-height: 59px;
+    padding: 8px;
+  }
+
+  .visitSummaryStrip article > svg {
+    width: 30px;
+    height: 30px;
+    padding: 7px;
+  }
+
+  .visitCard {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 9px;
+    padding: 11px;
+  }
+
+  .visitStateIcon {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+  }
+
+  .visitCardTop {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  .visitCardTop h3 {
+    font-size: 16px;
+  }
+
+  .visitCardTop em {
+    justify-self: auto;
+    max-width: 120px;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .visitCardMeta {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .visitCardMeta > span {
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  .visitCard footer {
+    display: flex;
+  }
+
+  .visitCardHint {
+    display: none;
+  }
+
+  .visitCardActions {
+    width: 100%;
+  }
+
+  .visitCardActions .btn.compact:first-child {
+    margin-right: auto;
+  }
+
+  .visitActionMenu {
+    position: fixed;
+    right: 12px;
+    bottom: calc(84px + env(safe-area-inset-bottom));
+    left: 12px;
+    z-index: 1002;
+    width: auto;
+    padding: 8px;
+    border-radius: 20px;
+  }
+
+  .visitActionBackdrop {
+    z-index: 1001;
+    background: rgba(15, 23, 42, .22);
+  }
+
+  .visitDetailPhotos > div {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .visitEditorModal {
+    max-height: 96dvh !important;
+  }
+
+  .visitEditorModal > header {
+    padding: 13px 14px;
+  }
+
+  .visitEditorModal > header h2 {
+    font-size: 19px;
+  }
+
+  .visitEditorScroll {
+    padding: 12px 12px 14px;
+  }
+
+  .visitEditorIntro {
+    grid-template-columns: 38px minmax(0, 1fr);
+    padding: 10px;
+  }
+
+  .visitEditorIntroIcon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+
+  .visitFormGroup,
+  .visitServiceEditor {
+    padding: 11px;
+    border-radius: 16px;
+  }
+
+  .visitFormActions {
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 390px) {
+  .visitCardTop {
+    display: grid;
+  }
+
+  .visitCardTop em {
+    justify-self: start;
+  }
+
+  .visitCardActions .btn.compact {
+    flex: 1 1 auto;
+  }
+
+  .visitFormActions {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* V3.0.9 - instalação técnica unificada */
 .installationWorkspace {
   display: grid;

@@ -24,7 +24,7 @@ import genexLogo from '../LOGO_GENEX.png';
 import urusLogo from '../LOGO_URUS.png';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
-const APP_VERSION = '3.0.10';
+const APP_VERSION = '3.0.11';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
 const FARM_VIEW_KEY = 'cta_farm_view_mode';
@@ -1240,8 +1240,8 @@ function useData(user, localMode=false){
     setter(prev => { const exists=prev.some(x=>x.id===savedRow.id); const next=exists?prev.map(x=>x.id===savedRow.id?savedRow:x):[savedRow,...prev]; if(!cloud) saveLocal(key,next); return next; });
     return {ok:true};
   }
-  async function remove(table, setter, key, id){
-    if(!confirm('Remover este registro?')) return {ok:false};
+  async function remove(table, setter, key, id, options={}){
+    if(!options.skipConfirm&&!confirm('Remover este registro?')) return {ok:false};
     if(cloud){
       const { error } = await supabase.from(table).delete().eq('id',id);
       if(error){
@@ -1531,7 +1531,7 @@ function useData(user, localMode=false){
     saveTesteCobertura: r => upsert('testes_cobertura', setTestesCobertura, 'cta_testes_cobertura', withExistingOwner(testesCobertura,r)),
     delFazenda: deleteFazenda,
     delEquipamento: id => remove('equipamentos', setEquipamentos, 'cta_equipamentos', id),
-    delVisita: id => remove('visitas', setVisitas, 'cta_visitas', id),
+    delVisita: (id, options) => remove('visitas', setVisitas, 'cta_visitas', id, options),
     delChecklist: id => remove('checklists_fazenda', setChecklists, 'cta_checklists', id),
     delPlanejamento: id => remove('planejamentos_antena', setPlanejamentos, 'cta_planejamentos', id),
     delObstaculo: id => remove('obstaculos_cobertura', setObstaculos, 'cta_obstaculos', id),
@@ -2617,7 +2617,7 @@ function FazendaDetalhe({farm,data,onBack}){
     setDeletingFarm(false);
     if(result.ok){setDeleteConfirm(false);onBack();}
   };
-  const saveVisitFromDetail=async(row)=>{const clean={...row,status:row.status || (row.iniciada_em&&!row.finalizada_em?VISIT_STATUS_OPEN:visitNeedsReturn(row)?VISIT_STATUS_WAITING_RETURN:visitHasPending(row)?VISIT_STATUS_PENDING:VISIT_STATUS_DONE),updated_at:nowISO()};const result=await data.saveVisita(clean);if(result.ok)setVisitModal(false);return result;};
+  const saveVisitFromDetail=async(row)=>{const clean={...row,status:row.status || (row.iniciada_em&&!row.finalizada_em?VISIT_STATUS_OPEN:visitNeedsReturn(row)?VISIT_STATUS_WAITING_RETURN:visitHasPending(row)?VISIT_STATUS_PENDING:VISIT_STATUS_DONE),updated_at:nowISO()};const result=await data.saveVisita(clean);if(result.ok){setVisitModal(false);notify('Visita registrada.');}return result;};
   const startService=async()=>{
     if(!access.canEdit)return;
     const startedAt=serviceActive&&farm.servico_inicio_em?farm.servico_inicio_em:nowISO();
@@ -3072,7 +3072,7 @@ function MapaFazenda({farm,data,canEdit=false,onEditEquip,embedded=false}){
   </section>
 }
 function VisitasFazenda({farm,data,openNew,onStartReturn,canEdit=true}){
-  const [viewing,setViewing]=useState(null),[editing,setEditing]=useState(null),[photoVisit,setPhotoVisit]=useState(null);
+  const [viewing,setViewing]=useState(null),[editing,setEditing]=useState(null),[photoVisit,setPhotoVisit]=useState(null),[actionsVisit,setActionsVisit]=useState(null),[deleteVisit,setDeleteVisit]=useState(null),[deletingVisit,setDeletingVisit]=useState(false);
   const visits=data.visitas.filter(v=>v.fazenda_id===farm.id).sort((a,b)=>new Date(b.data_visita||b.created_at||0)-new Date(a.data_visita||a.created_at||0));
   const openVisit=visits.find(isOpenVisit), pending=visits.filter(v=>[VISIT_STATUS_PENDING,VISIT_STATUS_WAITING_RETURN].includes(visitDisplayStatus(v))), done=visits.filter(v=>[VISIT_STATUS_DONE,VISIT_STATUS_RESOLVED_RETURN].includes(visitDisplayStatus(v))).length, last=visits[0];
   const evidenceCount=id=>(data.evidencias||[]).filter(ev=>ev.visita_id===id).length;
@@ -3091,6 +3091,18 @@ function VisitasFazenda({farm,data,openNew,onStartReturn,canEdit=true}){
     notify('Visita atualizada.');
     return {ok:true};
   };
+  const confirmDeleteVisit=async()=>{
+    if(!deleteVisit||deletingVisit)return;
+    setDeletingVisit(true);
+    const result=await data.delVisita(deleteVisit.id,{skipConfirm:true});
+    setDeletingVisit(false);
+    if(!result?.ok)return;
+    if(viewing?.id===deleteVisit.id)setViewing(null);
+    if(editing?.id===deleteVisit.id)setEditing(null);
+    setActionsVisit(null);
+    setDeleteVisit(null);
+    notify('Visita excluída.');
+  };
   return <section className="panel visitsPanel">
     <div className="sectionTitle visitsHead"><div><span className="eyebrow">Campo</span><h2><CalendarDays size={22}/> Visitas</h2></div>{canEdit&&<button className="btn primary" onClick={openNew}><Plus size={17}/> Nova visita</button>}</div>
     {!canEdit&&<PermissionNotice/>}
@@ -3104,25 +3116,50 @@ function VisitasFazenda({farm,data,openNew,onStartReturn,canEdit=true}){
     <div className="visitTimeline">{visits.map(v=>{
       const tone=visitStatusTone(v), status=visitDisplayStatus(v), hasPending=visitHasOpenPending(v), summary=visitSummaryText(v), photos=evidenceCount(v.id), parent=visitById(v.parent_visit_id), resolvedBy=visitById(v.resolved_by_visit_id), canStartReturn=canEdit&&hasPending&&!isOpenVisit(v)&&!v.resolved_by_visit_id;
       const serviceText=visitServiceText(v);
-      return <article className={`visitCard ${tone}`} key={v.id}>
+      return <article className={`visitCard ${tone} isClickable`} key={v.id} role="button" tabIndex={0} aria-label={`Abrir detalhes da visita ${v.tipo} de ${brDate(v.data_visita)}`} onClick={()=>setViewing(v)} onKeyDown={event=>{if(event.target===event.currentTarget&&(event.key==='Enter'||event.key===' ')){event.preventDefault();setViewing(v)}}}>
         <div className="visitStateIcon">{tone==='open'?<PlayCircle size={19}/>:hasPending?<AlertTriangle size={19}/>:<CheckCircle2 size={19}/>}</div>
         <div className="visitCardMain">
-          <div className="visitCardTop"><div><h3>{v.tipo}</h3><span>{brDate(v.data_visita)}{photos>0&&` • ${photos} foto(s)`}</span></div><em>{status}</em></div>
-          {parent&&<div className="visitReturnLink"><Route size={14}/> Retorno da visita de {brDate(parent.data_visita)}</div>}
-          {resolvedBy&&<div className="visitReturnLink resolved"><CheckCircle2 size={14}/> Resolvida pelo retorno de {brDate(resolvedBy.data_visita)}</div>}
-          {serviceText&&<div className="visitServicePeriod"><Clock size={14}/> {serviceText}</div>}
-          {v.responsavel_tecnico&&<div className="visitTechnician"><UserCheck size={14}/> {v.responsavel_tecnico}</div>}
-          <p>{summary}</p>
+          <div className="visitCardTop"><div><h3>{v.tipo}</h3><span><CalendarDays size={13}/>{brDate(v.data_visita)}{photos>0&&<><Camera size={13}/>{photos} foto(s)</>}</span></div><em>{status}</em></div>
+          {(parent||resolvedBy)&&<div className="visitRelations">{parent&&<div className="visitReturnLink"><Route size={14}/> Retorno da visita de {brDate(parent.data_visita)}</div>}{resolvedBy&&<div className="visitReturnLink resolved"><CheckCircle2 size={14}/> Resolvida pelo retorno de {brDate(resolvedBy.data_visita)}</div>}</div>}
+          {(serviceText||v.responsavel_tecnico)&&<div className="visitCardMeta">{serviceText&&<span><Clock size={14}/>{serviceText}</span>}{v.responsavel_tecnico&&<span><UserCheck size={14}/>{v.responsavel_tecnico}</span>}</div>}
+          <p className="visitCardSummary">{summary}</p>
           {tone==='open'?<div className="visitOpenBox"><PlayCircle size={15}/> Em andamento</div>:hasPending?<div className="visitPendingBox"><AlertTriangle size={15}/><span><b>{status===VISIT_STATUS_WAITING_RETURN?'Aguardando retorno':'Pendência'}</b>{v.pendencias||v.proxima_acao}</span></div>:<div className="visitOkBox"><CheckCircle2 size={15}/>{status===VISIT_STATUS_RESOLVED_RETURN?'Pendência resolvida por retorno':'Sem pendências registradas'}</div>}
-          <footer><button className="btn light" onClick={()=>setViewing(v)}><Info size={15}/> Ver</button>{canStartReturn&&<button className="btn primary" onClick={()=>onStartReturn?.(v)}><Route size={15}/> Iniciar retorno</button>}{canEdit&&<button className="btn light" onClick={()=>setPhotoVisit(v)}><Camera size={15}/> Fotos</button>}{canEdit&&<button className="btn light" onClick={()=>setEditing(v)}><Pencil size={15}/> Editar</button>}{canEdit&&<button className="btn light dangerInline" onClick={()=>data.delVisita(v.id)}><Trash2 size={15}/> Excluir</button>}</footer>
+          <footer onClick={event=>event.stopPropagation()}>
+            <span className="visitCardHint"><Eye size={14}/> Toque no card para ver</span>
+            <div className="visitCardActions">
+              {canStartReturn&&<button className="btn primary compact" onClick={()=>onStartReturn?.(v)}><Route size={15}/> Iniciar retorno</button>}
+              {canEdit&&<button className="btn light compact" onClick={()=>setPhotoVisit(v)}><Camera size={15}/> Fotos</button>}
+              {canEdit&&<div className="visitActionWrap"><button type="button" className={`iconBtn visitMoreButton ${actionsVisit===v.id?'active':''}`} aria-label={`Mais ações da visita de ${brDate(v.data_visita)}`} title="Mais ações" onClick={()=>setActionsVisit(current=>current===v.id?null:v.id)}><EllipsisVertical size={18}/></button>{actionsVisit===v.id&&<><button type="button" className="visitActionBackdrop" aria-label="Fechar ações" onClick={()=>setActionsVisit(null)}/><div className="visitActionMenu" role="menu"><button type="button" role="menuitem" onClick={()=>{setActionsVisit(null);setEditing(v)}}><Pencil size={16}/><span><b>Editar visita</b><small>Ajustar dados e horários</small></span></button><button type="button" className="danger" role="menuitem" onClick={()=>{setActionsVisit(null);setDeleteVisit(v)}}><Trash2 size={16}/><span><b>Excluir visita</b><small>Remove este registro</small></span></button></div></>}</div>}
+            </div>
+          </footer>
         </div>
       </article>
     })}</div>
     {visits.length===0&&<Empty icon={CalendarDays} title="Nenhuma visita registrada" text="Registre instalação, diagnóstico, retorno ou suporte."/>}
     {viewing&&<VisitDetailModal visit={viewing} visits={visits} evidencias={(data.evidencias||[]).filter(ev=>ev.visita_id===viewing.id)} onClose={()=>setViewing(null)}/>}
     {photoVisit&&canEdit&&<EvidenceUploadModal farm={farm} data={data} visita={photoVisit} onClose={()=>setPhotoVisit(null)}/>}
-    {editing&&canEdit&&<VisitModal farm={farm} visit={editing} data={data} onClose={()=>setEditing(null)} onSave={async(r)=>{const result=await saveEditedVisit(r);if(result.ok)setEditing(null)}}/>}
+    {editing&&canEdit&&<VisitModal farm={farm} visit={editing} data={data} onClose={()=>setEditing(null)} onSave={async(r)=>{const result=await saveEditedVisit(r);if(result.ok)setEditing(null);return result}}/>}
+    {deleteVisit&&canEdit&&<DeleteVisitModal visit={deleteVisit} busy={deletingVisit} onCancel={()=>setDeleteVisit(null)} onConfirm={confirmDeleteVisit}/>}
   </section>
+}
+function DeleteVisitModal({visit,busy=false,onCancel,onConfirm}){
+  return <div className="modalBackdrop deleteModalBackdrop">
+    <section className="deleteConfirmModal deleteVisitModal" role="dialog" aria-modal="true" aria-labelledby="deleteVisitTitle">
+      <button type="button" className="deleteModalClose" aria-label="Fechar" onClick={onCancel} disabled={busy}><X size={18}/></button>
+      <div className="deleteConfirmIcon"><Trash2 size={25}/></div>
+      <span className="eyebrow">Exclusão de visita</span>
+      <h2 id="deleteVisitTitle">Excluir esta visita?</h2>
+      <p>O registro de {visit?.tipo||'visita'} de {brDate(visit?.data_visita)} será removido do histórico da fazenda.</p>
+      <div className="deleteImpactList visitDeleteSummary">
+        <span><CalendarDays size={16}/> {visit?.tipo||'Visita'} • {brDate(visit?.data_visita)}</span>
+        {visit?.responsavel_tecnico&&<span><UserCheck size={16}/> {visit.responsavel_tecnico}</span>}
+      </div>
+      <div className="deleteConfirmActions">
+        <button type="button" className="btn light" onClick={onCancel} disabled={busy}>Cancelar</button>
+        <button type="button" className="btn deleteDanger" onClick={onConfirm} disabled={busy}><Trash2 size={17}/> {busy?'Excluindo...':'Excluir visita'}</button>
+      </div>
+    </section>
+  </div>
 }
 function VisitDetailModal({visit,visits=[],evidencias=[],onClose}){
   const hasPending=visitHasOpenPending(visit), status=visitDisplayStatus(visit), open=isOpenVisit(visit), parent=visits.find(v=>v.id===visit.parent_visit_id), resolvedBy=visits.find(v=>v.id===visit.resolved_by_visit_id);
@@ -3136,7 +3173,7 @@ function VisitDetailModal({visit,visits=[],evidencias=[],onClose}){
     {serviceText&&<section className="visitDetailSection"><h3>Atendimento</h3><p>{serviceText}</p></section>}
     <section className="visitDetailSection"><h3>Resumo</h3><p>{visitSummaryText(visit)}</p></section>
     {hasPending&&<section className="visitDetailSection pending"><h3>Pendência</h3><p>{visit.pendencias||visit.proxima_acao}</p></section>}
-    {photos.length>0&&<section className="visitDetailPhotos"><h3>Fotos da visita</h3><div>{photos.slice(0,4).map(item=><img key={item.id} src={evidenceSrc(item)} alt={item.descricao||item.categoria}/>)}</div></section>}
+    {photos.length>0&&<section className="visitDetailPhotos"><h3>Fotos da visita</h3><div>{photos.slice(0,4).map(item=><a key={item.id} href={evidenceSrc(item)} target="_blank" rel="noreferrer" aria-label="Abrir foto da visita"><img src={evidenceSrc(item)} alt={item.descricao||item.categoria}/><span><Maximize2 size={14}/> Ampliar</span></a>)}</div></section>}
     {details.length>0&&<section className="visitDetailGrid">{details.map(([label,value,Icon])=><article key={label}><span><Icon size={15}/>{label}</span><b>{value}</b></article>)}</section>}
   </div></Modal>
 }
@@ -3225,6 +3262,7 @@ function VisitModal({farm,visit={},data={},onClose,onSave}){
   const [hasPending,setHasPending]=useState(visitHasPending(visit));
   const [needsReturn,setNeedsReturn]=useState(visitNeedsReturn(visit));
   const [keepOpen,setKeepOpen]=useState(isOpenVisit(visit));
+  const [saving,setSaving]=useState(false);
   const set=(k,v)=>setForm(prev=>({...prev,[k]:v}));
   const defaultOkSummary=()=>`${form.tipo} realizada em ${brDate(form.data_visita)}. Sem pendências registradas.`;
   const applyQuick=(kind)=>{
@@ -3233,8 +3271,9 @@ function VisitModal({farm,visit={},data={},onClose,onSave}){
     if(kind==='pending'){setHasPending(true);setNeedsReturn(false);setForm(prev=>({...prev,retorno_necessario:false}));}
     if(kind==='return'){setHasPending(true);setNeedsReturn(true);setForm(prev=>({...prev,retorno_necessario:true,pendencias:prev.pendencias||'Retorno necessário para concluir a validação.',proxima_acao:prev.proxima_acao||'Agendar retorno técnico.'}));}
   };
-  const submit=e=>{
+  const submit=async e=>{
     e.preventDefault();
+    if(saving)return;
     const pendingText=String(form.pendencias||form.proxima_acao||'').trim();
     if(hasPending&&!pendingText){notify('Informe a pendência ou próxima ação.','warning');return;}
     const startedAt=hasServicePeriod?toIsoOrNull(form.iniciada_em):null;
@@ -3245,18 +3284,19 @@ function VisitModal({farm,visit={},data={},onClose,onSave}){
     const finishedAt=keepOpen?null:(hasServicePeriod?(enteredEnd||nowISO()):nowISO());
     const clean={...form,status,retorno_necessario:hasPending&&needsReturn,iniciada_em:hasServicePeriod?startedAt:(keepOpen?nowISO():null),finalizada_em:finishedAt,responsavel_tecnico:hasServicePeriod?cleanDisplayName(form.responsavel_tecnico):visit.responsavel_tecnico||null,resumo:String(form.resumo||'').trim()||`${form.tipo} registrada ${hasPending?'com pendência':'sem pendências'} em ${brDate(form.data_visita)}.`};
     if(!hasPending){clean.pendencias='';clean.proxima_acao='';clean.retorno_necessario=false;}
-    onSave(clean);
+    setSaving(true);
+    try{await onSave(clean);}finally{setSaving(false);}
   };
-  return <Modal title={visit.id?'Editar visita':'Nova visita'} onClose={onClose}><form className="form modern visitEditor" onSubmit={submit}>
-    <div className="grid2 visitEditorTop"><Field label="Tipo"><select value={form.tipo} onChange={e=>set('tipo',e.target.value)}>{VISIT_TYPES.map(t=><option key={t}>{t}</option>)}</select></Field><Field label="Data"><input type="date" value={form.data_visita} onChange={e=>set('data_visita',e.target.value)}/></Field></div>
-    {hasServicePeriod&&<section className="visitServiceEditor"><div className="visitServiceEditorTitle"><Clock size={18}/><div><b>Período do atendimento</b><span>Corrija horários ou o técnico quando o registro em campo ficar incorreto.</span></div></div><div className="grid2"><Field label="Início"><input type="datetime-local" value={form.iniciada_em} onChange={e=>{set('iniciada_em',e.target.value);if(e.target.value)set('data_visita',e.target.value.slice(0,10))}} required/></Field><Field label="Fim"><input type="datetime-local" value={form.finalizada_em} onChange={e=>set('finalizada_em',e.target.value)}/></Field></div><ResponsibleServiceField value={form.responsavel_tecnico} onChange={value=>set('responsavel_tecnico',value)} options={responsibleOptions}/></section>}
-    <div className="visitOutcome"><button type="button" className={!hasPending?'active ok':''} onClick={()=>applyQuick('ok')}><CheckCircle2 size={18}/><b>Tudo certo</b><span>sem pendência</span></button><button type="button" className={hasPending?'active pending':''} onClick={()=>applyQuick('pending')}><AlertTriangle size={18}/><b>Com pendência</b><span>precisa ação</span></button></div>
-    <div className="visitQuickChips"><button type="button" onClick={()=>applyQuick('ok')}><Check size={14}/> Concluída</button><button type="button" onClick={()=>applyQuick('validado')}><ClipboardCheck size={14}/> Validada</button><button type="button" onClick={()=>applyQuick('return')}><Route size={14}/> Precisa retorno</button></div>
-    {(visit.id||keepOpen)&&<div className={`visitOpenEditor ${keepOpen?'active':''}`}><Clock size={17}/><div><b>{keepOpen?'Visita aberta':'Visita será encerrada'}</b><span>{keepOpen?'Use enquanto o serviço está em andamento.':'Ao salvar, entra no histórico da fazenda.'}</span></div>{keepOpen?<button type="button" className="btn light" onClick={()=>setKeepOpen(false)}><CheckCircle2 size={15}/> Encerrar ao salvar</button>:visit.id&&isOpenVisit(visit)&&<button type="button" className="btn light" onClick={()=>setKeepOpen(true)}><PlayCircle size={15}/> Manter aberta</button>}</div>}
-    <Field label="Resumo rápido"><textarea value={form.resumo} onChange={e=>set('resumo',e.target.value)} placeholder={defaultOkSummary()}/></Field>
-    {hasPending&&<div className="visitPendingEditor"><Field label="Pendência"><textarea value={form.pendencias} onChange={e=>set('pendencias',e.target.value)} placeholder="Ex.: nobreak pendente, cabo para substituir, ajuste de antena..."/></Field><Field label="Próxima ação"><textarea value={form.proxima_acao} onChange={e=>set('proxima_acao',e.target.value)} placeholder="Ex.: levar nobreak, retornar com suporte, validar com cliente..."/></Field></div>}
-    <details className="advancedVisit"><summary>Campos técnicos opcionais</summary><Field label="Problemas encontrados"><textarea value={form.problemas} onChange={e=>set('problemas',e.target.value)}/></Field><Field label="Solução aplicada"><textarea value={form.solucao} onChange={e=>set('solucao',e.target.value)}/></Field></details>
-    <button className="btn primary full"><Save size={18}/> {visit.id?'Atualizar visita':'Salvar visita'}</button>
+  return <Modal title={visit.id?'Editar visita':'Nova visita'} onClose={onClose} className="visitEditorModal"><form className="form modern visitEditor" onSubmit={submit}>
+    <div className="visitEditorScroll">
+      <div className="visitEditorIntro"><span className="visitEditorIntroIcon"><CalendarDays size={20}/></span><div><span className="eyebrow">Registro de campo</span><b>{visit.id?'Revise os dados da visita':'Informe o atendimento realizado'}</b><small>Os vínculos, horas de serviço e relatórios continuam usando este mesmo registro.</small></div></div>
+      <section className="visitFormGroup"><div className="visitFormGroupTitle"><span>Dados principais</span><small>Tipo e data do atendimento</small></div><div className="grid2 visitEditorTop"><Field label="Tipo"><select value={form.tipo} onChange={e=>set('tipo',e.target.value)}>{VISIT_TYPES.map(t=><option key={t}>{t}</option>)}</select></Field><Field label="Data"><input type="date" value={form.data_visita} onChange={e=>set('data_visita',e.target.value)}/></Field></div></section>
+      {hasServicePeriod&&<section className="visitServiceEditor"><div className="visitServiceEditorTitle"><Clock size={18}/><div><b>Período do atendimento</b><span>Corrija horários ou o técnico quando o registro em campo ficar incorreto.</span></div></div><div className="grid2"><Field label="Início"><input type="datetime-local" value={form.iniciada_em} onChange={e=>{set('iniciada_em',e.target.value);if(e.target.value)set('data_visita',e.target.value.slice(0,10))}} required/></Field><Field label="Fim"><input type="datetime-local" value={form.finalizada_em} onChange={e=>set('finalizada_em',e.target.value)}/></Field></div><ResponsibleServiceField value={form.responsavel_tecnico} onChange={value=>set('responsavel_tecnico',value)} options={responsibleOptions}/></section>}
+      <section className="visitFormGroup"><div className="visitFormGroupTitle"><span>Situação da visita</span><small>Escolha o resultado registrado em campo</small></div><div className="visitOutcome"><button type="button" aria-pressed={!hasPending} className={!hasPending?'active ok':''} onClick={()=>applyQuick('ok')}><CheckCircle2 size={18}/><b>Tudo certo</b><span>sem pendência</span></button><button type="button" aria-pressed={hasPending} className={hasPending?'active pending':''} onClick={()=>applyQuick('pending')}><AlertTriangle size={18}/><b>Com pendência</b><span>precisa ação</span></button></div><div className="visitQuickChips" aria-label="Preenchimento rápido"><button type="button" onClick={()=>applyQuick('ok')}><Check size={14}/> Concluída</button><button type="button" onClick={()=>applyQuick('validado')}><ClipboardCheck size={14}/> Validada</button><button type="button" onClick={()=>applyQuick('return')}><Route size={14}/> Precisa retorno</button></div></section>
+      {(visit.id||keepOpen)&&<div className={`visitOpenEditor ${keepOpen?'active':''}`}><Clock size={17}/><div><b>{keepOpen?'Visita aberta':'Visita será encerrada'}</b><span>{keepOpen?'Use enquanto o serviço está em andamento.':'Ao salvar, entra no histórico da fazenda.'}</span></div>{keepOpen?<button type="button" className="btn light" onClick={()=>setKeepOpen(false)}><CheckCircle2 size={15}/> Encerrar ao salvar</button>:visit.id&&isOpenVisit(visit)&&<button type="button" className="btn light" onClick={()=>setKeepOpen(true)}><PlayCircle size={15}/> Manter aberta</button>}</div>}
+      <section className="visitFormGroup"><div className="visitFormGroupTitle"><span>Registro técnico</span><small>Resumo, pendências e próximos passos</small></div><Field label="Resumo rápido"><textarea value={form.resumo} onChange={e=>set('resumo',e.target.value)} placeholder={defaultOkSummary()}/></Field>{hasPending&&<div className="visitPendingEditor"><Field label="Pendência"><textarea value={form.pendencias} onChange={e=>set('pendencias',e.target.value)} placeholder="Ex.: nobreak pendente, cabo para substituir, ajuste de antena..."/></Field><Field label="Próxima ação"><textarea value={form.proxima_acao} onChange={e=>set('proxima_acao',e.target.value)} placeholder="Ex.: levar nobreak, retornar com suporte, validar com cliente..."/></Field></div>}<details className="advancedVisit"><summary>Campos técnicos opcionais</summary><Field label="Problemas encontrados"><textarea value={form.problemas} onChange={e=>set('problemas',e.target.value)}/></Field><Field label="Solução aplicada"><textarea value={form.solucao} onChange={e=>set('solucao',e.target.value)}/></Field></details></section>
+    </div>
+    <div className="visitFormActions"><button type="button" className="btn light" onClick={onClose} disabled={saving}>Cancelar</button><button className="btn primary" disabled={saving}><Save size={18}/> {saving?'Salvando...':visit.id?'Atualizar visita':'Salvar visita'}</button></div>
   </form></Modal>
 }
 
