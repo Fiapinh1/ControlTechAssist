@@ -13,7 +13,7 @@ import {
   ClipboardX, CircleAlert, Cable, Zap, Settings, Clock, Check, PlayCircle, Info,
   ClipboardPenLine, LifeBuoy, FileDown, Antenna, Gauge, ScanLine, Globe2, Filter, LocateFixed, Printer, Share2,
   BrickWall, Trees, Mountain, Warehouse, Signal, SignalLow, SignalZero, CloudOff, RefreshCw, Copy, UserCheck,
-  Image as ImageIcon, Camera, Upload, Eye, EyeOff, Link2, Milk, Mail, Maximize2, Minimize2
+  Image as ImageIcon, Camera, Upload, Eye, EyeOff, Link2, Milk, Mail, Maximize2, Minimize2, EllipsisVertical
 } from 'lucide-react';
 import './styles.css';
 import appLogo from './assets/brand/controltech-logo.png';
@@ -24,7 +24,7 @@ import genexLogo from '../LOGO_GENEX.png';
 import urusLogo from '../LOGO_URUS.png';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
-const APP_VERSION = '3.0.5';
+const APP_VERSION = '3.0.7';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
 const FARM_VIEW_KEY = 'cta_farm_view_mode';
@@ -1653,8 +1653,7 @@ function App(){
     {(!data.cloud || localMode) && <SystemStatus data={data} localMode={localMode} onDisableLocal={()=>{localStorage.removeItem(LOCAL_MODE_KEY); setLocalMode(false)}}/>}
     {view==='fazendas' && <Fazendas data={data} onOpen={goFarm}/>}
     {view==='suporte' && <SuporteTecnico data={data}/>}
-    {view==='produtividade' && <Produtividade data={data} onOpen={goFarm}/>}
-    {view==='relatorios' && <Relatorios data={data} onOpen={goFarm}/>}
+    {(view==='produtividade'||view==='relatorios') && <Produtividade data={data} onOpen={goFarm} initialSection={view==='relatorios'?'relatorios':'visao'}/>}
     {view==='gerencial' && <GerencialUsuarios data={data}/>}
     {view==='fazenda' && selectedFarm && <FazendaDetalhe farm={selectedFarm} data={data} onBack={()=>setMainView('fazendas')}/>}
   </main>{view!=='fazenda'&&<BottomNav view={view} setView={setMainView} user={user} localMode={localMode} onLogout={logout} isAdmin={showGerencial}/>}</div>;
@@ -1820,8 +1819,8 @@ function SystemStatus({data, localMode, onDisableLocal}){
   return <section className={`systemStatus ${cls}`}><button className="systemSummary" onClick={()=>setOpen(!open)}><Database size={17}/><b>{statusText}</b><span>v{APP_VERSION}</span>{s.lastSync&&<small>Última sincronização: {s.lastSync}</small>}</button><button className="linkBtn" onClick={async()=>{await data.testConnection();}}>Testar Supabase</button><button className="linkBtn" onClick={forceRefreshApp}>Atualizar app/cache</button>{localMode&&<button className="linkBtn dangerText" onClick={onDisableLocal}>Sair do modo local</button>}{open&&<div className="systemDetails"><p><b>URL configurada:</b> {supabaseUrl ? 'sim' : 'não'}</p><p><b>Chave configurada:</b> {supabaseKey ? 'sim' : 'não'}</p><p><b>Usuário logado:</b> {supabase && !localMode ? 'sim' : localMode ? 'modo local' : 'não'}</p><p><b>Modo atual:</b> {data.cloud ? 'Supabase' : 'Local'}</p>{s.lastError&&<p><b>Último aviso:</b> {s.lastError}</p>}</div>}</section>
 }
 
-function Sidebar({view,setView,user,cloud,localMode,onExitLocal,isAdmin=false}){const items=[['fazendas',MapPinned,'Fazendas'],['produtividade',Gauge,'Produtividade'],['suporte',LifeBuoy,'Suporte'],['relatorios',FileText,'Relatórios'],isAdmin&&['gerencial',ShieldCheck,'Gerencial']].filter(Boolean);return <aside className="sidebar"><Logo/><nav>{items.map(([id,Icon,label])=><button key={id} className={view===id?'active':''} onClick={()=>setView(id)}><Icon size={20}/>{label}</button>)}<a className="appSwitchLink" href={ROUTINE_ASSIST_URL} target="_blank" rel="noreferrer"><img src="/routine-assist-logo.png" alt=""/><span><b>Routine Assist</b><small>Abrir demandas</small></span></a></nav><div className="sideFoot"><span className={cloud?'cloud on':'cloud'}><Database size={15}/>{cloud?'Supabase ativo':'Modo local'}</span>{localMode&&<button className="logout" onClick={onExitLocal}><Database size={16}/> Voltar ao Supabase</button>}{user&&<button className="logout" onClick={()=>supabase.auth.signOut()}><LogOut size={16}/> Sair</button>}</div></aside>}
-function BottomNav({view,setView,user,localMode,onLogout,isAdmin=false}){const [open,setOpen]=useState(false);const items=[['fazendas',Home,'Início'],['produtividade',BarChart3,'Prod.'],['suporte',LifeBuoy,'Suporte'],['relatorios',FileText,'Rel.']];const go=id=>{setView(id);setOpen(false)};const moreActive=view==='gerencial';return <>{open&&<><button className="bottomMoreBackdrop" aria-label="Fechar menu" onClick={()=>setOpen(false)}/><div className="bottomMoreSheet"><div className="bottomMoreTitle"><span>Mais opções</span><button type="button" aria-label="Fechar menu" onClick={()=>setOpen(false)}><X size={16}/></button></div>{isAdmin&&<button className={view==='gerencial'?'active':''} onClick={()=>go('gerencial')}><ShieldCheck size={18}/><span>Admin</span></button>}<a className="appExternalNav sheet" href={ROUTINE_ASSIST_URL} target="_blank" rel="noreferrer" aria-label="Abrir Routine Assist"><img src="/routine-assist-logo.png" alt=""/><span>Routine Assist</span></a>{(user||localMode)&&<button className="mobileLogout" onClick={()=>{setOpen(false);onLogout();}}><LogOut size={18}/><span>Sair</span></button>}</div></> }<nav className="bottomNav" style={{gridTemplateColumns:'repeat(5,1fr)'}}>{items.map(([id,Icon,label])=><button key={id} className={view===id?'active':''} onClick={()=>go(id)}><Icon size={20}/><span>{label}</span></button>)}<button className={open||moreActive?'active':''} onClick={()=>setOpen(v=>!v)}><Layers size={20}/><span>Mais</span></button></nav></>}
+function Sidebar({view,setView,user,cloud,localMode,onExitLocal,isAdmin=false}){const items=[['fazendas',MapPinned,'Fazendas'],['produtividade',Gauge,'Produtividade'],['suporte',LifeBuoy,'Suporte'],isAdmin&&['gerencial',ShieldCheck,'Gerencial']].filter(Boolean);return <aside className="sidebar"><Logo/><nav>{items.map(([id,Icon,label])=><button key={id} className={(id==='produtividade'?['produtividade','relatorios'].includes(view):view===id)?'active':''} onClick={()=>setView(id)}><Icon size={20}/>{label}</button>)}<a className="appSwitchLink" href={ROUTINE_ASSIST_URL} target="_blank" rel="noreferrer"><img src="/routine-assist-logo.png" alt=""/><span><b>Routine Assist</b><small>Abrir demandas</small></span></a></nav><div className="sideFoot"><span className={cloud?'cloud on':'cloud'}><Database size={15}/>{cloud?'Supabase ativo':'Modo local'}</span>{localMode&&<button className="logout" onClick={onExitLocal}><Database size={16}/> Voltar ao Supabase</button>}{user&&<button className="logout" onClick={()=>supabase.auth.signOut()}><LogOut size={16}/> Sair</button>}</div></aside>}
+function BottomNav({view,setView,user,localMode,onLogout,isAdmin=false}){const [open,setOpen]=useState(false);const items=[['fazendas',Home,'Início'],['produtividade',BarChart3,'Produtividade'],['suporte',LifeBuoy,'Suporte']];const go=id=>{setView(id);setOpen(false)};const moreActive=view==='gerencial';return <>{open&&<><button className="bottomMoreBackdrop" aria-label="Fechar menu" onClick={()=>setOpen(false)}/><div className="bottomMoreSheet"><div className="bottomMoreTitle"><span>Mais opções</span><button type="button" aria-label="Fechar menu" onClick={()=>setOpen(false)}><X size={16}/></button></div>{isAdmin&&<button className={view==='gerencial'?'active':''} onClick={()=>go('gerencial')}><ShieldCheck size={18}/><span>Admin</span></button>}<a className="appExternalNav sheet" href={ROUTINE_ASSIST_URL} target="_blank" rel="noreferrer" aria-label="Abrir Routine Assist"><img src="/routine-assist-logo.png" alt=""/><span>Routine Assist</span></a>{(user||localMode)&&<button className="mobileLogout" onClick={()=>{setOpen(false);onLogout();}}><LogOut size={18}/><span>Sair</span></button>}</div></> }<nav className="bottomNav" style={{gridTemplateColumns:'repeat(4,1fr)'}}>{items.map(([id,Icon,label])=><button key={id} className={(id==='produtividade'?['produtividade','relatorios'].includes(view):view===id)?'active':''} onClick={()=>go(id)}><Icon size={20}/><span>{label}</span></button>)}<button className={open||moreActive?'active':''} onClick={()=>setOpen(v=>!v)}><Layers size={20}/><span>Mais</span></button></nav></>}
 function FarmBottomNav({farm,tabs,tab,setTab,onBack,access,serviceActive,serviceDone,onStart,onFinish,onEdit,onNewVisit}){const [open,setOpen]=useState(false);const mainIds=['resumo','mapa','visitas','relatorio'];const mainTabs=tabs.filter(([id])=>mainIds.includes(id));const moreTabs=tabs.filter(([id])=>!mainIds.includes(id));const go=id=>{setTab(id);setOpen(false)};return <><nav className="farmBottomNav"><button onClick={onBack}><Home size={20}/><span>Início</span></button>{mainTabs.map(([id,label,Icon])=><button key={id} className={tab===id?'active':''} onClick={()=>go(id)}><Icon size={20}/><span>{label.replace(' técnico','').replace('Relatório','Rel.')}</span></button>)}<button className={open?'active':''} onClick={()=>setOpen(v=>!v)}><Layers size={20}/><span>Mais</span></button></nav>{open&&<><button className="farmMoreBackdrop" aria-label="Fechar menu da fazenda" onClick={()=>setOpen(false)}/><div className="farmMoreSheet"><div className="farmMoreTitle"><span>Mais opções</span><button type="button" aria-label="Fechar menu" onClick={()=>setOpen(false)}><X size={16}/></button></div><div className="farmMoreGrid">{moreTabs.map(([id,label,Icon])=><button key={id} className={tab===id?'active':''} onClick={()=>go(id)}><Icon size={18}/><span>{label}</span></button>)}</div></div></>}</>}
 function PageHead({eyebrow,title,children}){return <header className="pageHead"><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1></div><div className="headActions">{children}</div></header>}
 function Stat({icon:Icon,label,value,tone=''}){return <div className={`stat ${tone}`}><Icon size={22}/><div><b>{value}</b><span>{label}</span></div></div>}
@@ -2543,10 +2542,18 @@ function ServicePeriodsModal({farm,visits=[],canEdit=false,onClose,onEditVisit,o
   const sessions=[...farmServiceSessions(farm,visits)].reverse();
   return <Modal title="Atendimentos da fazenda" onClose={onClose}>
     <div className="modalBody servicePeriodsModal">
-      <div className="servicePeriodsIntro"><Clock size={22}/><div><span className="eyebrow">Histórico de produtividade</span><h3>{sessions.length} atendimento(s)</h3><p>Corrija horários e técnico no período correspondente. O tempo total será recalculado automaticamente.</p></div></div>
+      <div className="servicePeriodsIntro"><Clock size={22}/><div><span className="eyebrow">Histórico de produtividade</span><h3>{sessions.length} atendimento(s)</h3><p>Cada período representa um atendimento em campo. Ajustes preservam o cálculo automático do tempo total.</p></div></div>
       <div className="servicePeriodList">{sessions.map((session,index)=><article key={session.id} className={session.open?'open':''}>
         <div className="servicePeriodNumber">{sessions.length-index}</div>
-        <div className="servicePeriodContent"><div><b>{session.tipo}</b><span>{serviceSessionText(session)}</span></div><small><UserCheck size={14}/>{session.responsible||'Técnico não informado'}</small></div>
+        <div className="servicePeriodContent">
+          <div className="servicePeriodTitle"><b>{session.tipo}</b><span>{brDate(session.start)}</span></div>
+          <div className="servicePeriodFacts">
+            <span><small>Início</small><b>{brDateTime(session.start)}</b></span>
+            <span><small>Fim</small><b>{session.end?brDateTime(session.end):'Em andamento'}</b></span>
+            <span><small>Duração</small><b>{session.end?hoursLabel(sessionHours(session)):'Em andamento'}</b></span>
+          </div>
+          <small className="servicePeriodResponsible"><UserCheck size={14}/>{session.responsible||'Técnico não informado'}</small>
+        </div>
         {canEdit&&<button type="button" className="iconBtn" aria-label={`Editar atendimento ${session.tipo}`} title="Corrigir horário ou técnico" onClick={()=>session.visit?onEditVisit(session.visit):onEditLegacy()}><Pencil size={17}/></button>}
       </article>)}</div>
       {!sessions.length&&<Empty icon={Clock} title="Nenhum atendimento registrado" text="Inicie o serviço para criar o primeiro período."/>}
@@ -2591,7 +2598,7 @@ function ServiceSessionEditModal({farm,visit,data,onClose,onSave}){
 function FazendaDetalhe({farm,data,onBack}){
   const [tab,setTab]=useState('resumo'),[edit,setEdit]=useState(false),[equipModal,setEquipModal]=useState(null),[visitModal,setVisitModal]=useState(false),[serviceModal,setServiceModal]=useState(null);
   const [servicePeriodsOpen,setServicePeriodsOpen]=useState(false),[serviceSessionEdit,setServiceSessionEdit]=useState(null);
-  const [deleteConfirm,setDeleteConfirm]=useState(false),[deletingFarm,setDeletingFarm]=useState(false);
+  const [deleteConfirm,setDeleteConfirm]=useState(false),[deletingFarm,setDeletingFarm]=useState(false),[heroMenuOpen,setHeroMenuOpen]=useState(false);
   const access=farmAccess(farm,data);
   const equips=data.equipamentos.filter(e=>e.fazenda_id===farm.id), visits=data.visitas.filter(v=>v.fazenda_id===farm.id), checks=data.checklists.filter(c=>c.fazenda_id===farm.id), diags=data.diagnosticos.filter(d=>d.fazenda_id===farm.id), evidencias=(data.evidencias||[]).filter(e=>e.fazenda_id===farm.id);
   const tabs=[['resumo','Resumo',Building2],['checklists','Checklists',ClipboardCheck],['equipamentos','Equipamentos',Cpu],['mapa','Mapa técnico',MapIcon],['visitas','Visitas',CalendarDays],['evidencias','Evidências',ImageIcon],['relatorio','Relatório',FileText],access.canEdit&&['restrito','Restrito',ShieldCheck],access.canManageAccess&&['acessos','Acessos',UserCheck]].filter(Boolean);
@@ -2705,10 +2712,13 @@ function FazendaDetalhe({farm,data,onBack}){
         {!compactHero&&<div className="farmHeroMeta"><span><MapPin size={16}/>{farm.cidade||'Cidade não informada'}</span><span><Building2 size={16}/>{centralOfficialName(farm.central)||'Central não informada'}</span><span><User size={16}/>{farm.regional_nome||farm.responsavel||'Regional não informado'}</span><FarmIntegrationBadge farm={farm} data={data}/></div>}
         {!compactHero&&<AccessBadge access={access}/>}
       </div>
-      {tab==='resumo'&&<div className="farmHeroIconActions">
-        {access.canEdit&&<button type="button" aria-label="Editar fazenda" title="Editar fazenda" onClick={()=>setEdit(true)}><Pencil size={18}/></button>}
-        {farm.latitude&&farm.longitude?<button type="button" aria-label="Abrir rota" title="Abrir rota" onClick={()=>openMaps(farm.latitude,farm.longitude)}><Navigation size={18}/></button>:<button type="button" aria-label="Abrir mapa" title="Abrir mapa" onClick={()=>setTab('mapa')}><MapPinned size={18}/></button>}
-        {canDeleteFarm&&<button type="button" className="dangerHeroAction" aria-label="Excluir fazenda" title="Excluir fazenda" onClick={()=>setDeleteConfirm(true)}><Trash2 size={18}/></button>}
+      {tab==='resumo'&&<div className="farmHeroPrimaryActions">
+        {access.canEdit&&<button type="button" className="farmHeroAction" onClick={()=>setEdit(true)}><Pencil size={17}/><span>Editar</span></button>}
+        {farm.latitude&&farm.longitude?<button type="button" className="farmHeroAction" onClick={()=>openMaps(farm.latitude,farm.longitude)}><Navigation size={17}/><span>Navegar</span></button>:<button type="button" className="farmHeroAction" onClick={()=>setTab('mapa')}><MapPinned size={17}/><span>Mapa</span></button>}
+        {canDeleteFarm&&<div className="farmHeroMore">
+          <button type="button" className="farmHeroMoreButton" aria-label="Mais ações" aria-expanded={heroMenuOpen} onClick={()=>setHeroMenuOpen(value=>!value)}><EllipsisVertical size={19}/></button>
+          {heroMenuOpen&&<><button type="button" className="farmHeroMenuBackdrop" aria-label="Fechar menu" onClick={()=>setHeroMenuOpen(false)}/><div className="farmHeroMenu" role="menu"><button type="button" className="farmHeroDeleteAction" role="menuitem" onClick={()=>{setHeroMenuOpen(false);setDeleteConfirm(true)}}><Trash2 size={17}/><span><b>Excluir fazenda</b><small>Remove o dossiê e seus registros</small></span></button></div></>}
+        </div>}
       </div>}
     </section>
     {!access.canEdit&&<PermissionNotice/>}
@@ -2780,6 +2790,15 @@ function AcessosFazenda({farm,data,access}){
   return <section className="panel accessPanel"><div className="sectionTitle"><div><h2><UserCheck size={20}/> Acessos da fazenda</h2></div></div><form className="accessInvitePanel" onSubmit={add}><div className="accessInviteTop"><Field label="E-mail da pessoa"><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="nome@email.com" required/></Field><button className="btn primary" disabled={busy}><UserCheck size={17}/> {busy?'Liberando...':'Liberar acesso'}</button></div><div className="accessRoleCards">{roles.map(([value,label,desc])=><button type="button" key={value} className={role===value?'active':''} onClick={()=>setRole(value)}><span>{value==='admin'?<ShieldCheck size={18}/>:<UserCheck size={18}/>}</span><b>{label}</b><small>{desc}</small></button>)}</div></form><div className="accessPeopleGrid"><article className="accessPersonCard owner"><ShieldCheck size={22}/><div><b>Proprietário</b><span>Controle total da fazenda e dos acessos liberados.</span></div><AccessBadge access={{role:'owner',label:'Proprietário'}}/></article>{members.map(m=><article className="accessPersonCard" key={m.id}><UserCheck size={22}/><div><b>{m.profiles?.nome||m.profiles?.email||'Usuário autorizado'}</b><span>{m.profiles?.email||m.user_id}</span></div><div className="accessPersonActions"><select value={m.role} onChange={e=>data.updateFarmMember(m,e.target.value)}><option value="viewer">Visualizador</option><option value="admin">Administrador</option></select><button className="iconBtn danger" title="Remover acesso" onClick={()=>data.removeFarmMember(m.id)}><Trash2 size={16}/></button></div></article>)}</div>{!members.length&&<Empty icon={UserCheck} title="Nenhum acesso liberado" text="Adicione o e-mail de uma pessoa que já tenha conta no app."/>}</section>
 }
 function InfoCard({title,rows}){return <div className="infoCard"><h3>{title}</h3>{rows.map(([a,b])=><div className="infoRow" key={a}><span>{a}</span><b>{b||'-'}</b></div>)}</div>}
+function FarmDetailGroup({title,Icon,rows=[],children}){
+  return <details className="farmDetailGroup">
+    <summary><span className="farmDetailGroupTitle"><span className="farmDetailGroupIcon"><Icon size={17}/></span><b>{title}</b></span><span className="farmDetailGroupMeta"><small>{rows.length||''}</small><ChevronLeft size={17}/></span></summary>
+    <div className="farmDetailGroupBody">
+      {rows.length>0&&<div className="farmDetailRows">{rows.map(([label,value,RowIcon,wide])=><article className={wide?'wide':''} key={label}><span><RowIcon size={15}/>{label}</span><b>{value||'-'}</b></article>)}</div>}
+      {children}
+    </div>
+  </details>
+}
 function FarmExecutiveSummary({farm,visits,checks,diags,equips,evidencias=[],canEdit,onStart,onFinish,onEdit,onAdjustService,onNewVisit,onOpenMap,onNavigate}){
   const predicted=num(farm.qtd_colares_prevista), installed=collarInstalled(farm), delivered=collarDelivered(farm), handled=collarHandled(farm);
   const progress=collarProgress(farm);
@@ -2791,30 +2810,40 @@ function FarmExecutiveSummary({farm,visits,checks,diags,equips,evidencias=[],can
   const cityUf=`${farm.cidade||''}${getFarmUF(farm)?` / ${getFarmUF(farm)}`:''}`.trim();
   const serviceState=active?'Em andamento':serviceSessions.length?'Serviço encerrado':'Não iniciada';
   const serviceHint=active?`Início atual ${brDateTime(farm.servico_inicio_em)}`:serviceSessions.length?`${serviceSessions.length} atendimento(s) • ${totalServiceLabel}`:'Aguardando início';
+  const latestVisit=[...visits].sort((a,b)=>new Date(b.data_visita||b.updated_at||b.created_at||0)-new Date(a.data_visita||a.updated_at||a.created_at||0))[0];
+  const phoneDigits=String(farm.telefone||'').replace(/\D/g,'');
   const alerts=[
     !hasLocation&&{text:'Fazenda sem GPS definido',Icon:MapPinned,tab:'mapa'},
     equips.length>mapped&&{text:`${equips.length-mapped} equipamento(s) sem GPS`,Icon:Cpu,tab:'equipamentos'},
     collarHasPending(farm)&&{text:`${remaining} colar(es) sem resolução`,Icon:Hash,tab:'resumo',action:canEdit?onAdjustService:null},
     pendingVisits>0&&{text:`${pendingVisits} visita(s) com pendência`,Icon:AlertTriangle,tab:'visitas'}
   ].filter(Boolean);
-  const fullDetails=[
-    farm.central&&['Central',centralOfficialName(farm.central),Building2],
+  const contactRows=[
     farm.regional_nome&&['Regional',farm.regional_nome,ShieldCheck],
     farm.veterinario_apoio&&['Veterinário / apoio',farm.veterinario_apoio,Stethoscope],
-    farm.responsavel&&['Responsável',farm.responsavel,User],
-    farm.telefone&&['Telefone',farm.telefone,Phone],
-    cityUf&&['Cidade',cityUf,MapPin],
-    farm.endereco&&['Endereço',farm.endereco,Navigation],
+    farm.responsavel&&['Responsável da fazenda',farm.responsavel,User],
+    farm.telefone&&['Telefone',phoneDigits?<a className="farmPhoneLink" href={`tel:${phoneDigits}`} title="Ligar para este número"><Phone size={14}/>{farm.telefone}</a>:farm.telefone,Phone]
+  ].filter(Boolean);
+  const locationRows=[
+    cityUf&&['Cidade / UF',cityUf,MapPin],
+    farm.endereco&&['Endereço',farm.endereco,Navigation,true],
+    hasLocation&&['Coordenadas',`${Number(farm.latitude).toFixed(6)}, ${Number(farm.longitude).toFixed(6)}`,LocateFixed,true]
+  ].filter(Boolean);
+  const operationRows=[
+    farm.central&&['Central',centralOfficialName(farm.central),Building2],
     ['Status',status,BadgeCheck],
     firstStart&&['Primeiro início do serviço',brDateTime(firstStart),Clock],
     lastEnd&&['Último fim do serviço',brDateTime(lastEnd),CheckCircle2],
     serviceSessions.length&&['Atendimentos',serviceSessions.length,CalendarDays],
     responsibleLabel&&['Responsável técnico',responsibleLabel,User],
+    ['Última visita',latestVisit?brDate(latestVisit.data_visita||latestVisit.updated_at||latestVisit.created_at):'Sem visita',CalendarDays],
     delivered>0&&['Colares entregues ao cliente',delivered,BadgeCheck],
+  ].filter(Boolean);
+  const notes=[
     farm.motivo_colares_restantes&&['Motivo dos colares restantes',farm.motivo_colares_restantes,AlertTriangle],
     farm.observacoes_colares&&['Observação dos colares',farm.observacoes_colares,Info],
-    canEdit&&farm.observacoes&&['Observações internas',farm.observacoes,Info],
-    canEdit&&farm.servico_observacoes&&['Observações do serviço',farm.servico_observacoes,Info]
+    canEdit&&farm.observacoes&&['Observações internas',farm.observacoes,ShieldCheck],
+    canEdit&&farm.servico_observacoes&&['Observações do serviço',farm.servico_observacoes,Clock]
   ].filter(Boolean);
   const serviceAction=active?['Finalizar',CheckCircle2,onFinish]:[serviceSessions.length?'Novo serviço':'Iniciar',PlayCircle,onStart];
   const serviceAdjustButton=canEdit&&serviceSessions.length?<button type="button" className="serviceMiniEdit" onClick={onAdjustService} aria-label="Ajustar atendimentos" title="Corrigir horários ou técnico"><Pencil size={15}/></button>:null;
@@ -2832,11 +2861,26 @@ function FarmExecutiveSummary({farm,visits,checks,diags,equips,evidencias=[],can
     </div>
     <div className="execCards execCompactCards">
       <article className="execCard execProgressCard"><div className="execCardIcon"><Hash size={19}/></div><span>Colares</span><b>{handled} / {predicted||'-'}</b><div className="execProgress"><i style={{width:`${progress}%`}}/></div><small>{delivered?`${installed} instalados • ${delivered} entregues`:`${progress}% concluído`}</small></article>
-      <article className="execCard execMapCard"><div className="execCardIcon"><MapPinned size={19}/></div><span>Mapa</span><b>{mapped} / {equips.length}</b><small>equipamentos com GPS</small></article>
+      <button type="button" className="execCard execMapCard" onClick={onOpenMap} aria-label="Abrir mapa técnico"><div className="execCardIcon"><MapPinned size={19}/></div><span>Mapa</span><b>{mapped} / {equips.length}</b><small>equipamentos com GPS • abrir mapa</small></button>
       <article className="execCard execTimeCard"><div className="execCardIcon"><Clock size={19}/></div><span>Tempo em campo</span><b>{totalServiceLabel}</b><small>{serviceSessions.length?`${serviceSessions.length} atendimento(s)`:'sem início'}</small></article>
     </div>
     {alerts.length>0&&<div className="execAlerts">{alerts.map(({text,Icon,tab,action})=><button type="button" key={text} onClick={()=>action?action():onNavigate?.(tab)}><Icon size={15}/>{text}</button>)}</div>}
-    <details className="farmFullDetails compactFarmDetails"><summary><span>Dados da fazenda</span><b>{fullDetails.length}</b></summary><div className="farmFullGrid">{fullDetails.map(([label,value,Icon])=><article key={label}><span><Icon size={15}/>{label}</span><b>{value}</b></article>)}<article><span><CalendarDays size={15}/>Última visita</span><b>{visits[0]?brDate(visits[0].data_visita):'Sem visita'}</b></article><article><span><ClipboardCheck size={15}/>Checklists</span><b>{checks.length}</b></article><article><span><Stethoscope size={15}/>Diagnósticos</span><b>{diags.length}</b></article><article><span><ImageIcon size={15}/>Evidências</span><b>{evidencias.length}</b></article></div></details>
+    <section className="farmInformationSection">
+      <div className="farmInformationHeading"><div><span className="eyebrow">Dossiê</span><h3>Informações da fazenda</h3></div><small>Abra somente o grupo que deseja consultar</small></div>
+      <div className="farmDetailGroups">
+        <FarmDetailGroup title="Contatos e responsáveis" Icon={UserCheck} rows={contactRows}/>
+        <FarmDetailGroup title="Localização" Icon={MapPinned} rows={locationRows}/>
+        <FarmDetailGroup title="Dados operacionais" Icon={Gauge} rows={operationRows}/>
+        <FarmDetailGroup title="Registros e observações" Icon={ClipboardList}>
+          <div className="farmRecordShortcuts">
+            <button type="button" onClick={()=>onNavigate?.('checklists')}><span><ClipboardCheck size={17}/>Checklists</span><b>{checks.length}</b><small>Abrir registros</small></button>
+            <article><span><Stethoscope size={17}/>Diagnósticos</span><b>{diags.length}</b><small>Registros técnicos</small></article>
+            <button type="button" onClick={()=>onNavigate?.('evidencias')}><span><ImageIcon size={17}/>Evidências</span><b>{evidencias.length}</b><small>Abrir galeria</small></button>
+          </div>
+          {notes.length>0?<div className="farmNoteList">{notes.map(([label,text,NoteIcon])=><details className="farmNoteItem" key={label}><summary><NoteIcon size={16}/><span><b>{label}</b><p>{text}</p></span><em className="noteExpand">Ver tudo</em><em className="noteCollapse">Recolher</em></summary><div className="farmNoteFullText">{text}</div></details>)}</div>:<p className="farmNoNotes"><Info size={16}/> Nenhuma observação adicional registrada.</p>}
+        </FarmDetailGroup>
+      </div>
+    </section>
   </section>
 }
 
@@ -3606,255 +3650,151 @@ function AdminUserCard({profile,currentUserId,onSave,onReset}){
   </article>
 }
 
-function Produtividade({data,onOpen}){
-  const [year,setYear]=useState('Todos'),[month,setMonth]=useState('Todos'),[central,setCentral]=useState('Todas'),[resp,setResp]=useState('Todos'),[filtersOpen,setFiltersOpen]=useState(false);
+function Produtividade({data,onOpen,initialSection='visao'}){
+  const today=new Date(),pad=n=>String(n).padStart(2,'0');
+  const monthNames=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const [section,setSection]=useState(initialSection),[filtersOpen,setFiltersOpen]=useState(false),[chartMetric,setChartMetric]=useState('colares');
+  const [period,setPeriod]=useState('todos'),[month,setMonth]=useState(String(today.getMonth()+1)),[year,setYear]=useState(String(today.getFullYear()));
+  const [customStart,setCustomStart]=useState(`${today.getFullYear()}-${pad(today.getMonth()+1)}-01`),[customEnd,setCustomEnd]=useState(todayInput());
+  const [central,setCentral]=useState('Todas'),[resp,setResp]=useState('Todos'),[farmFilter,setFarmFilter]=useState('Todas'),[status,setStatus]=useState('Todos');
   const [workStart,setWorkStart]=useState(DEFAULT_WORKDAY.start),[workEnd,setWorkEnd]=useState(DEFAULT_WORKDAY.end),[lunchMinutes,setLunchMinutes]=useState(DEFAULT_WORKDAY.lunchMinutes),[includeWeekends,setIncludeWeekends]=useState(false);
-  const [chartMetric,setChartMetric]=useState('colares');
+  const [selectedTech,setSelectedTech]=useState('Todos'),[periodLimit,setPeriodLimit]=useState(12),[reportType,setReportType]=useState('geral'),[reportDetail,setReportDetail]=useState('resumido');
+  useEffect(()=>setSection(initialSection),[initialSection]);
   const visibleCentrais=allowedCentrais(data);
   useEffect(()=>{if(central!=='Todas'&&!visibleCentrais.includes(central))setCentral('Todas');},[central,visibleCentrais.join('|')]);
   const workConfig={start:workStart||DEFAULT_WORKDAY.start,end:workEnd||DEFAULT_WORKDAY.end,lunchMinutes:num(lunchMinutes),includeWeekends};
-  const farmById=Object.fromEntries(data.fazendas.map(f=>[f.id,f]));
-  const visitSessions=data.visitas.map(v=>{
-    const farm=farmById[v.fazenda_id];
-    if(!farm||!v.iniciada_em||!v.finalizada_em)return null;
-    return {...farm,session_id:v.id,session_tipo:v.tipo||'Visita',session_status:v.status,servico_inicio_em:v.iniciada_em,servico_fim_em:v.finalizada_em,servico_responsavel:v.responsavel_tecnico||farm.servico_responsavel||personName(data.currentUser)||farm.regional_nome||farm.responsavel||'',_sessionFromVisit:true};
-  }).filter(Boolean).filter(s=>serviceHours(s)>0);
-  const sessionFarmIds=new Set(visitSessions.map(s=>s.id));
-  const fallbackSessions=data.fazendas.filter(f=>f.servico_inicio_em&&f.servico_fim_em&&serviceHours(f)>0&&!sessionFarmIds.has(f.id)).map(f=>({...f,session_id:`farm-${f.id}`,session_tipo:'Serviço'}));
-  const concluded=[...visitSessions,...fallbackSessions];
-  const years=[...new Set(concluded.map(f=>new Date(f.servico_fim_em).getFullYear()).filter(Boolean))].sort((a,b)=>b-a);
-  const responsaveis=[...new Set(concluded.map(f=>f.servico_responsavel||f.regional_nome||f.responsavel).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
-  const monthNames=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const dailyHours=Math.max(workdayHours(workConfig),0.1);
-  const workedHoursFor=f=>businessHoursBetween(f.servico_inicio_em,f.servico_fim_em,workConfig);
-  const activeHoursFor=f=>businessHoursBetween(f.servico_inicio_em,null,workConfig);
-  const collarsFor=f=>num(f.qtd_colares_instalada||f.qtd_colares_prevista);
-  const matchFarm=f=>{
-    const end=f.servico_fim_em?new Date(f.servico_fim_em):null;
-    const owner=f.servico_responsavel||f.regional_nome||f.responsavel||'';
-    return (year==='Todos'||(end&&String(end.getFullYear())===String(year)))
-      && (month==='Todos'||(end&&String(end.getMonth()+1)===String(month)))
-      && (central==='Todas'||(f.central||'')===central||(!f.central&&central.startsWith('Outra')))
-      && (resp==='Todos'||owner===resp);
-  };
-  const farms=concluded.filter(matchFarm).filter(f=>workedHoursFor(f)>0).sort((a,b)=>new Date(b.servico_fim_em)-new Date(a.servico_fim_em));
-  const inProgress=data.fazendas.filter(f=>f.servico_inicio_em&&!f.servico_fim_em);
-  const totalHours=farms.reduce((a,f)=>a+workedHoursFor(f),0);
-  const totalElapsedHours=farms.reduce((a,f)=>a+serviceHours(f),0);
-  const uniqueFarmRows=[...new Map(farms.map(f=>[f.id,f])).values()];
-  const totalCollars=uniqueFarmRows.reduce((a,f)=>a+collarsFor(f),0);
-  const avgHours=farms.length?totalHours/farms.length:0;
-  const productiveDays=totalHours/dailyHours;
-  const avgLabel=avgHours?`${avgHours.toFixed(1)} h úteis`:'-';
-  const collarsPerDay=totalHours?totalCollars/productiveDays:0;
-  const monthlyBase=concluded.filter(f=>{
-    const end=new Date(f.servico_fim_em);
-    const owner=f.servico_responsavel||f.regional_nome||f.responsavel||'';
-    return (year==='Todos'||String(end.getFullYear())===String(year))
-      && (central==='Todas'||(f.central||'')===central||(!f.central&&central.startsWith('Outra')))
-      && (resp==='Todos'||owner===resp);
-  });
-  const monthlyCollars=monthNames.map((label,i)=>({label,value:[...new Map(monthlyBase.filter(f=>new Date(f.servico_fim_em).getMonth()===i).map(f=>[f.id,f])).values()].reduce((a,f)=>a+collarsFor(f),0)}));
-  const monthlyHours=monthNames.map((label,i)=>({label,value:monthlyBase.filter(f=>new Date(f.servico_fim_em).getMonth()===i).reduce((a,f)=>a+workedHoursFor(f),0)}));
-  const monthlyCount=monthNames.map((label,i)=>({label,value:monthlyBase.filter(f=>new Date(f.servico_fim_em).getMonth()===i).length}));
-  const chartRows=chartMetric==='horas'?monthlyHours:monthlyCollars;
-  const secondaryRows=chartMetric==='horas'?monthlyCollars:monthlyHours;
-  const chartSuffix=chartMetric==='horas'?' h':'';
-  const chartDecimals=chartMetric==='horas'?1:0;
-  const buckets=[['0-100',0,100],['101-250',101,250],['251-500',251,500],['501+',501,Infinity]].map(([label,min,max])=>{
-    const list=farms.filter(f=>{const collars=collarsFor(f);return collars>=min&&collars<=max;});
-    return {label,value:list.length?list.reduce((a,f)=>a+workedHoursFor(f),0)/list.length/dailyHours:0};
-  });
-  const ownerRows=Object.values(farms.reduce((acc,f)=>{
-    const owner=f.servico_responsavel||f.regional_nome||f.responsavel||'Sem responsável';
-    const useful=workedHoursFor(f),collars=collarsFor(f);
-    acc[owner] ||= {owner,farms:0,collars:0,hours:0};
-    acc[owner].farms += 1;
-    if(!acc[owner].farmIds)acc[owner].farmIds=new Set();
-    if(!acc[owner].farmIds.has(f.id)){acc[owner].collars += collars;acc[owner].farmIds.add(f.id);}
-    acc[owner].hours += useful;
+  const parseDate=value=>{if(!value)return null;const parsed=new Date(value);return Number.isNaN(parsed.getTime())?null:parsed;};
+  const startDay=date=>new Date(date.getFullYear(),date.getMonth(),date.getDate(),0,0,0,0);
+  const endDay=date=>new Date(date.getFullYear(),date.getMonth(),date.getDate(),23,59,59,999);
+  const range=(()=>{
+    if(period==='todos')return {start:null,end:null,label:'Todo o histórico'};
+    if(period==='ultimos_30'){const start=new Date(today);start.setDate(start.getDate()-29);return {start:startDay(start),end:endDay(today),label:'Últimos 30 dias'};}
+    if(period==='personalizado'){const start=parseDate(`${customStart}T00:00:00`),end=parseDate(`${customEnd}T23:59:59`);return {start,end,label:`${brDate(customStart)} até ${brDate(customEnd)}`};}
+    const selectedYear=num(year)||today.getFullYear(),selectedMonth=Math.max(1,num(month)||today.getMonth()+1);
+    const start=new Date(selectedYear,selectedMonth-1,1),end=new Date(selectedYear,selectedMonth,0);
+    return {start:startDay(start),end:endDay(end),label:start.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})};
+  })();
+  const inRange=value=>{if(!range.start&&!range.end)return true;const date=parseDate(value);return Boolean(date&&(!range.start||date>=range.start)&&(!range.end||date<=range.end));};
+  const farmById=Object.fromEntries(data.fazendas.map(f=>[f.id,f]));
+  const visitSessions=data.visitas.map(visit=>{
+    const farm=farmById[visit.fazenda_id];
+    if(!farm||!visit.iniciada_em||!visit.finalizada_em)return null;
+    return {...farm,session_id:visit.id,session_tipo:visit.tipo||'Visita',session_status:visit.status,servico_inicio_em:visit.iniciada_em,servico_fim_em:visit.finalizada_em,servico_responsavel:visit.responsavel_tecnico||farm.servico_responsavel||personName(data.currentUser)||farm.regional_nome||farm.responsavel||'',_sessionFromVisit:true};
+  }).filter(Boolean).filter(session=>serviceHours(session)>0);
+  const sessionFarmIds=new Set(visitSessions.map(session=>session.id));
+  const fallbackSessions=data.fazendas.filter(farm=>farm.servico_inicio_em&&farm.servico_fim_em&&serviceHours(farm)>0&&!sessionFarmIds.has(farm.id)).map(farm=>({...farm,session_id:`farm-${farm.id}`,session_tipo:'Serviço'}));
+  const concluded=[...visitSessions,...fallbackSessions];
+  const ownerFor=item=>item.servico_responsavel||item.regional_nome||item.responsavel||'Não informado';
+  const workedHoursFor=item=>businessHoursBetween(item.servico_inicio_em,item.servico_fim_em,workConfig);
+  const activeHoursFor=item=>businessHoursBetween(item.servico_inicio_em,null,workConfig);
+  const collarsFor=item=>num(item.qtd_colares_instalada||item.qtd_colares_prevista);
+  const years=[...new Set([today.getFullYear(),...concluded.map(item=>parseDate(item.servico_fim_em)?.getFullYear()).filter(Boolean)])].sort((a,b)=>b-a);
+  const responsaveis=[...new Set(concluded.map(ownerFor).filter(Boolean))].sort((a,b)=>a.localeCompare(b));
+  const centralMatch=farm=>central==='Todas'||(farm.central||'')===central||(!farm.central&&central.startsWith('Outra'));
+  const statusMatch=farm=>status==='Todos'||farmStatus(farm)===status;
+  const technicianFarmIds=resp==='Todos'?null:new Set(concluded.filter(item=>ownerFor(item)===resp).map(item=>item.id));
+  const baseFarmMatch=farm=>centralMatch(farm)&&statusMatch(farm)&&(farmFilter==='Todas'||farm.id===farmFilter)&&(!technicianFarmIds||technicianFarmIds.has(farm.id));
+  const scopedFarms=data.fazendas.filter(baseFarmMatch),scopedFarmIds=new Set(scopedFarms.map(farm=>farm.id));
+  const sessions=concluded.filter(item=>scopedFarmIds.has(item.id)&&(resp==='Todos'||ownerFor(item)===resp)&&inRange(item.servico_fim_em||item.servico_inicio_em)).filter(item=>workedHoursFor(item)>0).sort((a,b)=>new Date(b.servico_fim_em)-new Date(a.servico_fim_em));
+  const inProgress=scopedFarms.filter(farm=>farm.servico_inicio_em&&!farm.servico_fim_em&&(resp==='Todos'||ownerFor(farm)===resp)&&inRange(farm.servico_inicio_em));
+  const totalHours=sessions.reduce((sum,item)=>sum+workedHoursFor(item),0),totalElapsedHours=sessions.reduce((sum,item)=>sum+serviceHours(item),0);
+  const uniqueServiceFarms=[...new Map(sessions.map(item=>[item.id,item])).values()];
+  const totalCollars=uniqueServiceFarms.reduce((sum,item)=>sum+collarsFor(item),0),productiveDays=totalHours/dailyHours,avgHours=sessions.length?totalHours/sessions.length:0;
+  const collarsPerDay=productiveDays?totalCollars/productiveDays:0,avgLabel=avgHours?`${avgHours.toFixed(1)} h úteis`:'-';
+  const monthlyCollars=monthNames.map((label,index)=>({label,value:[...new Map(sessions.filter(item=>parseDate(item.servico_fim_em)?.getMonth()===index).map(item=>[item.id,item])).values()].reduce((sum,item)=>sum+collarsFor(item),0)}));
+  const monthlyHours=monthNames.map((label,index)=>({label,value:sessions.filter(item=>parseDate(item.servico_fim_em)?.getMonth()===index).reduce((sum,item)=>sum+workedHoursFor(item),0)}));
+  const chartRows=chartMetric==='horas'?monthlyHours:monthlyCollars,secondaryRows=chartMetric==='horas'?monthlyCollars:monthlyHours;
+  const ownerRows=Object.values(sessions.reduce((acc,item)=>{
+    const owner=ownerFor(item),hours=workedHoursFor(item),collars=collarsFor(item);
+    acc[owner]||={owner,periods:0,collars:0,hours:0,farmIds:new Set()};
+    acc[owner].periods+=1;acc[owner].hours+=hours;
+    if(!acc[owner].farmIds.has(item.id)){acc[owner].farmIds.add(item.id);acc[owner].collars+=collars;}
     return acc;
-  },{})).sort((a,b)=>b.collars-a.collars||b.hours-a.hours).slice(0,5);
-  const recentFarms=farms.slice(0,8);
-  const activeFilters=year!=='Todos'||month!=='Todos'||central!=='Todas'||resp!=='Todos'||workStart!==DEFAULT_WORKDAY.start||workEnd!==DEFAULT_WORKDAY.end||num(lunchMinutes)!==num(DEFAULT_WORKDAY.lunchMinutes)||includeWeekends;
-  const periodLabel=[
-    month==='Todos'?'Todos os meses':monthNames[num(month)-1],
-    year==='Todos'?'todos os anos':year,
-    central==='Todas'?'todas as centrais':centralOfficialName(central),
-    resp==='Todos'?'todos os técnicos':resp
-  ].filter(Boolean).join(' • ');
-  const resetFilters=()=>{
-    setYear('Todos');setMonth('Todos');setCentral('Todas');setResp('Todos');
-    setWorkStart(DEFAULT_WORKDAY.start);setWorkEnd(DEFAULT_WORKDAY.end);setLunchMinutes(DEFAULT_WORKDAY.lunchMinutes);setIncludeWeekends(false);
+  },{})).map(row=>({...row,farms:row.farmIds.size,rate:row.hours?row.collars/(row.hours/dailyHours):0})).sort((a,b)=>a.owner.localeCompare(b.owner));
+  useEffect(()=>{if(selectedTech!=='Todos'&&!ownerRows.some(row=>row.owner===selectedTech))setSelectedTech('Todos');},[selectedTech,ownerRows.map(row=>row.owner).join('|')]);
+  const activeTechnician=resp!=='Todos'?resp:selectedTech;
+  const technicianPeriods=activeTechnician==='Todos'?sessions:sessions.filter(item=>ownerFor(item)===activeTechnician);
+  const farmOptions=data.fazendas.filter(centralMatch).sort((a,b)=>String(a.nome||'').localeCompare(String(b.nome||'')));
+  const visitsInPeriod=data.visitas.filter(visit=>scopedFarmIds.has(visit.fazenda_id)&&inRange(visit.data_visita||visit.created_at));
+  const visitFarmIds=new Set(visitsInPeriod.map(visit=>visit.fazenda_id)),serviceFarmIds=new Set(sessions.map(item=>item.id));
+  const serviceFarms=scopedFarms.filter(farm=>serviceFarmIds.has(farm.id)),activeFarms=scopedFarms.filter(farm=>serviceFarmIds.has(farm.id)||visitFarmIds.has(farm.id));
+  const equips=data.equipamentos.filter(item=>scopedFarmIds.has(item.fazenda_id)),checks=data.checklists.filter(item=>scopedFarmIds.has(item.fazenda_id)&&inRange(item.created_at)),evidencias=(data.evidencias||[]).filter(item=>scopedFarmIds.has(item.fazenda_id)&&inRange(item.created_at));
+  const completed=scopedFarms.filter(farm=>farmStatus(farm)===FARM_STATUS_DONE||farm.servico_fim_em),notStarted=scopedFarms.filter(farm=>farmStatus(farm)==='Não iniciada'&&!farm.servico_inicio_em&&!farm.servico_fim_em);
+  const installed=scopedFarms.reduce((sum,farm)=>sum+collarInstalled(farm),0),delivered=scopedFarms.reduce((sum,farm)=>sum+collarDelivered(farm),0),handled=scopedFarms.reduce((sum,farm)=>sum+collarHandled(farm),0),planned=scopedFarms.reduce((sum,farm)=>sum+num(farm.qtd_colares_prevista),0);
+  const installedInPeriod=serviceFarms.reduce((sum,farm)=>sum+collarInstalled(farm),0),progress=planned?Math.round((handled/planned)*100):0;
+  const statusRows=FARM_STATUS.map(label=>({label,count:scopedFarms.filter(farm=>farmStatus(farm)===label).length})).filter(row=>row.count);
+  const centralRows=visibleCentrais.map(item=>{const list=scopedFarms.filter(farm=>item==='Outra / Não informado'?(!farm.central||!CENTRAIS.slice(0,2).includes(farm.central)):farm.central===item);return {label:centralOfficialName(item)||item,count:list.length,done:list.filter(farm=>farmStatus(farm)===FARM_STATUS_DONE||farm.servico_fim_em).length,collars:list.reduce((sum,farm)=>sum+collarInstalled(farm),0),handled:list.reduce((sum,farm)=>sum+collarHandled(farm),0)}}).filter(row=>row.count||central==='Todas');
+  const groupByMonth=(!range.start&&!range.end)||((range.end-range.start)/86400000)>45,installGroups={};
+  sessions.forEach(item=>{const date=parseDate(item.servico_fim_em||item.servico_inicio_em);if(!date)return;const key=groupByMonth?`${pad(date.getMonth()+1)}/${String(date.getFullYear()).slice(2)}`:date.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});installGroups[key]=(installGroups[key]||0)+1;});
+  const installRows=Object.entries(installGroups).map(([label,value])=>({label,value})).slice(-12);
+  const reportTypes={geral:'Relatório geral',mensal:'Serviços mensais',produtividade:'Produtividade de campo',central:'Resumo por central'};
+  const customWorkday=workStart!==DEFAULT_WORKDAY.start||workEnd!==DEFAULT_WORKDAY.end||num(lunchMinutes)!==num(DEFAULT_WORKDAY.lunchMinutes)||includeWeekends;
+  const activeFilterLabels=[range.label,central!=='Todas'?centralOfficialName(central):null,resp!=='Todos'?resp:null,farmFilter!=='Todas'?farmById[farmFilter]?.nome:null,status!=='Todos'?status:null,customWorkday?`Jornada ${workConfig.start}-${workConfig.end}`:null].filter(Boolean);
+  const activeFilterCount=[period!=='todos',central!=='Todas',resp!=='Todos',farmFilter!=='Todas',status!=='Todos',customWorkday].filter(Boolean).length;
+  const activeFilters=activeFilterCount>0;
+  const resetFilters=()=>{setPeriod('todos');setMonth(String(today.getMonth()+1));setYear(String(today.getFullYear()));setCustomStart(`${today.getFullYear()}-${pad(today.getMonth()+1)}-01`);setCustomEnd(todayInput());setCentral('Todas');setResp('Todos');setFarmFilter('Todas');setStatus('Todos');setWorkStart(DEFAULT_WORKDAY.start);setWorkEnd(DEFAULT_WORKDAY.end);setLunchMinutes(DEFAULT_WORKDAY.lunchMinutes);setIncludeWeekends(false);};
+  const exportProductivity=()=>{const journey=`${workConfig.start}-${workConfig.end}; almoço ${workConfig.lunchMinutes} min; ${workConfig.includeWeekends?'inclui finais de semana':'dias úteis'}`;const rows=[['Fazenda','Tipo de período','Central','Cidade','Responsável produtividade','Início','Fim','Horas úteis','Dias úteis equivalentes','Tempo corrido horas','Colares instalados','Colares previstos','Colares por dia útil','Jornada considerada'],...sessions.map(item=>{const useful=workedHoursFor(item),collars=collarsFor(item);return [item.nome,item.session_tipo||'Serviço',centralOfficialName(item.central),item.cidade,ownerFor(item),brDateTime(item.servico_inicio_em),brDateTime(item.servico_fim_em),useful.toFixed(2),(useful/dailyHours).toFixed(2),serviceHours(item).toFixed(2),num(item.qtd_colares_instalada),num(item.qtd_colares_prevista),useful?(collars/(useful/dailyHours)).toFixed(2):'0',journey]})];download('produtividade-fazendas.tsv',rows.map(row=>row.join(String.fromCharCode(9))).join(String.fromCharCode(10)));notify('Planilha de produtividade exportada.');};
+  const exportReport=()=>{const rows=[['Relatório',reportTypes[reportType]],['Versão',reportDetail],['Período',range.label],['Central',central==='Todas'?'Todas':centralOfficialName(central)],['Técnico',resp],['Fazenda',farmFilter==='Todas'?'Todas':farmById[farmFilter]?.nome],['Status',status],[],['Indicador','Valor'],['Fazendas cadastradas no filtro',scopedFarms.length],['Fazendas não iniciadas',notStarted.length],['Fazendas com movimento no período',activeFarms.length],['Períodos de serviço',sessions.length],['Concluídas total',completed.length],['Colares instalados total',installed],['Colares entregues total',delivered],['Colares atendidos total',handled],['Colares instalados no período',installedInPeriod],['Colares previstos total',planned],['Visitas no período',visitsInPeriod.length],['Horas úteis no período',totalHours.toFixed(2)],[],['Fazenda','Central','Cidade','Status','Primeiro início','Último fim','Períodos','Tempo total','Colares instalados','Colares entregues','Colares atendidos','Colares previstos','Equipamentos','Visitas no período'],...scopedFarms.map(farm=>{const farmEquips=equips.filter(item=>item.fazenda_id===farm.id),farmVisits=visitsInPeriod.filter(visit=>visit.fazenda_id===farm.id),farmSessions=farmServiceSessions(farm,data.visitas);return [farm.nome,centralOfficialName(farm.central),farm.cidade,farmStatus(farm),brDateTime(firstServiceStart(farmSessions)),brDateTime(lastServiceEnd(farmSessions)),farmSessions.length,serviceTotalLabel(farm,data.visitas),collarInstalled(farm),collarDelivered(farm),collarHandled(farm),farm.qtd_colares_prevista,farmEquips.length,farmVisits.length]})];download('relatorio-gerencial.tsv',rows.map(row=>row.join(String.fromCharCode(9))).join(String.fromCharCode(10)));notify('Relatório gerencial exportado.');};
+  const printReport=()=>{
+    const safe=value=>String(value===undefined||value===null||String(value).trim()===''?'-':value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+    const brand=reportBrandForCentral(central==='Todas'?data.empresaAcesso:central),logo=brand.logo||appLogo;
+    const serviceRows=sessions.slice(0,40).map(item=>`<tr><td><b>${safe(item.nome)}</b><small>${safe(item.cidade||'Cidade não informada')}</small></td><td>${safe(centralOfficialName(item.central))}</td><td>${safe(ownerFor(item))}</td><td>${safe(brDate(item.servico_inicio_em))}</td><td>${safe(workDurationLabel(workedHoursFor(item),workConfig))}</td></tr>`).join('');
+    const centralTable=centralRows.map(row=>`<tr><td>${safe(row.label)}</td><td>${row.count}</td><td>${row.done}</td><td>${row.collars}</td><td>${row.handled}</td></tr>`).join('');
+    const technicianTable=ownerRows.map(row=>`<tr><td>${safe(row.owner)}</td><td>${row.farms}</td><td>${row.periods}</td><td>${row.collars}</td><td>${row.hours.toFixed(1)} h</td></tr>`).join('');
+    const showInstall=reportType==='geral'||reportType==='mensal',showProd=reportType==='geral'||reportType==='produtividade',showCentral=reportType==='geral'||reportType==='central';
+    const detailed=reportDetail==='detalhado';
+    const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${safe(reportTypes[reportType])}</title><style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;color:#0f172a;margin:0;font-size:11px;line-height:1.35;-webkit-print-color-adjust:exact;print-color-adjust:exact}.top{display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid ${brand.primary};padding-bottom:10px}.brand{display:flex;align-items:center;gap:10px}.brand img{width:68px;height:38px;object-fit:contain}.brand b{font-size:17px}.brand span{display:block;color:${brand.primary};font-weight:900}.meta{text-align:right;color:#64748b}.cover{margin:12px 0;padding:16px;border-radius:16px;background:${brand.cover};color:#fff}.cover small{font-weight:900;letter-spacing:.12em}.cover h1{margin:6px 0 4px;font-size:25px}.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:10px 0}.metric{border:1px solid ${brand.border};background:${brand.soft};border-radius:10px;padding:8px;text-align:center}.metric b{display:block;color:${brand.primary};font-size:19px}h2{font-size:14px;margin:15px 0 7px;border-bottom:1px solid #dbe4ef;padding-bottom:5px}table{width:100%;border-collapse:collapse;margin-top:7px}th{background:${brand.primary};color:#fff;text-align:left;font-size:9.5px}th,td{border:1px solid #dbe4ef;padding:6px;vertical-align:top}td small{display:block;color:#64748b;margin-top:2px}.section{break-inside:auto}.executive{padding:10px;border:1px solid ${brand.border};background:${brand.soft};border-radius:12px}.footer{margin-top:16px;border-top:1px solid #dbe4ef;padding-top:6px;color:#64748b;display:flex;justify-content:space-between}</style></head><body><header class="top"><div class="brand"><img src="${safe(logo)}" alt=""><div><b>${safe(brand.name)}</b><span>ControlTech Assist</span></div></div><div class="meta"><b>RELATÓRIO GERENCIAL</b><br>${safe(new Date().toLocaleString('pt-BR'))}<br>${safe(range.label)}</div></header><section class="cover"><small>${safe(central==='Todas'?brand.name:centralOfficialName(central))}</small><h1>${safe(reportTypes[reportType])}</h1><p>${safe(reportDetail==='detalhado'?'Versão detalhada':'Versão resumida')} • ${scopedFarms.length} fazenda(s) • ${sessions.length} período(s) de serviço</p></section><section class="executive"><b>Resumo executivo</b><p>No recorte selecionado foram registrados ${sessions.length} período(s) de serviço em ${serviceFarms.length} fazenda(s), totalizando ${totalHours.toFixed(1)} horas úteis e ${totalCollars} colares vinculados à produtividade. O filtro gerencial contém ${handled} colares atendidos de ${planned} previstos.</p></section><section class="metrics"><div class="metric"><b>${scopedFarms.length}</b>Fazendas</div><div class="metric"><b>${sessions.length}</b>Períodos</div><div class="metric"><b>${totalHours.toFixed(1)} h</b>Horas úteis</div><div class="metric"><b>${handled}</b>Atendidos</div><div class="metric"><b>${visitsInPeriod.length}</b>Visitas</div></section>${detailed&&showInstall?`<section class="section"><h2>Serviços realizados</h2><table><thead><tr><th>Fazenda</th><th>Central</th><th>Técnico</th><th>Data</th><th>Horas úteis</th></tr></thead><tbody>${serviceRows||'<tr><td colspan="5">Sem serviços no período.</td></tr>'}</tbody></table></section>`:''}${showCentral?`<section class="section"><h2>Distribuição por central</h2><table><thead><tr><th>Central</th><th>Fazendas</th><th>Concluídas</th><th>Instalados</th><th>Atendidos</th></tr></thead><tbody>${centralTable||'<tr><td colspan="5">Sem dados.</td></tr>'}</tbody></table></section>`:''}${showProd?`<section class="section"><h2>Resultados por técnico</h2><table><thead><tr><th>Técnico</th><th>Fazendas</th><th>Períodos</th><th>Colares</th><th>Horas úteis</th></tr></thead><tbody>${technicianTable||'<tr><td colspan="5">Sem serviços finalizados.</td></tr>'}</tbody></table></section>`:''}<footer class="footer"><span>ControlTech Assist • ${safe(brand.name)}</span><span>${safe(range.label)}</span></footer><script>window.onload=()=>setTimeout(()=>window.print(),300)</script></body></html>`;
+    const win=window.open('','_blank');if(!win){notify('Permita pop-ups para gerar o relatório.','error');return;}win.document.write(html);win.document.close();
   };
-  const exportData=()=>{const jornada=`${workConfig.start}-${workConfig.end}; almoço ${workConfig.lunchMinutes} min; ${workConfig.includeWeekends?'inclui finais de semana':'dias úteis'}`;const rows=[['Fazenda','Tipo de periodo','Central','Cidade','Responsavel produtividade','Inicio','Fim','Horas uteis','Dias uteis equivalentes','Tempo corrido horas','Colares instalados','Colares previstos','Colares por dia util','Jornada considerada'],...farms.map(f=>{const useful=workedHoursFor(f),collars=collarsFor(f);return [f.nome,f.session_tipo||'Serviço',centralOfficialName(f.central),f.cidade,f.servico_responsavel||f.regional_nome||f.responsavel,brDateTime(f.servico_inicio_em),brDateTime(f.servico_fim_em),useful.toFixed(2),(useful/dailyHours).toFixed(2),serviceHours(f).toFixed(2),num(f.qtd_colares_instalada),num(f.qtd_colares_prevista),useful?(collars/(useful/dailyHours)).toFixed(2):'0',jornada]})];download('produtividade-fazendas.tsv',rows.map(r=>r.join(String.fromCharCode(9))).join(String.fromCharCode(10)));};
-  return <div className="productivityPage">
-    <PageHead eyebrow="Produtividade" title="Controle de produtividade">
-      <button className={`btn light prodFilterBtn ${activeFilters?'active':''}`} onClick={()=>setFiltersOpen(true)}><Filter size={18}/> Filtros</button>
-      <button className="btn light" onClick={exportData}><Download size={18}/> Exportar</button>
+  const tabs=[['visao',Gauge,'Visão geral'],['tecnicos',UserCheck,'Técnicos'],['relatorios',FileText,'Relatórios']];
+  return <div className="productivityPage productivityUnified">
+    <PageHead eyebrow="Operação" title="Produtividade">
+      <button className={`btn light prodFilterBtn ${activeFilters?'active':''}`} onClick={()=>setFiltersOpen(true)}><Filter size={18}/> Filtros {activeFilters&&<span>{activeFilterCount}</span>}</button>
     </PageHead>
+    <div className="prodSectionTabs" role="tablist" aria-label="Áreas de produtividade">{tabs.map(([id,Icon,label])=><button key={id} role="tab" aria-selected={section===id} className={section===id?'active':''} onClick={()=>setSection(id)}><Icon size={18}/><span>{label}</span></button>)}</div>
+    <div className="prodFilterSummary"><span><Filter size={14}/> Recorte atual</span>{activeFilterLabels.map(label=><b key={label}>{label}</b>)}{!activeFilters&&<small>Sem filtros adicionais</small>}</div>
 
-    <section className="prodHeroPanel">
-      <div className="prodHeroCopy">
-        <span className="eyebrow">Leitura operacional</span>
-        <h2>{collarsPerDay?`${collarsPerDay.toFixed(1)} colares/dia útil`:'Sem serviços finalizados'}</h2>
-        <p>{periodLabel}</p>
-      </div>
-      <div className="prodHeroStats">
-        <article><Building2 size={21}/><span>Períodos</span><b>{farms.length}</b></article>
-        <article><Milk size={21}/><span>Colares</span><b>{totalCollars}</b></article>
-        <article><Clock size={21}/><span>Horas úteis</span><b>{totalHours?`${totalHours.toFixed(1)} h`:'-'}</b></article>
-        <article><PlayCircle size={21}/><span>Em andamento</span><b>{inProgress.length}</b></article>
-      </div>
-    </section>
-
-    <div className="prodDashboardGrid">
-      <section className="panel prodChartPanel">
-        <div className="sectionTitle"><div><h2><BarChart3 size={20}/> Evolução mensal</h2></div><span className="pill">{productiveDays?`${productiveDays.toFixed(1)} dias úteis`:avgLabel}</span></div>
-        <div className="prodMetricSwitch" role="group" aria-label="Métrica do gráfico">
-          <button className={chartMetric==='colares'?'active':''} onClick={()=>setChartMetric('colares')}><Milk size={16}/> Colares</button>
-          <button className={chartMetric==='horas'?'active':''} onClick={()=>setChartMetric('horas')}><Clock size={16}/> Horas</button>
-        </div>
-        <ProductivityLineChart rows={chartRows} suffix={chartSuffix} decimals={chartDecimals}/>
-        <div className="prodChartSummary">
-          <div><span>Total de colares</span><b>{totalCollars}</b></div>
-          <div><span>Horas úteis</span><b>{totalHours?`${totalHours.toFixed(1)} h`:'-'}</b></div>
-          <div><span>Colares/dia útil</span><b>{collarsPerDay?collarsPerDay.toFixed(1):'-'}</b></div>
-        </div>
+    {section==='visao'&&<>
+      <section className="prodHeroPanel">
+        <div className="prodHeroCopy"><span className="eyebrow">Leitura operacional</span><h2>{collarsPerDay?`${collarsPerDay.toFixed(1)} colares/dia útil`:'Sem serviços finalizados'}</h2><p>{range.label} • mesma base de períodos usada nos relatórios</p></div>
+        <div className="prodHeroStats"><article><Building2 size={21}/><span>Períodos</span><b>{sessions.length}</b></article><article><Milk size={21}/><span>Colares</span><b>{totalCollars}</b></article><article><Clock size={21}/><span>Horas úteis</span><b>{totalHours?`${totalHours.toFixed(1)} h`:'-'}</b></article><article><PlayCircle size={21}/><span>Em andamento</span><b>{inProgress.length}</b></article></div>
+      </section>
+      <section className="panel prodChartPanel prodChartWide">
+        <div className="sectionTitle"><div><span className="eyebrow">Desempenho</span><h2><BarChart3 size={20}/> Evolução mensal</h2></div><span className="pill">{productiveDays?`${productiveDays.toFixed(1)} dias úteis`:avgLabel}</span></div>
+        <div className="prodMetricSwitch" role="group" aria-label="Métrica do gráfico"><button className={chartMetric==='colares'?'active':''} onClick={()=>setChartMetric('colares')}><Milk size={16}/> Colares</button><button className={chartMetric==='horas'?'active':''} onClick={()=>setChartMetric('horas')}><Clock size={16}/> Horas</button></div>
+        <ProductivityLineChart rows={chartRows} suffix={chartMetric==='horas'?' h':''} decimals={chartMetric==='horas'?1:0}/>
+        <div className="prodOverviewStrip"><div><span>Média por período</span><b>{avgLabel}</b></div><div><span>Tempo corrido</span><b>{totalElapsedHours?`${totalElapsedHours.toFixed(1)} h`:'-'}</b></div><div><span>Fazendas atendidas</span><b>{uniqueServiceFarms.length}</b></div></div>
         <div className="prodMiniBars"><span>{chartMetric==='horas'?'Colares por mês':'Horas úteis por mês'}</span><ProductivityBars rows={secondaryRows} suffix={chartMetric==='horas'?'':' h'} decimals={chartMetric==='horas'?0:1}/></div>
       </section>
-      <section className="panel prodRankingPanel">
-        <div className="sectionTitle"><div><h2><UserCheck size={20}/> Responsáveis</h2></div><span className="pill">{ownerRows.length}</span></div>
-        {ownerRows.length?<div className="prodRankingList">{ownerRows.map((row,i)=><article className="prodRankingItem" key={row.owner}><span>{i+1}</span><div><b>{row.owner}</b><small>{row.farms} fazenda(s) • {row.hours.toFixed(1)} h úteis</small></div><strong>{row.collars}</strong></article>)}</div>:<Empty icon={UserCheck} title="Sem responsáveis no filtro" text="Finalize serviços para montar o ranking do período."/>}
-        <div className="prodCompactStats">
-          <div><span>Média/fazenda</span><b>{avgLabel}</b></div>
-          <div><span>Tempo corrido</span><b>{totalElapsedHours?`${totalElapsedHours.toFixed(1)} h`:'-'}</b></div>
-        </div>
+      {inProgress.length>0&&<section className="panel prodOpenPanel"><div className="sectionTitle"><div><h2><PlayCircle size={20}/> Serviços em andamento</h2></div><span className="pill">{inProgress.length}</span></div><div className="serviceOpenList">{inProgress.map(farm=><button key={farm.id} onClick={()=>onOpen(farm.id)}><Clock size={18}/><span><b>{farm.nome}</b><small>{brDateTime(farm.servico_inicio_em)} • {workDurationLabel(activeHoursFor(farm),workConfig)}</small></span></button>)}</div></section>}
+    </>}
+
+    {section==='tecnicos'&&<>
+      <section className="panel prodTechnicianPanel"><div className="sectionTitle"><div><span className="eyebrow">Equipe de campo</span><h2><UserCheck size={20}/> Técnicos e responsáveis</h2></div><span className="pill">{ownerRows.length} no recorte</span></div>
+        {ownerRows.length?<div className="prodTechnicianGrid">{ownerRows.map(row=><button key={row.owner} className={activeTechnician===row.owner?'active':''} onClick={()=>setSelectedTech(activeTechnician===row.owner?'Todos':row.owner)}><span className="prodTechAvatar"><UserCheck size={20}/></span><span className="prodTechIdentity"><b>{row.owner}</b><small>{row.farms} fazenda(s) • {row.periods} período(s)</small></span><span><small>Colares</small><b>{row.collars}</b></span><span><small>Horas úteis</small><b>{row.hours.toFixed(1)} h</b></span><span><small>Produtividade</small><b>{row.rate?`${row.rate.toFixed(1)}/dia`:'-'}</b></span></button>)}</div>:<Empty icon={UserCheck} title="Sem técnicos no recorte" text="Finalize um período de serviço para gerar os indicadores individuais."/>}
       </section>
-    </div>
+      <section className="panel prodFarmPanel"><div className="sectionTitle"><div><span className="eyebrow">Histórico operacional</span><h2><ClipboardList size={20}/> Períodos de serviço</h2></div><span className="pill">{activeTechnician==='Todos'?'Todos os técnicos':activeTechnician}</span></div>
+        {technicianPeriods.length?<div className="prodFarmRows">{technicianPeriods.slice(0,periodLimit).map(item=>{const useful=workedHoursFor(item),days=useful/dailyHours,rate=days?collarsFor(item)/days:0;return <button className="prodFarmRow" key={item.session_id||item.id} onClick={()=>onOpen(item.id)}><span className="prodFarmIdentity"><b>{item.nome}</b><small><MapPin size={13}/>{item.cidade||'sem cidade'} • {centralOfficialName(item.central)||'sem central'} • {item.session_tipo||'Serviço'}</small></span><span className="prodFarmMetric"><small>Técnico</small><b>{ownerFor(item)}</b></span><span className="prodFarmMetric"><small>Período</small><b>{brDate(item.servico_inicio_em)} • {workDurationLabel(useful,workConfig)}</b></span><span className="prodFarmMetric"><small>Colares/dia</small><b>{rate?rate.toFixed(1):'-'}</b></span><span className="prodFarmOpen">Abrir</span></button>})}</div>:<Empty icon={Clock} title="Sem períodos neste recorte" text="Altere os filtros ou selecione outro técnico."/>}
+        {technicianPeriods.length>periodLimit&&<button className="btn light prodLoadMore" onClick={()=>setPeriodLimit(limit=>limit+12)}>Mostrar mais períodos</button>}
+      </section>
+    </>}
 
-    <section className="panel prodFarmPanel">
-      <div className="sectionTitle"><div><h2><ClipboardList size={20}/> Períodos de serviço</h2></div><span className="pill">{totalCollars} colares</span></div>
-      {recentFarms.length?<div className="prodFarmRows">{recentFarms.map(f=>{
-        const useful=workedHoursFor(f),collars=collarsFor(f),days=useful/dailyHours,rate=days?collars/days:0;
-        return <button className="prodFarmRow" key={f.session_id||f.id} onClick={()=>onOpen(f.id)}>
-          <span className="prodFarmIdentity"><b>{f.nome}</b><small><MapPin size={13}/>{f.cidade||'sem cidade'} • {centralOfficialName(f.central)||'sem central'} • {f.session_tipo||'Serviço'}</small></span>
-          <span className="prodFarmMetric"><small>Período</small><b>{brDate(f.servico_inicio_em)} - {brDate(f.servico_fim_em)}</b></span>
-          <span className="prodFarmMetric"><small>Horas úteis</small><b>{workDurationLabel(useful,workConfig)}</b></span>
-          <span className="prodFarmMetric"><small>Colares/dia</small><b>{rate?rate.toFixed(1):'-'}</b></span>
-          <span className="prodFarmOpen">Abrir</span>
-        </button>;
-      })}</div>:<Empty icon={Clock} title="Sem produtividade neste filtro" text="Registre início e fim do serviço nas fazendas para gerar a leitura do período."/>}
-    </section>
-
-    {inProgress.length>0&&<section className="panel prodOpenPanel">
-      <div className="sectionTitle"><div><h2><PlayCircle size={20}/> Serviços abertos</h2></div><span className="pill">{inProgress.length}</span></div>
-      <div className="serviceOpenList">{inProgress.map(f=><button key={f.id} onClick={()=>onOpen(f.id)}><Clock size={18}/><span><b>{f.nome}</b><small>{brDateTime(f.servico_inicio_em)} • {workDurationLabel(activeHoursFor(f),workConfig)}</small></span></button>)}</div>
-    </section>}
-
-    {filtersOpen&&<div className="prodFilterBackdrop" onClick={()=>setFiltersOpen(false)}>
-      <aside className="prodFilterSheet" onClick={e=>e.stopPropagation()}>
-        <header><div><span className="eyebrow">Produtividade</span><h2>Filtros e jornada</h2></div><button className="iconBtn" onClick={()=>setFiltersOpen(false)}><X size={18}/></button></header>
-        <div className="prodFilterGrid">
-          <Field label="Ano"><select value={year} onChange={e=>setYear(e.target.value)}><option>Todos</option>{years.map(y=><option key={y}>{y}</option>)}</select></Field>
-          <Field label="Mês"><select value={month} onChange={e=>setMonth(e.target.value)}><option>Todos</option>{monthNames.map((m,i)=><option key={m} value={i+1}>{m}</option>)}</select></Field>
-          <Field label="Central"><select value={central} onChange={e=>setCentral(e.target.value)}><option>Todas</option>{visibleCentrais.map(c=><option key={c} value={c}>{centralOfficialName(c)}</option>)}</select></Field>
-          <Field label="Responsável"><select value={resp} onChange={e=>setResp(e.target.value)}><option>Todos</option>{responsaveis.map(r=><option key={r}>{r}</option>)}</select></Field>
-        </div>
-        <div className="prodWorkdayBox">
-          <div><span className="eyebrow">Jornada considerada</span><b>{workConfig.start} - {workConfig.end} • {dailyHours.toFixed(1)} h/dia</b></div>
-          <div className="prodFilterGrid compact">
-            <Field label="Início"><input type="time" value={workStart} onChange={e=>setWorkStart(e.target.value)}/></Field>
-            <Field label="Fim"><input type="time" value={workEnd} onChange={e=>setWorkEnd(e.target.value)}/></Field>
-            <Field label="Almoço (min)"><input type="number" min="0" max="240" step="15" value={lunchMinutes} onChange={e=>setLunchMinutes(e.target.value)}/></Field>
-          </div>
-          <label className="workdayToggle"><input type="checkbox" checked={includeWeekends} onChange={e=>setIncludeWeekends(e.target.checked)}/><span>Incluir fins de semana</span></label>
-        </div>
-        <footer><button className="btn light" onClick={resetFilters}>Limpar</button><button className="btn primary" onClick={()=>setFiltersOpen(false)}>Aplicar</button></footer>
-      </aside>
+    {section==='relatorios'&&<div className="managerReports prodReportsView">
+      <section className="prodReportComposer"><div><span className="eyebrow">Documento gerencial</span><h2><FileText size={22}/> Gerar relatório</h2><p>As opções abaixo usam o mesmo recorte dos indicadores e respeitam as centrais autorizadas.</p></div><div className="prodReportControls"><Field label="Conteúdo"><select value={reportType} onChange={event=>setReportType(event.target.value)}>{Object.entries(reportTypes).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></Field><div className="prodReportDetail" role="group" aria-label="Nível de detalhe"><button className={reportDetail==='resumido'?'active':''} onClick={()=>setReportDetail('resumido')}>Resumido</button><button className={reportDetail==='detalhado'?'active':''} onClick={()=>setReportDetail('detalhado')}>Detalhado</button></div><button className="btn light" onClick={exportReport}><Download size={17}/> Exportar planilha</button><button className="btn primary" onClick={printReport}><Printer size={17}/> Gerar relatório</button></div></section>
+      <section className="managerHero"><div><span className="eyebrow">Resumo executivo</span><h2><FileText size={24}/> {reportTypes[reportType]}</h2><p>{activeFilterLabels.join(' • ')}</p></div><div className="managerHeroScore"><b>{progress}%</b><span>progresso total</span></div></section>
+      <div className="managerKpis compact"><article><Building2 size={22}/><span>Fazendas no filtro</span><b>{scopedFarms.length}</b><small>{notStarted.length} não iniciada(s) • {completed.length} concluída(s)</small></article><article><Milk size={22}/><span>Colares atendidos</span><b>{handled}</b><small>{installed} instalados • {delivered} entregues</small></article><article><CalendarDays size={22}/><span>Movimento no período</span><b>{activeFarms.length}</b><small>{sessions.length} período(s) • {visitsInPeriod.length} visita(s)</small></article><article><Clock size={22}/><span>Horas úteis</span><b>{totalHours?`${totalHours.toFixed(1)} h`:'-'}</b><small>mesma base da visão geral</small></article></div>
+      <div className="managerGrid">
+        <section className="panel managerMainPanel"><div className="sectionTitle"><div><h2><BarChart3 size={20}/> Serviços realizados</h2></div><span className="pill">{range.label}</span></div>{installRows.length?<ProductivityBars rows={installRows}/>:<Empty icon={BarChart3} title="Sem serviços finalizados" text="Nenhum período de serviço dentro do recorte selecionado."/>}<div className="managerSummaryStrip"><div><span>Períodos</span><b>{sessions.length}</b></div><div><span>Fazendas atendidas</span><b>{serviceFarms.length}</b></div><div><span>Evidências</span><b>{evidencias.length}</b></div></div></section>
+        <section className="panel managerSidePanel"><div className="sectionTitle"><div><h2><Building2 size={20}/> Situação das fazendas</h2></div></div>{statusRows.length?<div className="centralBreakdown compact">{statusRows.map(row=><div key={row.label}><span>{row.label}</span><b>{row.count}</b><small>{scopedFarms.length?Math.round((row.count/scopedFarms.length)*100):0}% do filtro</small></div>)}</div>:<Empty icon={Building2} title="Sem fazendas no filtro" text="Altere os filtros compartilhados."/>}</section>
+        <section className="panel managerMainPanel"><div className="sectionTitle"><div><h2><ShieldCheck size={20}/> Distribuição por central</h2></div><span className="pill">{centralRows.length}</span></div><div className="prodCentralGrid">{centralRows.map(row=><article key={row.label}><BrandLogoMark brand={row.label}/><div><span>{row.label}</span><b>{row.count} fazenda(s)</b><small>{row.done} concluída(s) • {row.collars} instalados • {row.handled} atendidos</small></div></article>)}</div></section>
+        <section className="panel managerSidePanel"><div className="sectionTitle"><div><h2><UserCheck size={20}/> Técnicos no relatório</h2></div><span className="pill">{ownerRows.length}</span></div><div className="centralBreakdown compact">{ownerRows.slice(0,6).map(row=><div key={row.owner}><span>{row.owner}</span><b>{row.periods}</b><small>{row.farms} fazenda(s) • {row.collars} colares • {row.hours.toFixed(1)} h</small></div>)}</div></section>
+      </div>
+      <details className="managerFarmDisclosure"><summary><span><ClipboardList size={18}/> Fazendas incluídas no filtro</span><b>{scopedFarms.length}</b></summary><div className="managerFarmRows">{scopedFarms.map(farm=>{const farmEquips=equips.filter(item=>item.fazenda_id===farm.id),farmVisits=visitsInPeriod.filter(visit=>visit.fazenda_id===farm.id);return <button type="button" key={farm.id} onClick={()=>onOpen(farm.id)}><div><b>{farm.nome}</b><span>{farm.cidade||'Cidade não informada'} • {centralOfficialName(farm.central)||'Central não informada'}</span></div><div><strong>{farmStatus(farm)}</strong><small>{collarBreakdown(farm)} • {farmEquips.length} equip. • {farmVisits.length} visita(s)</small></div></button>})}</div></details>
+      <div className="prodReportFootnote"><Info size={16}/><span>Colares atendidos representam o total atual das fazendas no filtro. Horas e períodos consideram somente os serviços dentro do período selecionado.</span></div>
     </div>}
-  </div>
-}
 
-function Relatorios({data}){
-  const today=new Date(),pad=n=>String(n).padStart(2,'0');
-  const [period,setPeriod]=useState('todos'),[central,setCentral]=useState('Todas'),[status,setStatus]=useState('Todos'),[reportType,setReportType]=useState('geral'),[filtersOpen,setFiltersOpen]=useState(false);
-  const [customStart,setCustomStart]=useState(`${today.getFullYear()}-${pad(today.getMonth()+1)}-01`),[customEnd,setCustomEnd]=useState(todayInput());
-  const visibleCentrais=allowedCentrais(data);
-  useEffect(()=>{if(central!=='Todas'&&!visibleCentrais.includes(central))setCentral('Todas');},[central,visibleCentrais.join('|')]);
-  const parseDate=v=>{if(!v)return null;const d=new Date(v);return Number.isNaN(d.getTime())?null:d;};
-  const rangeFor=()=>{
-    const startDay=d=>new Date(d.getFullYear(),d.getMonth(),d.getDate(),0,0,0,0);
-    const endDay=d=>new Date(d.getFullYear(),d.getMonth(),d.getDate(),23,59,59,999);
-    if(period==='todos')return {start:null,end:null,label:'Todo o histórico'};
-    if(period==='mes_anterior'){const s=new Date(today.getFullYear(),today.getMonth()-1,1),e=new Date(today.getFullYear(),today.getMonth(),0);return {start:startDay(s),end:endDay(e),label:s.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})};}
-    if(period==='ultimos_30'){const s=new Date(today);s.setDate(s.getDate()-29);return {start:startDay(s),end:endDay(today),label:'Últimos 30 dias'};}
-    if(period==='personalizado'){const s=parseDate(`${customStart}T00:00:00`),e=parseDate(`${customEnd}T23:59:59`);return {start:s,end:e,label:`${brDate(customStart)} até ${brDate(customEnd)}`};}
-    const s=new Date(today.getFullYear(),today.getMonth(),1),e=new Date(today.getFullYear(),today.getMonth()+1,0);return {start:startDay(s),end:endDay(e),label:s.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})};
-  };
-  const range=rangeFor();
-  const inRange=value=>{if(!range.start&&!range.end)return true;const d=parseDate(value);return Boolean(d&&(!range.start||d>=range.start)&&(!range.end||d<=range.end));};
-  const centralMatch=f=>central==='Todas'||(f.central||'')===central||(!f.central&&central.startsWith('Outra'));
-  const statusMatch=f=>status==='Todos'||farmStatus(f)===status;
-  const farms=data.fazendas.filter(f=>centralMatch(f)&&statusMatch(f));
-  const farmIds=new Set(farms.map(f=>f.id));
-  const visitsInPeriod=data.visitas.filter(v=>farmIds.has(v.fazenda_id)&&inRange(v.data_visita||v.created_at));
-  const visitFarmIds=new Set(visitsInPeriod.map(v=>v.fazenda_id));
-  const serviceInPeriod=f=>period==='todos'
-    ? Boolean(f.servico_inicio_em||f.servico_fim_em)
-    : Boolean(inRange(f.servico_inicio_em)||inRange(f.servico_fim_em));
-  const serviceFarms=farms.filter(serviceInPeriod);
-  const activeFarms=period==='todos'?farms:farms.filter(f=>serviceInPeriod(f)||visitFarmIds.has(f.id));
-  const equips=data.equipamentos.filter(e=>farmIds.has(e.fazenda_id));
-  const checks=data.checklists.filter(c=>farmIds.has(c.fazenda_id)&&inRange(c.created_at));
-  const evidencias=(data.evidencias||[]).filter(e=>farmIds.has(e.fazenda_id)&&inRange(e.created_at));
-  const completed=farms.filter(f=>farmStatus(f)===FARM_STATUS_DONE||f.servico_fim_em);
-  const completedInPeriod=serviceFarms.filter(f=>farmStatus(f)===FARM_STATUS_DONE||f.servico_fim_em);
-  const inProgress=farms.filter(f=>f.servico_inicio_em&&!f.servico_fim_em);
-  const notStarted=farms.filter(f=>farmStatus(f)==='Não iniciada'&&!f.servico_inicio_em&&!f.servico_fim_em);
-  const operationalFarmIds=new Set(farms.filter(f=>!notStarted.some(n=>n.id===f.id)).map(f=>f.id));
-  const pendingVisits=visitsInPeriod.filter(visitHasOpenPending);
-  const missingGps=equips.filter(e=>!e.latitude||!e.longitude);
-  const missingGpsOperational=missingGps.filter(e=>operationalFarmIds.has(e.fazenda_id));
-  const incompleteServiceDates=farms.filter(f=>(farmStatus(f)===FARM_STATUS_DONE||f.servico_fim_em)&&(!f.servico_inicio_em||!f.servico_fim_em));
-  const collarPendingFarms=farms.filter(collarHasPending);
-  const pendingFarms=farms.filter(f=>operationalFarmIds.has(f.id)&&(farmHasPending(f,data)||missingGpsOperational.some(e=>e.fazenda_id===f.id)||incompleteServiceDates.some(item=>item.id===f.id)));
-  const installed=farms.reduce((a,f)=>a+collarInstalled(f),0),delivered=farms.reduce((a,f)=>a+collarDelivered(f),0),handled=farms.reduce((a,f)=>a+collarHandled(f),0),planned=farms.reduce((a,f)=>a+num(f.qtd_colares_prevista),0);
-  const installedInPeriod=serviceFarms.reduce((a,f)=>a+collarInstalled(f),0);
-  const progress=planned?Math.round((handled/planned)*100):0;
-  const totalUsefulHours=completedInPeriod.reduce((a,f)=>a+businessHoursBetween(f.servico_inicio_em,f.servico_fim_em,DEFAULT_WORKDAY),0);
-  const reportTypes={geral:'Relatório geral',mensal:'Instalações mensais',produtividade:'Produtividade de campo',central:'Resumo por central'};
-  useEffect(()=>{if(!reportTypes[reportType])setReportType('geral');},[reportType]);
-  const centralRows=visibleCentrais.map(c=>{const list=farms.filter(f=>c==='Outra / Não informado'?(!f.central||!CENTRAIS.slice(0,2).includes(f.central)):f.central===c);return {label:centralOfficialName(c)||c,count:list.length,done:list.filter(f=>farmStatus(f)===FARM_STATUS_DONE||f.servico_fim_em).length,collars:list.reduce((a,f)=>a+collarInstalled(f),0),handled:list.reduce((a,f)=>a+collarHandled(f),0)}}).filter(r=>r.count||central==='Todas');
-  const statusRows=FARM_STATUS.map(label=>({label,count:farms.filter(f=>farmStatus(f)===label).length})).filter(r=>r.count);
-  const ownerMap={};completedInPeriod.forEach(f=>{const key=f.servico_responsavel||f.regional_nome||f.responsavel||'Não informado';ownerMap[key]=ownerMap[key]||{label:key,count:0,collars:0,hours:0};ownerMap[key].count+=1;ownerMap[key].collars+=num(f.qtd_colares_instalada);ownerMap[key].hours+=businessHoursBetween(f.servico_inicio_em,f.servico_fim_em,DEFAULT_WORKDAY);});
-  const ownerRows=Object.values(ownerMap).sort((a,b)=>b.count-a.count).slice(0,5);
-  const groupByMonth=(!range.start&&!range.end)||((range.end-range.start)/86400000)>45;
-  const installGroups={};completedInPeriod.forEach(f=>{const d=parseDate(f.servico_fim_em||f.servico_inicio_em);if(!d)return;const key=groupByMonth?`${pad(d.getMonth()+1)}/${String(d.getFullYear()).slice(2)}`:d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'});installGroups[key]=(installGroups[key]||0)+1;});
-  const installRows=Object.entries(installGroups).map(([label,value])=>({label,value})).slice(-12);
-  const exportData=()=>{const rows=[['Relatório',reportTypes[reportType]],['Período',range.label],['Central',central==='Todas'?'Todas':centralOfficialName(central)],['Status',status],[],['Indicador','Valor'],['Fazendas cadastradas no filtro',farms.length],['Fazendas não iniciadas',notStarted.length],['Fazendas com movimento no período',activeFarms.length],['Serviços no período',serviceFarms.length],['Concluídas total',completed.length],['Colares instalados total',installed],['Colares entregues total',delivered],['Colares atendidos total',handled],['Colares instalados no período',installedInPeriod],['Colares previstos total',planned],['Visitas no período',visitsInPeriod.length],['Equipamentos',equips.length],[],['Fazenda','Central','Cidade','Status','Primeiro início','Último fim','Períodos','Tempo total','Colares instalados','Colares entregues','Colares atendidos','Colares previstos','Restantes reais','Motivo restantes','Equipamentos','Visitas no período'],...farms.map(f=>{const farmEquips=equips.filter(e=>e.fazenda_id===f.id),farmVisits=visitsInPeriod.filter(v=>v.fazenda_id===f.id),sessions=farmServiceSessions(f,data.visitas),firstStart=firstServiceStart(sessions),lastEnd=lastServiceEnd(sessions);return [f.nome,centralOfficialName(f.central),f.cidade,farmStatus(f),brDateTime(firstStart),brDateTime(lastEnd),sessions.length,serviceTotalLabel(f,data.visitas),collarInstalled(f),collarDelivered(f),collarHandled(f),f.qtd_colares_prevista,collarRemaining(f),f.motivo_colares_restantes||'',farmEquips.length,farmVisits.length]})];download('relatorio-gerencial.tsv',rows.map(r=>r.join(String.fromCharCode(9))).join(String.fromCharCode(10)));notify('Relatório gerencial exportado.');};
-  const printReport=()=>{
-    const safe=v=>String(v===undefined||v===null||String(v).trim()===''?'-':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const rows=serviceFarms.slice(0,28).map(f=>`<tr><td><b>${safe(f.nome)}</b><small>${safe(f.cidade||'Cidade não informada')}</small></td><td>${safe(centralOfficialName(f.central))}</td><td>${safe(farmStatus(f))}</td><td>${safe(brDate(f.servico_fim_em||f.servico_inicio_em))}</td><td>${safe(collarBreakdown(f))}</td></tr>`).join('');
-    const centralTable=centralRows.map(r=>`<tr><td>${safe(r.label)}</td><td>${r.count}</td><td>${r.done}</td><td>${r.collars}</td><td>${r.handled}</td></tr>`).join('');
-    const prodRows=ownerRows.map(r=>`<tr><td>${safe(r.label)}</td><td>${r.count}</td><td>${r.collars}</td><td>${r.hours?r.hours.toFixed(1):'-'} h</td></tr>`).join('');
-    const showInstall=reportType==='geral'||reportType==='mensal';
-    const showProd=reportType==='geral'||reportType==='produtividade';
-    const showCentral=reportType==='geral'||reportType==='central';
-    const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${safe(reportTypes[reportType])}</title><style>@page{size:A4;margin:12mm}*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;color:#0f172a;margin:0;font-size:11px;line-height:1.35;-webkit-print-color-adjust:exact;print-color-adjust:exact}.top{display:flex;justify-content:space-between;gap:20px;border-bottom:3px solid #0f172a;padding-bottom:10px}.brand{display:flex;align-items:center;gap:10px}.brand img{width:34px;height:34px}.brand b{font-size:18px}.brand span{display:block;color:#16a34a;font-weight:900}.meta{text-align:right;color:#64748b}.cover{margin:12px 0;padding:16px;border-radius:16px;background:linear-gradient(135deg,#0f172a,#14532d);color:#fff}.cover small{color:#86efac;font-weight:900;letter-spacing:.12em}.cover h1{margin:6px 0 4px;font-size:26px}.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:10px 0}.metric{border:1px solid #bbf7d0;background:#f0fdf4;border-radius:10px;padding:8px;text-align:center}.metric b{display:block;color:#15803d;font-size:19px}h2{font-size:14px;margin:15px 0 7px;border-bottom:1px solid #dbe4ef;padding-bottom:5px}table{width:100%;border-collapse:collapse;margin-top:7px}th{background:#0f172a;color:#fff;text-align:left;font-size:9.5px}th,td{border:1px solid #dbe4ef;padding:6px;vertical-align:top}td small{display:block;color:#64748b;margin-top:2px}.section{break-inside:auto}.footer{margin-top:16px;border-top:1px solid #dbe4ef;padding-top:6px;color:#64748b;display:flex;justify-content:space-between}</style></head><body><header class="top"><div class="brand"><img src="/app-icon-192.png" alt=""><div><b>ControlTech</b><span>Assist</span></div></div><div class="meta"><b>RELATÓRIO GERENCIAL</b><br>${safe(new Date().toLocaleString('pt-BR'))}<br>Período: ${safe(range.label)}</div></header><section class="cover"><small>${safe(central==='Todas'?'TODAS AS CENTRAIS':centralOfficialName(central))}</small><h1>${safe(reportTypes[reportType])}</h1><p>Status: ${safe(status)} • ${farms.length} fazenda(s) cadastrada(s) no filtro • ${activeFarms.length} com movimento no período</p></section><section class="metrics"><div class="metric"><b>${farms.length}</b>Fazendas</div><div class="metric"><b>${serviceFarms.length}</b>Serviços</div><div class="metric"><b>${installed}</b>Instalados</div><div class="metric"><b>${handled}</b>Atendidos</div><div class="metric"><b>${visitsInPeriod.length}</b>Visitas</div></section>${showInstall?`<section class="section"><h2>Serviços e instalações no período</h2><table><thead><tr><th>Fazenda</th><th>Central</th><th>Status</th><th>Data de serviço</th><th>Colares</th></tr></thead><tbody>${rows||'<tr><td colspan="5">Sem serviços registrados no período.</td></tr>'}</tbody></table></section>`:''}${showCentral?`<section class="section"><h2>Resumo por central</h2><table><thead><tr><th>Central</th><th>Fazendas</th><th>Concluídas</th><th>Instalados</th><th>Atendidos</th></tr></thead><tbody>${centralTable||'<tr><td colspan="5">Sem dados.</td></tr>'}</tbody></table></section>`:''}${showProd?`<section class="section"><h2>Produtividade por responsável</h2><table><thead><tr><th>Responsável</th><th>Fazendas</th><th>Colares</th><th>Horas úteis</th></tr></thead><tbody>${prodRows||'<tr><td colspan="4">Sem serviços finalizados no período.</td></tr>'}</tbody></table></section>`:''}<footer class="footer"><span>ControlTech Assist - Relatórios gerenciais</span><span>${safe(range.label)}</span></footer><script>window.onload=()=>setTimeout(()=>window.print(),300)</script></body></html>`;
-    const win=window.open('','_blank');if(!win){notify('Permita pop-ups para imprimir o relatório.','error');return;}win.document.write(html);win.document.close();
-  };
-  const filterSummary=[range.label,central==='Todas'?'Todas':centralOfficialName(central),status].filter(Boolean).join(' • ');
-  return <div className="managerReports">
-    <PageHead eyebrow="Relatórios" title="Relatórios gerenciais"><div className="reportFilterWrap"><button type="button" className={`btn light managerFilterBtn ${filtersOpen?'active':''}`} onClick={()=>setFiltersOpen(v=>!v)}><Filter size={18}/> Filtros</button>{filtersOpen&&<><button type="button" className="managerFilterBackdrop" aria-label="Fechar filtros" onClick={()=>setFiltersOpen(false)}/><div className="reportFilterMenu managerFilterMenu"><div className="reportOptionHead"><b>Filtros gerenciais</b><button type="button" onClick={()=>setFiltersOpen(false)} aria-label="Fechar filtros"><X size={16}/></button></div><Field label="Tipo de relatório"><select value={reportType} onChange={e=>setReportType(e.target.value)}>{Object.entries(reportTypes).map(([k,label])=><option key={k} value={k}>{label}</option>)}</select></Field><div className="grid2"><Field label="Período"><select value={period} onChange={e=>setPeriod(e.target.value)}><option value="todos">Todo histórico</option><option value="mes_atual">Mês atual</option><option value="mes_anterior">Mês anterior</option><option value="ultimos_30">Últimos 30 dias</option><option value="personalizado">Personalizado</option></select></Field><Field label="Central"><select value={central} onChange={e=>setCentral(e.target.value)}><option>Todas</option>{visibleCentrais.map(c=><option key={c} value={c}>{centralOfficialName(c)}</option>)}</select></Field></div>{period==='personalizado'&&<div className="grid2"><Field label="Início"><input type="date" value={customStart} onChange={e=>setCustomStart(e.target.value)}/></Field><Field label="Fim"><input type="date" value={customEnd} onChange={e=>setCustomEnd(e.target.value)}/></Field></div>}<Field label="Status"><select value={status} onChange={e=>setStatus(e.target.value)}><option>Todos</option>{FARM_STATUS.map(s=><option key={s}>{s}</option>)}</select></Field></div></>}</div><button className="btn light" onClick={exportData}><Download size={18}/> Exportar</button><button className="btn primary" onClick={printReport}><Printer size={18}/> Imprimir</button></PageHead>
-    <section className="managerHero"><div><span className="eyebrow">Central gerencial</span><h2><FileText size={24}/> {reportTypes[reportType]}</h2><p>{filterSummary}</p></div><div className="managerHeroScore"><b>{progress}%</b><span>progresso total</span></div></section>
-    <div className="managerKpis"><article><Building2 size={22}/><span>Fazendas cadastradas</span><b>{farms.length}</b><small>{notStarted.length} não iniciada(s) • {completed.length} concluída(s)</small></article><article><Milk size={22}/><span>Colares atendidos</span><b>{handled}</b><small>{installed} instalados • {delivered} entregues</small></article><article><CalendarDays size={22}/><span>Movimento no período</span><b>{activeFarms.length}</b><small>{visitsInPeriod.length} visita(s)</small></article><article><CheckCircle2 size={22}/><span>Progresso geral</span><b>{progress}%</b><small>{planned} colares previstos</small></article></div>
-    <div className="managerGrid">
-      <section className="panel managerMainPanel"><div className="sectionTitle"><div><h2><BarChart3 size={20}/> Serviços no período</h2></div><span className="pill">{range.label}</span></div>{installRows.length?<ProductivityBars rows={installRows}/>:<Empty icon={BarChart3} title="Sem serviços finalizados" text="Nenhuma instalação finalizada dentro do período selecionado."/>}<div className="managerSummaryStrip"><div><span>Serviços</span><b>{serviceFarms.length}</b></div><div><span>Horas úteis</span><b>{totalUsefulHours?`${totalUsefulHours.toFixed(1)} h`:'-'}</b></div><div><span>Evidências</span><b>{evidencias.length}</b></div></div></section>
-      <section className="panel managerSidePanel"><div className="sectionTitle"><div><h2><Building2 size={20}/> Situação das fazendas</h2></div></div>{statusRows.length?<div className="centralBreakdown compact">{statusRows.map(row=><div key={row.label}><span>{row.label}</span><b>{row.count}</b><small>{farms.length?Math.round((row.count/farms.length)*100):0}% do filtro</small></div>)}</div>:<Empty icon={Building2} title="Sem fazendas no filtro" text="Altere central ou status."/>}</section>
-      <section className="panel managerMainPanel"><div className="sectionTitle"><div><h2><ClipboardList size={20}/> Fazendas no filtro</h2></div><span className="pill">{farms.length} cadastrada(s)</span></div>{farms.length?<div className="managerFarmRows">{farms.slice(0,8).map(f=>{const farmEquips=equips.filter(e=>e.fazenda_id===f.id),farmVisits=visitsInPeriod.filter(v=>v.fazenda_id===f.id);return <article key={f.id}><div><b>{f.nome}</b><span>{f.cidade||'Cidade não informada'} • {centralOfficialName(f.central)||'Central não informada'}</span></div><div><strong>{farmStatus(f)}</strong><small>{collarBreakdown(f)} • {farmEquips.length} equip. • {farmVisits.length} visita(s) no período</small></div></article>})}</div>:<Empty icon={Building2} title="Sem fazendas no filtro" text="Altere central ou status."/>}</section>
-      <section className="panel managerSidePanel"><div className="sectionTitle"><div><h2><ShieldCheck size={20}/> Por central</h2></div></div><div className="centralBreakdown">{centralRows.map(r=><div key={r.label}><span>{r.label}</span><b>{r.count}</b><small>{r.done} concluída(s) • {r.handled} atendidos</small></div>)}</div>{ownerRows.length>0&&<><div className="miniSectionTitle">Responsáveis no período</div><div className="centralBreakdown compact">{ownerRows.map(r=><div key={r.label}><span>{r.label}</span><b>{r.count}</b><small>{r.collars} colares • {r.hours.toFixed(1)} h</small></div>)}</div></>}</section>
-    </div>
+    {filtersOpen&&<div className="prodFilterBackdrop" onClick={()=>setFiltersOpen(false)}><aside className="prodFilterSheet" onClick={event=>event.stopPropagation()}><header><div><span className="eyebrow">Filtro compartilhado</span><h2>Refinar produtividade</h2></div><button className="iconBtn" onClick={()=>setFiltersOpen(false)} aria-label="Fechar filtros"><X size={18}/></button></header><div className="prodFilterGrid"><Field label="Período"><select value={period} onChange={event=>setPeriod(event.target.value)}><option value="todos">Todo o histórico</option><option value="mes">Mês e ano</option><option value="ultimos_30">Últimos 30 dias</option><option value="personalizado">Personalizado</option></select></Field>{period==='mes'&&<><Field label="Mês"><select value={month} onChange={event=>setMonth(event.target.value)}>{monthNames.map((label,index)=><option key={label} value={index+1}>{label}</option>)}</select></Field><Field label="Ano"><select value={year} onChange={event=>setYear(event.target.value)}>{years.map(item=><option key={item}>{item}</option>)}</select></Field></>}{period==='personalizado'&&<><Field label="Início"><input type="date" value={customStart} onChange={event=>setCustomStart(event.target.value)}/></Field><Field label="Fim"><input type="date" value={customEnd} onChange={event=>setCustomEnd(event.target.value)}/></Field></>}<Field label="Central"><select value={central} onChange={event=>{setCentral(event.target.value);setFarmFilter('Todas')}}><option>Todas</option>{visibleCentrais.map(item=><option key={item} value={item}>{centralOfficialName(item)}</option>)}</select></Field><Field label="Técnico / responsável"><select value={resp} onChange={event=>setResp(event.target.value)}><option>Todos</option>{responsaveis.map(item=><option key={item}>{item}</option>)}</select></Field><Field label="Fazenda"><select value={farmFilter} onChange={event=>setFarmFilter(event.target.value)}><option value="Todas">Todas</option>{farmOptions.map(farm=><option key={farm.id} value={farm.id}>{farm.nome}</option>)}</select></Field><Field label="Situação"><select value={status} onChange={event=>setStatus(event.target.value)}><option>Todos</option>{FARM_STATUS.map(item=><option key={item}>{item}</option>)}</select></Field></div><div className="prodWorkdayBox"><div><span className="eyebrow">Jornada considerada</span><b>{workConfig.start} - {workConfig.end} • {dailyHours.toFixed(1)} h/dia</b></div><div className="prodFilterGrid compact"><Field label="Início"><input type="time" value={workStart} onChange={event=>setWorkStart(event.target.value)}/></Field><Field label="Fim"><input type="time" value={workEnd} onChange={event=>setWorkEnd(event.target.value)}/></Field><Field label="Almoço (min)"><input type="number" min="0" max="240" step="15" value={lunchMinutes} onChange={event=>setLunchMinutes(event.target.value)}/></Field></div><label className="workdayToggle"><input type="checkbox" checked={includeWeekends} onChange={event=>setIncludeWeekends(event.target.checked)}/><span>Incluir fins de semana</span></label></div><footer><button className="btn light" onClick={resetFilters}>Limpar filtros</button><button className="btn primary" onClick={()=>setFiltersOpen(false)}>Aplicar</button></footer></aside></div>}
   </div>
 }
 function Field({label,icon:Icon,children}){return <label className="field"><span>{Icon&&<Icon size={15}/>} {label}</span>{children}</label>}

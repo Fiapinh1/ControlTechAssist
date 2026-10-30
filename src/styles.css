@@ -8100,6 +8100,1192 @@ body,
   }
 }
 
+/* V3.0.7: detalhes da fazenda e resumo operacional refinados */
+.farmHeroPrimaryActions {
+  position: relative;
+  z-index: 4;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.farmHeroAction,
+.farmHeroMoreButton {
+  min-height: 42px;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 14px;
+  background: rgba(255,255,255,.11);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  font-weight: 900;
+  backdrop-filter: blur(14px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.10), 0 12px 28px rgba(2,6,23,.16);
+  transition: transform .18s ease, background .18s ease, border-color .18s ease;
+}
+
+.farmHeroAction:hover,
+.farmHeroMoreButton:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255,255,255,.38);
+  background: rgba(255,255,255,.18);
+}
+
+.farmHeroMore {
+  position: relative;
+}
+
+.farmHeroMoreButton {
+  width: 42px;
+  padding: 0;
+}
+
+.farmHeroMenuBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  border: 0;
+  background: transparent;
+}
+
+.farmHeroMenu {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(275px, calc(100vw - 32px));
+  padding: 7px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 24px 60px rgba(2,6,23,.28);
+}
+
+.farmHeroDeleteAction {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  background: #fff;
+  color: #b91c1c;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px;
+  text-align: left;
+}
+
+.farmHeroDeleteAction:hover {
+  background: #fef2f2;
+}
+
+.farmHeroDeleteAction > span,
+.farmHeroDeleteAction b,
+.farmHeroDeleteAction small {
+  display: block;
+}
+
+.farmHeroDeleteAction small {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+button.execCard.execMapCard {
+  width: 100%;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+button.execCard.execMapCard:hover {
+  transform: translateY(-2px);
+  border-color: var(--brand-line);
+  box-shadow: 0 14px 30px rgba(var(--brand-rgb), .10);
+}
+
+.farmInformationSection {
+  display: grid;
+  gap: 11px;
+  margin-top: 2px;
+  padding-top: 15px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.farmInformationHeading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.farmInformationHeading h3 {
+  margin: 3px 0 0;
+  color: #0f172a;
+  font-size: 18px;
+  letter-spacing: -.025em;
+}
+
+.farmInformationHeading > small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.farmDetailGroups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.farmDetailGroup {
+  min-width: 0;
+  border: 1px solid #dbe4ef;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #fff, #fbfdff);
+  overflow: hidden;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.farmDetailGroup[open] {
+  grid-column: 1 / -1;
+  border-color: var(--brand-line);
+  box-shadow: 0 14px 32px rgba(var(--brand-rgb), .08);
+}
+
+.farmDetailGroup > summary {
+  min-height: 57px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.farmDetailGroup > summary::-webkit-details-marker {
+  display: none;
+}
+
+.farmDetailGroupTitle,
+.farmDetailGroupMeta {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.farmDetailGroupTitle > b {
+  min-width: 0;
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.farmDetailGroupIcon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--brand);
+  background: var(--brand3);
+  box-shadow: inset 0 0 0 1px var(--brand-line);
+}
+
+.farmDetailGroupMeta small {
+  min-width: 24px;
+  min-height: 24px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: var(--brand);
+  background: var(--brand3);
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.farmDetailGroupMeta svg {
+  color: #64748b;
+  transform: rotate(-90deg);
+  transition: transform .18s ease;
+}
+
+.farmDetailGroup[open] .farmDetailGroupMeta svg {
+  transform: rotate(90deg);
+}
+
+.farmDetailGroupBody {
+  display: grid;
+  gap: 10px;
+  padding: 0 12px 12px;
+  border-top: 1px solid #eef2f7;
+}
+
+.farmDetailRows {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 11px;
+}
+
+.farmDetailRows article {
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 13px;
+  padding: 10px;
+  background: #f8fafc;
+}
+
+.farmDetailRows article.wide {
+  grid-column: span 2;
+}
+
+.farmDetailRows article > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .045em;
+  text-transform: uppercase;
+}
+
+.farmDetailRows article > span svg {
+  flex: 0 0 auto;
+  color: var(--brand);
+}
+
+.farmDetailRows article > b {
+  display: block;
+  margin-top: 6px;
+  color: #0f172a;
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.farmPhoneLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--brand);
+  text-decoration: none;
+}
+
+.farmPhoneLink:hover {
+  text-decoration: underline;
+}
+
+.farmRecordShortcuts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 11px;
+}
+
+.farmRecordShortcuts > button,
+.farmRecordShortcuts > article {
+  min-width: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 10px 11px;
+  background: #fff;
+  color: #0f172a;
+  text-align: left;
+}
+
+.farmRecordShortcuts > button {
+  cursor: pointer;
+}
+
+.farmRecordShortcuts > button:hover {
+  border-color: var(--brand-line);
+  background: var(--brand3);
+}
+
+.farmRecordShortcuts span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.farmRecordShortcuts svg {
+  color: var(--brand);
+}
+
+.farmRecordShortcuts b {
+  display: block;
+  margin-top: 7px;
+  color: #0f172a;
+  font-size: 20px;
+}
+
+.farmRecordShortcuts small {
+  display: block;
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.farmNoteList {
+  display: grid;
+  gap: 7px;
+}
+
+.farmNoteItem {
+  border: 1px solid #e2e8f0;
+  border-radius: 13px;
+  background: #f8fafc;
+  overflow: hidden;
+}
+
+.farmNoteItem > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 9px;
+  padding: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.farmNoteItem > summary::-webkit-details-marker {
+  display: none;
+}
+
+.farmNoteItem > summary > svg {
+  margin-top: 2px;
+  color: var(--brand);
+}
+
+.farmNoteItem b,
+.farmNoteItem p {
+  display: block;
+  margin: 0;
+}
+
+.farmNoteItem b {
+  color: #334155;
+  font-size: 12px;
+}
+
+.farmNoteItem p {
+  margin-top: 3px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.farmNoteItem em {
+  color: var(--brand);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.farmNoteItem .noteCollapse {
+  display: none;
+}
+
+.farmNoteItem[open] .noteExpand,
+.farmNoteItem[open] p {
+  display: none;
+}
+
+.farmNoteItem[open] .noteCollapse {
+  display: inline;
+}
+
+.farmNoteFullText {
+  padding: 0 10px 11px 35px;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.farmNoNotes {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  padding: 11px;
+  border-radius: 13px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.servicePeriodTitle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.servicePeriodTitle > span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.servicePeriodFacts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+  margin-top: 8px;
+}
+
+.servicePeriodFacts > span {
+  min-width: 0;
+  margin: 0;
+  border-radius: 10px;
+  padding: 7px 8px;
+  background: #f8fafc;
+}
+
+.servicePeriodFacts small,
+.servicePeriodFacts b {
+  display: block;
+}
+
+.servicePeriodFacts small {
+  margin: 0;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.servicePeriodFacts b {
+  margin-top: 3px;
+  color: #0f172a;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.servicePeriodResponsible {
+  display: flex !important;
+  align-items: center;
+  gap: 5px;
+  margin-top: 7px !important;
+}
+
+@media (max-width: 760px) {
+  .farmHero:not(.compactHero) {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    padding-right: 18px !important;
+  }
+
+  .farmHeroPrimaryActions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .farmHeroAction {
+    flex: 1 1 0;
+  }
+
+  .farmHeroMore {
+    flex: 0 0 auto;
+  }
+
+  .farmInformationHeading {
+    align-items: start;
+  }
+
+  .farmInformationHeading > small {
+    display: none;
+  }
+
+  .farmDetailGroups {
+    grid-template-columns: 1fr;
+  }
+
+  .farmDetailGroup[open] {
+    grid-column: auto;
+  }
+
+  .farmDetailRows {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .farmDetailRows article.wide {
+    grid-column: 1 / -1;
+  }
+
+  .farmRecordShortcuts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .farmRecordShortcuts > button,
+  .farmRecordShortcuts > article {
+    padding: 9px;
+  }
+
+  .farmRecordShortcuts span {
+    align-items: flex-start;
+    font-size: 10px;
+  }
+
+  .servicePeriodList article {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .servicePeriodList article > .iconBtn {
+    grid-column: 2;
+    justify-self: end;
+    margin-top: -2px;
+  }
+
+  .servicePeriodFacts {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 430px) {
+  .farmHeroAction {
+    padding-inline: 11px;
+    font-size: 12px;
+  }
+
+  .farmDetailRows,
+  .farmRecordShortcuts {
+    grid-template-columns: 1fr;
+  }
+
+  .farmDetailRows article.wide {
+    grid-column: auto;
+  }
+
+  .farmRecordShortcuts > button,
+  .farmRecordShortcuts > article {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 2px 8px;
+  }
+
+  .farmRecordShortcuts b {
+    grid-row: 1 / 3;
+    grid-column: 2;
+    margin: 0;
+  }
+}
+
+/* V3.43: produtividade e relatórios unificados */
+.productivityUnified {
+  gap: 14px;
+}
+
+.productivityUnified > .pageHead {
+  align-items: center;
+  margin-bottom: 0;
+}
+
+.productivityUnified > .pageHead h1 {
+  margin-bottom: 0;
+}
+
+.prodFilterBtn > span {
+  min-width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 11px;
+}
+
+.prodSectionTabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, .045);
+}
+
+.prodSectionTabs button {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 13px;
+  background: transparent;
+  color: #64748b;
+  font-weight: 900;
+}
+
+.prodSectionTabs button.active {
+  background: color-mix(in srgb, var(--brand) 11%, #fff);
+  color: var(--brand);
+  box-shadow: inset 0 0 0 1px rgba(var(--brand-rgb), .18);
+}
+
+.prodFilterSummary {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 1px 2px 3px;
+  scrollbar-width: none;
+}
+
+.prodFilterSummary::-webkit-scrollbar {
+  display: none;
+}
+
+.prodFilterSummary > span,
+.prodFilterSummary b,
+.prodFilterSummary small {
+  white-space: nowrap;
+}
+
+.prodFilterSummary > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+.prodFilterSummary b {
+  padding: 6px 9px;
+  border: 1px solid rgba(var(--brand-rgb), .18);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brand) 7%, #fff);
+  color: color-mix(in srgb, var(--brand) 82%, #0f172a);
+  font-size: 11px;
+}
+
+.prodFilterSummary small {
+  color: #94a3b8;
+  font-weight: 800;
+}
+
+.productivityUnified .prodHeroPanel,
+.productivityUnified .managerHero {
+  background:
+    radial-gradient(circle at 90% 8%, rgba(var(--brand-rgb), .34), transparent 34%),
+    linear-gradient(145deg, #0f172a 0%, color-mix(in srgb, var(--brand) 36%, #0f172a) 100%);
+}
+
+.productivityUnified .prodHeroCopy .eyebrow,
+.productivityUnified .prodHeroStats svg,
+.productivityUnified .managerHero .eyebrow,
+.productivityUnified .managerHeroScore span {
+  color: color-mix(in srgb, var(--brand) 45%, #fff);
+}
+
+.prodChartWide {
+  margin-bottom: 0;
+}
+
+.prodChartWide .lineChart,
+.prodChartWide .lineEmpty {
+  min-height: 215px;
+}
+
+.productivityUnified .lineStroke {
+  stroke: var(--brand);
+}
+
+.productivityUnified .lineDot {
+  stroke: var(--brand);
+}
+
+.productivityUnified .lineArea {
+  fill: rgba(var(--brand-rgb), .10);
+}
+
+.productivityUnified .prodBar i {
+  background: linear-gradient(90deg, var(--brand), color-mix(in srgb, var(--brand) 50%, #fff));
+}
+
+.prodOverviewStrip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 12px;
+}
+
+.prodOverviewStrip > div {
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 15px;
+  background: #f8fafc;
+}
+
+.prodOverviewStrip span,
+.prodOverviewStrip b {
+  display: block;
+}
+
+.prodOverviewStrip span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.prodOverviewStrip b {
+  margin-top: 4px;
+  color: #0f172a;
+  font-size: 16px;
+}
+
+.prodTechnicianPanel {
+  margin-bottom: 0;
+}
+
+.prodTechnicianGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.prodTechnicianGrid > button {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(160px, 1fr) repeat(3, minmax(82px, auto));
+  gap: 11px;
+  align-items: center;
+  padding: 13px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background: #fff;
+  color: #0f172a;
+  text-align: left;
+  transition: .18s ease;
+}
+
+.prodTechnicianGrid > button:hover,
+.prodTechnicianGrid > button.active {
+  border-color: rgba(var(--brand-rgb), .38);
+  background: color-mix(in srgb, var(--brand) 6%, #fff);
+  box-shadow: 0 10px 28px rgba(var(--brand-rgb), .09);
+}
+
+.prodTechAvatar {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--brand) 13%, #fff);
+  color: var(--brand);
+}
+
+.prodTechnicianGrid b,
+.prodTechnicianGrid small {
+  display: block;
+}
+
+.prodTechnicianGrid small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.prodTechIdentity b {
+  font-size: 15px;
+}
+
+.prodTechIdentity small {
+  margin-top: 4px;
+}
+
+.prodLoadMore {
+  margin: 12px auto 0;
+}
+
+.prodReportComposer {
+  display: grid;
+  grid-template-columns: minmax(260px, .75fr) minmax(0, 1.25fr);
+  gap: 18px;
+  align-items: center;
+  padding: 17px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .05);
+}
+
+.prodReportComposer h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 0;
+  font-size: 22px;
+}
+
+.prodReportComposer p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.prodReportControls {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto auto auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.prodReportDetail {
+  min-height: 44px;
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #f8fafc;
+}
+
+.prodReportDetail button {
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.prodReportDetail button.active {
+  background: #fff;
+  color: var(--brand);
+  box-shadow: 0 3px 10px rgba(15, 23, 42, .08);
+}
+
+.managerKpis.compact article {
+  padding: 14px;
+  border-radius: 18px;
+}
+
+.prodCentralGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 9px;
+}
+
+.prodCentralGrid article {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #f8fafc;
+}
+
+.prodCentralGrid .brandLogoMark {
+  width: 48px;
+  height: 48px;
+  padding: 5px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.prodCentralGrid span,
+.prodCentralGrid b,
+.prodCentralGrid small {
+  display: block;
+}
+
+.prodCentralGrid span,
+.prodCentralGrid small {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.prodCentralGrid b {
+  margin: 2px 0;
+}
+
+.managerFarmDisclosure {
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.managerFarmDisclosure summary {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  font-weight: 900;
+  list-style: none;
+}
+
+.managerFarmDisclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.managerFarmDisclosure summary span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.managerFarmDisclosure summary b {
+  min-width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--brand) 10%, #fff);
+  color: var(--brand);
+}
+
+.managerFarmDisclosure .managerFarmRows {
+  max-height: 440px;
+  overflow: auto;
+  padding: 0 14px 14px;
+}
+
+.managerFarmDisclosure .managerFarmRows button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #fff;
+  color: #0f172a;
+  text-align: left;
+}
+
+.managerFarmDisclosure .managerFarmRows button:hover {
+  border-color: rgba(var(--brand-rgb), .35);
+  background: color-mix(in srgb, var(--brand) 5%, #fff);
+}
+
+.prodReportFootnote {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: #eff6ff;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.prodReportFootnote svg {
+  flex: 0 0 auto;
+  color: #2563eb;
+}
+
+@media (max-width: 1100px) {
+  .prodTechnicianGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .prodReportComposer {
+    grid-template-columns: 1fr;
+  }
+
+  .prodReportControls {
+    grid-template-columns: minmax(160px, 1fr) auto auto auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .productivityUnified {
+    gap: 11px;
+  }
+
+  .productivityUnified > .pageHead {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .productivityUnified > .pageHead h1 {
+    font-size: 25px !important;
+  }
+
+  .productivityUnified > .pageHead .headActions {
+    margin: 0 0 0 auto;
+  }
+
+  .productivityUnified > .pageHead .prodFilterBtn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    font-size: 0;
+    position: relative;
+  }
+
+  .productivityUnified > .pageHead .prodFilterBtn > span {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    font-size: 10px;
+  }
+
+  .prodSectionTabs {
+    position: sticky;
+    top: 0;
+    z-index: 12;
+    border-radius: 16px;
+  }
+
+  .prodSectionTabs button {
+    min-height: 43px;
+    gap: 5px;
+    font-size: 11px;
+  }
+
+  .prodFilterSummary > span {
+    font-size: 10px;
+  }
+
+  .productivityUnified .prodHeroPanel {
+    padding: 16px;
+  }
+
+  .productivityUnified .prodHeroCopy h2 {
+    font-size: 27px;
+  }
+
+  .prodOverviewStrip {
+    grid-template-columns: 1fr;
+  }
+
+  .prodChartWide .lineChart,
+  .prodChartWide .lineEmpty {
+    min-height: 180px;
+  }
+
+  .prodTechnicianGrid > button {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding: 12px;
+  }
+
+  .prodTechnicianGrid > button > span:nth-child(4),
+  .prodTechnicianGrid > button > span:nth-child(5) {
+    grid-column: 2 / -1;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 7px;
+  }
+
+  .prodReportComposer {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .prodReportControls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .prodReportControls .field,
+  .prodReportControls .prodReportDetail {
+    grid-column: 1 / -1;
+  }
+
+  .prodReportControls .btn {
+    width: 100%;
+    min-height: 46px;
+  }
+
+  .prodReportDetail button {
+    flex: 1;
+  }
+
+  .prodReportsView .managerKpis,
+  .prodReportsView .managerGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .managerFarmDisclosure .managerFarmRows button {
+    display: grid;
+  }
+
+  .managerFarmDisclosure .managerFarmRows button > div:last-child {
+    padding-top: 8px;
+    border-top: 1px solid #e2e8f0;
+  }
+
+  .prodFilterSheet {
+    height: min(91dvh, 820px);
+  }
+
+  .bottomNav button span {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 390px) {
+  .prodSectionTabs button span {
+    font-size: 10px;
+  }
+
+  .prodSectionTabs button {
+    padding-inline: 4px;
+  }
+
+  .prodReportControls {
+    grid-template-columns: 1fr;
+  }
+
+  .prodReportControls > * {
+    grid-column: 1 !important;
+  }
+}
+
 /* V3.25: login SaaS/AgTech simplificado */
 .authPage {
   display: grid;
