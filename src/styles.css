@@ -8100,6 +8100,636 @@ body,
   }
 }
 
+/* V3.0.13: modelos resumido e completo do relatorio tecnico */
+.reportComposer .reportControl {
+  gap: 16px;
+  border-color: color-mix(in srgb, var(--brand-line, #dbe4ef) 72%, #dbe4ef);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(var(--brand-rgb, 10, 109, 58), .12), transparent 34%),
+    linear-gradient(180deg, #fff, #f8fafc);
+}
+
+.reportControlTitle p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.reportComposer .reportControlStatus {
+  border-color: var(--brand-line, #bbf7d0);
+  background: var(--brand3, #ecfdf5);
+  color: var(--brand, #047857);
+}
+
+.reportModelBlock {
+  display: grid;
+  grid-template-columns: minmax(180px, .65fr) minmax(360px, 1.35fr);
+  gap: 18px;
+  align-items: center;
+  padding: 13px;
+  border: 1px solid #dbe4ef;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, .82);
+}
+
+.reportModelBlock > div:first-child > span,
+.reportModelBlock > div:first-child > small {
+  display: block;
+}
+
+.reportModelBlock > div:first-child > span {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.reportModelBlock > div:first-child > small {
+  max-width: 260px;
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.reportModelPicker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding: 4px;
+  border: 1px solid #dbe4ef;
+  border-radius: 16px;
+  background: #f1f5f9;
+}
+
+.reportModelPicker button {
+  min-width: 0;
+  min-height: 50px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  padding: 9px 11px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: #64748b;
+  text-align: left;
+  transition: .18s ease;
+}
+
+.reportModelPicker button:hover {
+  color: #0f172a;
+}
+
+.reportModelPicker button.active {
+  border-color: var(--brand-line, #bbf7d0);
+  background: #fff;
+  color: var(--brand, #047857);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .08);
+}
+
+.reportModelPicker b,
+.reportModelPicker small {
+  display: block;
+  min-width: 0;
+}
+
+.reportModelPicker b {
+  color: inherit;
+  font-size: 13px;
+}
+
+.reportModelPicker small {
+  margin-top: 2px;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reportDocumentMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.reportDocumentMeta > span {
+  max-width: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 6px 9px;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #fff;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.reportDocumentMeta svg,
+.reportDocumentMeta b {
+  color: var(--brand, #047857);
+}
+
+.reportComposer .reportActionGrid {
+  grid-template-columns: minmax(210px, 1.25fr) minmax(150px, .8fr) minmax(150px, .8fr) 52px;
+  align-items: stretch;
+}
+
+.reportComposer .reportActionGrid .reportGenerate {
+  grid-column: auto;
+}
+
+.reportActionFilter,
+.reportActionFilter > .reportConfigure,
+.reportShare {
+  width: 100%;
+}
+
+.reportConfigure.active,
+.reportMoreActions > .active {
+  border-color: var(--brand, #047857) !important;
+  color: var(--brand, #047857) !important;
+  background: var(--brand3, #ecfdf5) !important;
+}
+
+.reportActionFilter .reportFilterMenu {
+  right: auto;
+  left: 0;
+  width: min(410px, calc(100vw - 48px));
+}
+
+.reportFilterMenu .reportOptionHead > div > b,
+.reportFilterMenu .reportOptionHead > div > span {
+  display: block;
+}
+
+.reportFilterMenu .reportOptionHead > div > span {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.reportConfigGroupLabel {
+  display: block;
+  margin: 2px 0 8px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.reportAppendixOption {
+  position: relative;
+  display: block;
+  margin-top: 10px;
+}
+
+.reportAppendixOption > input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.reportAppendixOption > span {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 9px;
+  padding: 10px;
+  border: 1px solid #dbe4ef;
+  border-radius: 15px;
+  background: #fff;
+  color: #475569;
+  cursor: pointer;
+}
+
+.reportAppendixOption > span svg {
+  grid-row: 1 / 3;
+  color: #64748b;
+}
+
+.reportAppendixOption > span b,
+.reportAppendixOption > span small {
+  display: block;
+}
+
+.reportAppendixOption > span b {
+  color: #0f172a;
+  font-size: 12px;
+}
+
+.reportAppendixOption > span small {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.reportAppendixOption > input:checked + span {
+  border-color: var(--brand-line, #86efac);
+  background: var(--brand3, #ecfdf5);
+  box-shadow: 0 0 0 3px rgba(var(--brand-rgb, 10, 109, 58), .08);
+}
+
+.reportAppendixOption > input:checked + span svg {
+  color: var(--brand, #047857);
+}
+
+.reportMoreActions {
+  position: relative;
+}
+
+.reportMoreActions > .btn {
+  width: 52px;
+  height: 100%;
+  padding: 0;
+}
+
+.reportSecondaryMenu {
+  position: absolute;
+  z-index: 36;
+  top: calc(100% + 9px);
+  right: 0;
+  width: 230px;
+  padding: 7px;
+  border: 1px solid #dbe4ef;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 22px 54px rgba(15, 23, 42, .2);
+}
+
+.reportSecondaryMenu button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  padding: 10px;
+  border: 0;
+  border-radius: 11px;
+  background: transparent;
+  color: #0f172a;
+  text-align: left;
+}
+
+.reportSecondaryMenu button:hover {
+  background: #f1f5f9;
+}
+
+.reportSecondaryMenu b,
+.reportSecondaryMenu small {
+  display: block;
+}
+
+.reportSecondaryMenu b {
+  font-size: 12px;
+}
+
+.reportSecondaryMenu small {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 10px;
+}
+
+.reportPreviewShell {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid #dbe4ef;
+  border-radius: 22px;
+  background: #f8fafc;
+}
+
+.reportPreviewTitle > div {
+  min-width: 0;
+}
+
+.reportPreviewTitle > div > span,
+.reportPreviewTitle > div > b {
+  display: block;
+}
+
+.reportPreviewTitle > div > b {
+  margin-top: 3px;
+}
+
+.reportPreviewTitle > button {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border: 1px solid #dbe4ef;
+  border-radius: 12px;
+  background: #fff;
+  color: #475569;
+}
+
+.reportPreviewViewport {
+  max-height: 980px;
+  overflow: auto;
+  border-radius: 18px;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+
+.reportPreviewShell.expanded .reportPreviewViewport {
+  max-height: none;
+  overflow: visible;
+}
+
+.reportPreviewShell.expanded .reportPreviewTitle > button {
+  border-color: var(--brand-line, #bbf7d0);
+  background: var(--brand3, #ecfdf5);
+  color: var(--brand, #047857);
+}
+
+.reportComposer .summaryMetrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.reportOperationNotes {
+  display: grid;
+  gap: 8px;
+}
+
+.reportOperationNotes article {
+  padding: 11px 12px;
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid var(--brand, #0a6d3a);
+  border-radius: 13px;
+  background: #f8fafc;
+}
+
+.reportOperationNotes article > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reportOperationNotes article span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.reportOperationNotes p {
+  margin: 5px 0 0;
+  color: #334155;
+  line-height: 1.4;
+}
+
+.reportEquipmentCompact {
+  display: grid;
+  gap: 7px;
+}
+
+.reportEquipmentCompact article {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 13px;
+  background: #fff;
+}
+
+.reportEquipmentCompact article > span {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--brand3, #ecfdf5);
+  color: var(--brand, #047857);
+  font-weight: 950;
+}
+
+.reportEquipmentCompact b,
+.reportEquipmentCompact small {
+  display: block;
+}
+
+.reportEquipmentCompact small {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.reportEquipmentCompact strong {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 10px;
+}
+
+.reportComposer .summaryMap {
+  height: 320px;
+}
+
+.reportPendingSummary {
+  padding: 13px;
+  border: 1px solid #fed7aa;
+  border-radius: 16px;
+  background: #fff7ed;
+}
+
+.reportPendingSummary.clear {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.reportPendingSummary > h2 {
+  margin-top: 0;
+}
+
+.reportPendingSummary p {
+  margin: 7px 0 0;
+  color: #7c2d12;
+}
+
+.reportPendingSummary.clear p {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #166534;
+}
+
+.reportEvidenceGrid.compact img {
+  height: 155px;
+}
+
+.reportMoreCount {
+  margin: 10px 0 0;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.reportPreviewFooter {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 26px;
+  padding-top: 11px;
+  border-top: 1px solid #dbe4ef;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.reportPreviewFooter b {
+  color: var(--brand, #0a6d3a);
+}
+
+@media (max-width: 980px) {
+  .reportModelBlock {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .reportModelBlock > div:first-child > small {
+    max-width: none;
+  }
+
+  .reportComposer .reportActionGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 52px;
+  }
+
+  .reportComposer .reportActionGrid .reportGenerate {
+    grid-column: 1 / -1;
+  }
+
+  .reportActionFilter .reportFilterMenu {
+    left: 0;
+  }
+}
+
+@media (max-width: 700px) {
+  .reportControlTitle p {
+    display: none;
+  }
+
+  .reportModelBlock {
+    padding: 10px;
+    border-radius: 16px;
+  }
+
+  .reportModelBlock > div:first-child > small {
+    font-size: 10px;
+  }
+
+  .reportModelPicker button {
+    min-height: 48px;
+    padding: 8px;
+  }
+
+  .reportModelPicker small {
+    white-space: normal;
+  }
+
+  .reportDocumentMeta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reportDocumentMeta > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .reportDocumentMeta > span:nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .reportComposer .reportActionGrid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 48px;
+  }
+
+  .reportComposer .reportActionGrid .reportGenerate {
+    grid-column: 1 / -1;
+  }
+
+  .reportMoreActions > .btn {
+    width: 48px;
+  }
+
+  .reportActionFilter .reportFilterMenu {
+    position: fixed;
+    z-index: 72;
+    inset: auto 12px calc(86px + env(safe-area-inset-bottom)) 12px;
+    width: auto;
+    max-height: min(70vh, 620px);
+    overflow: auto;
+    border-radius: 22px;
+  }
+
+  .reportPreviewShell {
+    padding: 8px;
+    border-radius: 20px;
+  }
+
+  .reportPreviewViewport {
+    max-height: 720px;
+    border-radius: 16px;
+  }
+
+  .reportComposer .summaryMetrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .reportEquipmentCompact article {
+    grid-template-columns: 30px minmax(0, 1fr);
+  }
+
+  .reportEquipmentCompact strong {
+    grid-column: 2;
+    width: fit-content;
+  }
+
+  .reportComposer .summaryMap {
+    height: 250px;
+  }
+
+  .reportPreviewFooter {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 410px) {
+  .reportModelPicker {
+    grid-template-columns: 1fr;
+  }
+
+  .reportDocumentMeta {
+    grid-template-columns: 1fr;
+  }
+
+  .reportDocumentMeta > span:nth-child(2) {
+    grid-column: auto;
+    grid-row: auto;
+  }
+
+  .reportComposer .reportActionGrid {
+    grid-template-columns: minmax(0, 1fr) 48px;
+  }
+
+  .reportShare {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+}
+
 /* V3.0.11: acabamento da jornada de visitas */
 .visitsPanel {
   overflow: visible;
