@@ -24,7 +24,7 @@ import genexLogo from '../LOGO_GENEX.png';
 import urusLogo from '../LOGO_URUS.png';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
-const APP_VERSION = '3.0.11';
+const APP_VERSION = '3.0.12';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
 const FARM_VIEW_KEY = 'cta_farm_view_mode';
@@ -2598,16 +2598,33 @@ function ServiceSessionEditModal({farm,visit,data,onClose,onSave}){
 function FazendaDetalhe({farm,data,onBack}){
   const [tab,setTab]=useState('resumo'),[edit,setEdit]=useState(false),[equipModal,setEquipModal]=useState(null),[visitModal,setVisitModal]=useState(false),[serviceModal,setServiceModal]=useState(null);
   const [installationView,setInstallationView]=useState('mapa');
+  const [administrationTab,setAdministrationTab]=useState('acessos');
   const [servicePeriodsOpen,setServicePeriodsOpen]=useState(false),[serviceSessionEdit,setServiceSessionEdit]=useState(null);
   const [deleteConfirm,setDeleteConfirm]=useState(false),[deletingFarm,setDeletingFarm]=useState(false),[heroMenuOpen,setHeroMenuOpen]=useState(false);
   const access=farmAccess(farm,data);
   const equips=data.equipamentos.filter(e=>e.fazenda_id===farm.id), visits=data.visitas.filter(v=>v.fazenda_id===farm.id), checks=data.checklists.filter(c=>c.fazenda_id===farm.id), diags=data.diagnosticos.filter(d=>d.fazenda_id===farm.id), evidencias=(data.evidencias||[]).filter(e=>e.fazenda_id===farm.id);
-  const tabs=[['resumo','Resumo',Building2],['checklists','Checklists',ClipboardCheck],['mapa','Instalação técnica',Antenna],['visitas','Visitas',CalendarDays],['evidencias','Evidências',ImageIcon],['relatorio','Relatório',FileText],access.canEdit&&['restrito','Restrito',ShieldCheck],access.canManageAccess&&['acessos','Acessos',UserCheck]].filter(Boolean);
+  const administrationAvailable=access.canEdit||access.canManageAccess;
+  const tabs=[['resumo','Resumo',Building2],['checklists','Checklists',ClipboardCheck],['mapa','Instalação técnica',Antenna],['visitas','Visitas',CalendarDays],['evidencias','Evidências',ImageIcon],['relatorio','Relatório',FileText],administrationAvailable&&['administracao','Administração',Settings]].filter(Boolean);
   const serviceActive=Boolean(farm.servico_inicio_em&&!farm.servico_fim_em), serviceDone=Boolean(farm.servico_inicio_em&&farm.servico_fim_em), compactHero=tab!=='resumo';
   const canDeleteFarm=access.role==='owner'||access.role==='admin'||data.isAppAdmin;
   const currentResponsible=personName(data.currentUser);
   const openVisit=visits.find(isOpenVisit);
-  const goTab=id=>{if(id==='equipamentos'){setInstallationView('equipamentos');setTab('mapa');}else{if(id==='mapa'&&tab!=='mapa')setInstallationView('mapa');setTab(id);}setTimeout(()=>document.querySelector('.farmTabs')?.scrollIntoView({behavior:'smooth',block:'start'}),80);};
+  const goTab=id=>{
+    if(['administracao','acessos','restrito'].includes(id)){
+      if(!administrationAvailable)return;
+      const requested=id==='administracao'?(access.canManageAccess?'acessos':'restrito'):id;
+      const allowed=requested==='acessos'?access.canManageAccess:access.canEdit;
+      setAdministrationTab(allowed?requested:(access.canManageAccess?'acessos':'restrito'));
+      setTab('administracao');
+    }else if(id==='equipamentos'){
+      setInstallationView('equipamentos');
+      setTab('mapa');
+    }else{
+      if(id==='mapa'&&tab!=='mapa')setInstallationView('mapa');
+      setTab(id);
+    }
+    setTimeout(()=>document.querySelector('.farmTabs')?.scrollIntoView({behavior:'smooth',block:'start'}),80);
+  };
   const openVisitModal=()=>{if(openVisit)notify(`Já existe uma visita aberta desde ${brDate(openVisit.data_visita)}. Você pode continuar nela ou registrar uma nova visita.`,'warning');setVisitModal(true);};
   const openEquipmentFromMap=equip=>{if(!access.canEdit)return;setTab('mapa');setInstallationView('equipamentos');setEquipModal(equip);};
   const deleteFarm=async()=>{
@@ -2725,7 +2742,7 @@ function FazendaDetalhe({farm,data,onBack}){
     {!access.canEdit&&<PermissionNotice/>}
     <div className="tabs farmTabs">{tabs.map(([id,label,Icon])=><button key={id} onClick={()=>goTab(id)} className={(tab===id||(tab==='equipamentos'&&id==='mapa'))?'active':''}><Icon size={17}/>{label}</button>)}</div>
     {tab==='resumo'&&<FarmExecutiveSummary farm={farm} visits={visits} checks={checks} diags={diags} equips={equips} evidencias={evidencias} canEdit={access.canEdit} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)} onAdjustService={()=>farmServiceSessions(farm,visits).some(session=>session.visit)?setServicePeriodsOpen(true):setServiceModal('adjust')} onNewVisit={openVisitModal} onOpenMap={()=>setTab('mapa')} onNavigate={goTab}/>}
-    {tab==='checklists'&&<ChecklistsFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {(tab==='mapa'||tab==='equipamentos')&&<InstalacaoTecnicaFazenda farm={farm} data={data} canEdit={access.canEdit} view={tab==='equipamentos'?'equipamentos':installationView} onViewChange={next=>{setTab('mapa');setInstallationView(next)}} openNew={()=>setEquipModal({})} onEditEquip={openEquipmentFromMap}/>} {tab==='visitas'&&<VisitasFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={openVisitModal} onStartReturn={startReturnFromVisit}/>} {tab==='evidencias'&&<EvidenciasFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='relatorio'&&<RelatorioFazenda farm={farm} data={data}/>} {tab==='restrito'&&access.canEdit&&<DadosRestritosFazenda farm={farm} data={data}/>} {tab==='acessos'&&<AcessosFazenda farm={farm} data={data} access={access}/>}
+    {tab==='checklists'&&<ChecklistsFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {(tab==='mapa'||tab==='equipamentos')&&<InstalacaoTecnicaFazenda farm={farm} data={data} canEdit={access.canEdit} view={tab==='equipamentos'?'equipamentos':installationView} onViewChange={next=>{setTab('mapa');setInstallationView(next)}} openNew={()=>setEquipModal({})} onEditEquip={openEquipmentFromMap}/>} {tab==='visitas'&&<VisitasFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={openVisitModal} onStartReturn={startReturnFromVisit}/>} {tab==='evidencias'&&<EvidenciasFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='relatorio'&&<RelatorioFazenda farm={farm} data={data}/>} {tab==='administracao'&&administrationAvailable&&<AdministracaoFazenda farm={farm} data={data} access={access} section={administrationTab} onSectionChange={setAdministrationTab}/>}
     <FarmBottomNav farm={farm} tabs={tabs} tab={tab==='equipamentos'?'mapa':tab} setTab={goTab} onBack={onBack} access={access} serviceActive={serviceActive} serviceDone={serviceDone} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)} onNewVisit={openVisitModal}/>
     {edit&&access.canEdit&&<FazendaModal farm={farm} data={data} onClose={()=>setEdit(false)} onSave={r=>data.saveFazenda(r)}/>}{serviceModal&&access.canEdit&&<ServiceModal farm={farm} data={data} mode={serviceModal} pendingEquips={equips.filter(isEquipmentPendingInstall)} onClose={()=>setServiceModal(null)} onSave={saveService}/>} {servicePeriodsOpen&&<ServicePeriodsModal farm={farm} visits={visits} canEdit={access.canEdit} onClose={()=>setServicePeriodsOpen(false)} onEditLegacy={()=>{setServicePeriodsOpen(false);setServiceModal('adjust')}} onEditVisit={visit=>{setServicePeriodsOpen(false);setServiceSessionEdit(visit)}}/>}{serviceSessionEdit&&access.canEdit&&<ServiceSessionEditModal farm={farm} visit={serviceSessionEdit} data={data} onClose={()=>setServiceSessionEdit(null)} onSave={saveServiceSession}/>} {equipModal&&access.canEdit&&<EquipModal farm={farm} data={data} equip={equipModal} onClose={()=>setEquipModal(null)} onSave={async(r)=>{const result=await data.saveEquipamento(r);if(result.ok)setEquipModal(null)}}/>}{visitModal&&access.canEdit&&<VisitModal farm={farm} data={data} onClose={()=>setVisitModal(false)} onSave={saveVisitFromDetail}/>} {deleteConfirm&&<DeleteFarmModal farm={farm} busy={deletingFarm} onCancel={()=>setDeleteConfirm(false)} onConfirm={deleteFarm}/>}
   </div>
@@ -2753,7 +2770,26 @@ function DeleteFarmModal({farm,busy=false,onCancel,onConfirm}){
 }
 
 function ServiceControl({farm,visits=[],canEdit,onStart,onFinish,onEdit}){const sessions=farmServiceSessions(farm,visits), active=Boolean(farm.servico_inicio_em&&!farm.servico_fim_em), done=Boolean(sessions.length&&!active), status=farmStatus(farm), firstStart=firstServiceStart(sessions), lastEnd=lastServiceEnd(sessions); return <div className={`serviceControl ${active?'active':done?'done':''}`}><div className="serviceLead"><span className="eyebrow">Produtividade</span><h2><Clock size={20}/> Serviço da fazenda</h2></div><div className="serviceFacts"><div><span>Situação</span><b>{status}</b></div><div><span>Períodos</span><b>{sessions.length||'-'}</b></div><div><span>Primeiro início</span><b>{brDateTime(firstStart)}</b></div><div><span>Tempo total</span><b>{serviceTotalLabel(farm,visits)}</b></div><div><span>Último fim</span><b>{active?'em andamento':brDateTime(lastEnd)}</b></div></div><div className="serviceActions">{canEdit&&!active&&<button className="btn primary" onClick={onStart}><PlayCircle size={17}/> {sessions.length?'Iniciar novo serviço':'Iniciar serviço'}</button>}{canEdit&&active&&<button className="btn primary" onClick={onFinish}><CheckCircle2 size={17}/> Finalizar serviço</button>}{canEdit&&<button className="btn light" onClick={onEdit}><Pencil size={17}/> Ajustar datas</button>}</div>{farm.servico_observacoes&&<p className="serviceNote">{farm.servico_observacoes}</p>}</div>}
-function DadosRestritosFazenda({farm,data}){
+function AdministracaoFazenda({farm,data,access,section,onSectionChange}){
+  const canManageAccess=Boolean(access.canManageAccess);
+  const canViewRestricted=Boolean(access.canEdit);
+  const active=section==='acessos'&&canManageAccess?'acessos':canViewRestricted?'restrito':'acessos';
+  return <section className="panel farmAdministrationPanel">
+    <header className="administrationHeader">
+      <span className="administrationHeaderIcon"><Settings size={21}/></span>
+      <div><span className="eyebrow">Gestão da fazenda</span><h2>Administração</h2><p>Acessos de pessoas e informações internas permanecem separados e protegidos.</p></div>
+      <AccessBadge access={access}/>
+    </header>
+    <div className="administrationTabs" role="tablist" aria-label="Áreas administrativas">
+      {canManageAccess&&<button type="button" role="tab" aria-selected={active==='acessos'} className={active==='acessos'?'active':''} onClick={()=>onSectionChange('acessos')}><UserCheck size={17}/><span><b>Acessos</b><small>Pessoas autorizadas</small></span></button>}
+      {canViewRestricted&&<button type="button" role="tab" aria-selected={active==='restrito'} className={active==='restrito'?'active':''} onClick={()=>onSectionChange('restrito')}><ShieldCheck size={17}/><span><b>Dados restritos</b><small>Credenciais internas</small></span></button>}
+    </div>
+    {canManageAccess&&<div className={`administrationPane ${active==='acessos'?'active':''}`} role="tabpanel" hidden={active!=='acessos'}><AcessosFazenda farm={farm} data={data} access={access} embedded/></div>}
+    {canViewRestricted&&<div className={`administrationPane ${active==='restrito'?'active':''}`} role="tabpanel" hidden={active!=='restrito'}><DadosRestritosFazenda farm={farm} data={data} embedded/></div>}
+  </section>
+}
+
+function DadosRestritosFazenda({farm,data,embedded=false}){
   const existing=(data.dadosRestritos||[]).find(item=>item.fazenda_id===farm.id)||{};
   const [showSecret,setShowSecret]=useState(false);
   const [saving,setSaving]=useState(false);
@@ -2769,26 +2805,38 @@ function DadosRestritosFazenda({farm,data}){
   const set=(k,v)=>setForm(prev=>({...prev,[k]:v}));
   const copyValue=async(label,value)=>{if(!value){notify(`${label} vazio.`, 'warning');return;}try{await navigator.clipboard.writeText(value);notify(`${label} copiado.`);}catch{notify('Não foi possível copiar automaticamente.','error');}};
   const save=async(e)=>{e.preventDefault();setSaving(true);await data.saveDadosRestritos({...existing,...form,fazenda_id:farm.id});setSaving(false);};
-  return <section className="panel restrictedDataPanel">
+  return <section className={`${embedded?'administrationSubpanel':'panel'} restrictedDataPanel`}>
     <div className="restrictedHero">
       <div className="restrictedHeroIcon"><ShieldCheck size={24}/></div>
       <div><span className="eyebrow">Acesso restrito</span><h2>Dados internos</h2><p>Licenças, usuário de serviço e senhas ficam fora dos relatórios e ocultos para visualizadores.</p></div>
     </div>
     <form className="restrictedForm" onSubmit={save} autoComplete="off">
-      <div className="grid2"><Field label="Domínio"><input value={form.sistema} onChange={e=>set('sistema',e.target.value)} placeholder="Ex: fazenda.vpu-online.com" autoComplete="off"/></Field><Field label="Número da licença"><div className="secretInput"><input value={form.numero_licenca} onChange={e=>set('numero_licenca',e.target.value)} placeholder="Chave ou licença" autoComplete="off" name={`license-${farm.id}`}/><button type="button" onClick={()=>copyValue('Licença',form.numero_licenca)}><Copy size={16}/></button></div></Field></div>
-      <div className="grid2"><Field label="Usuário service"><div className="secretInput"><input value={form.usuario_service} onChange={e=>set('usuario_service',e.target.value)} placeholder="Usuário de serviço" autoComplete="off" autoCapitalize="none" spellCheck="false" name={`service-user-${farm.id}`}/><button type="button" onClick={()=>copyValue('Usuário',form.usuario_service)}><Copy size={16}/></button></div></Field><Field label="Senha service"><div className="secretInput"><input type={showSecret?'text':'password'} value={form.senha_service} onChange={e=>set('senha_service',e.target.value)} placeholder="Senha" autoComplete="new-password" autoCapitalize="none" spellCheck="false" name={`service-password-${farm.id}`}/><button type="button" onClick={()=>setShowSecret(v=>!v)}><Eye size={16}/></button><button type="button" onClick={()=>copyValue('Senha',form.senha_service)}><Copy size={16}/></button></div></Field></div>
+      <div className="grid2"><Field label="Domínio"><input value={form.sistema} onChange={e=>set('sistema',e.target.value)} placeholder="Ex: fazenda.vpu-online.com" autoComplete="off"/></Field><Field label="Número da licença"><div className="secretInput"><input value={form.numero_licenca} onChange={e=>set('numero_licenca',e.target.value)} placeholder="Chave ou licença" autoComplete="off" name={`license-${farm.id}`}/><button type="button" aria-label="Copiar número da licença" title="Copiar licença" onClick={()=>copyValue('Licença',form.numero_licenca)}><Copy size={16}/></button></div></Field></div>
+      <div className="grid2"><Field label="Usuário service"><div className="secretInput"><input value={form.usuario_service} onChange={e=>set('usuario_service',e.target.value)} placeholder="Usuário de serviço" autoComplete="off" autoCapitalize="none" spellCheck="false" name={`service-user-${farm.id}`}/><button type="button" aria-label="Copiar usuário de serviço" title="Copiar usuário" onClick={()=>copyValue('Usuário',form.usuario_service)}><Copy size={16}/></button></div></Field><Field label="Senha service"><div className="secretInput"><input type={showSecret?'text':'password'} value={form.senha_service} onChange={e=>set('senha_service',e.target.value)} placeholder="Senha" autoComplete="new-password" autoCapitalize="none" spellCheck="false" name={`service-password-${farm.id}`}/><button type="button" aria-label={showSecret?'Ocultar senha de serviço':'Mostrar senha de serviço'} title={showSecret?'Ocultar senha':'Mostrar senha'} onClick={()=>setShowSecret(v=>!v)}>{showSecret?<EyeOff size={16}/>:<Eye size={16}/>}</button><button type="button" aria-label="Copiar senha de serviço" title="Copiar senha" onClick={()=>copyValue('Senha',form.senha_service)}><Copy size={16}/></button></div></Field></div>
       <Field label="Observações restritas"><textarea value={form.observacoes_restritas} onChange={e=>set('observacoes_restritas',e.target.value)} placeholder="Configurações Nedap, acessos, IPs, contatos internos ou qualquer dado que não deve aparecer para visualizadores."/></Field>
       <div className="restrictedActions"><button className="btn primary" disabled={saving}><Save size={18}/> {saving?'Salvando...':'Salvar dados restritos'}</button>{existing.updated_at&&<small>Última atualização: {brDateTime(existing.updated_at)}</small>}</div>
     </form>
   </section>
 }
-function AcessosFazenda({farm,data,access}){
+function AcessosFazenda({farm,data,access,embedded=false}){
   const [email,setEmail]=useState(''),[role,setRole]=useState('viewer'),[busy,setBusy]=useState(false);
   const members=data.fazendaMembros.filter(m=>m.fazenda_id===farm.id);
   const roles=[['viewer','Visualizador','Consulta dados, mapa, visitas e relatórios sem alterar informações.'],['admin','Administrador','Pode editar fazenda, equipamentos, visitas, checklists e relatórios.']];
   const add=async(e)=>{e.preventDefault();setBusy(true);const r=await data.shareFarm(farm,email,role);if(r.ok)setEmail('');setBusy(false)};
   if(!access.canManageAccess)return <section className="panel"><PermissionNotice/></section>;
-  return <section className="panel accessPanel"><div className="sectionTitle"><div><h2><UserCheck size={20}/> Acessos da fazenda</h2></div></div><form className="accessInvitePanel" onSubmit={add}><div className="accessInviteTop"><Field label="E-mail da pessoa"><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="nome@email.com" required/></Field><button className="btn primary" disabled={busy}><UserCheck size={17}/> {busy?'Liberando...':'Liberar acesso'}</button></div><div className="accessRoleCards">{roles.map(([value,label,desc])=><button type="button" key={value} className={role===value?'active':''} onClick={()=>setRole(value)}><span>{value==='admin'?<ShieldCheck size={18}/>:<UserCheck size={18}/>}</span><b>{label}</b><small>{desc}</small></button>)}</div></form><div className="accessPeopleGrid"><article className="accessPersonCard owner"><ShieldCheck size={22}/><div><b>Proprietário</b><span>Controle total da fazenda e dos acessos liberados.</span></div><AccessBadge access={{role:'owner',label:'Proprietário'}}/></article>{members.map(m=><article className="accessPersonCard" key={m.id}><UserCheck size={22}/><div><b>{m.profiles?.nome||m.profiles?.email||'Usuário autorizado'}</b><span>{m.profiles?.email||m.user_id}</span></div><div className="accessPersonActions"><select value={m.role} onChange={e=>data.updateFarmMember(m,e.target.value)}><option value="viewer">Visualizador</option><option value="admin">Administrador</option></select><button className="iconBtn danger" title="Remover acesso" onClick={()=>data.removeFarmMember(m.id)}><Trash2 size={16}/></button></div></article>)}</div>{!members.length&&<Empty icon={UserCheck} title="Nenhum acesso liberado" text="Adicione o e-mail de uma pessoa que já tenha conta no app."/>}</section>
+  return <section className={`${embedded?'administrationSubpanel':'panel'} accessPanel`}>
+    <div className="administrationSectionTitle"><div><span className="eyebrow">Compartilhamento seguro</span><h3><UserCheck size={19}/> Acessos da fazenda</h3><p>Libere somente o nível de acesso necessário para cada pessoa.</p></div><span className="administrationCount">{members.length+1} pessoa(s)</span></div>
+    <form className="accessInvitePanel" onSubmit={add}>
+      <div className="accessInviteTop"><Field label="E-mail da pessoa"><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="nome@email.com" required/></Field><button className="btn primary" disabled={busy}><UserCheck size={17}/> {busy?'Liberando...':'Liberar acesso'}</button></div>
+      <div className="accessRoleCards" role="radiogroup" aria-label="Perfil de acesso">{roles.map(([value,label,desc])=><button type="button" role="radio" aria-checked={role===value} key={value} className={role===value?'active':''} onClick={()=>setRole(value)}><span>{value==='admin'?<ShieldCheck size={18}/>:<UserCheck size={18}/>}</span><b>{label}</b><small>{desc}</small></button>)}</div>
+    </form>
+    <div className="accessPeopleHeader"><div><span className="eyebrow">Equipe autorizada</span><h3>Pessoas com acesso</h3></div><small>Perfis e permissões atuais</small></div>
+    <div className="accessPeopleGrid">
+      <article className="accessPersonCard owner"><span className="accessPersonIcon"><ShieldCheck size={19}/></span><div><b>Proprietário</b><span>Controle total da fazenda e dos acessos liberados.</span></div><AccessBadge access={{role:'owner',label:'Proprietário'}}/></article>
+      {members.map(m=><article className="accessPersonCard" key={m.id}><span className="accessPersonIcon"><UserCheck size={18}/></span><div><b>{m.profiles?.nome||m.profiles?.email||'Usuário autorizado'}</b><span>{m.profiles?.email||m.user_id}</span></div><div className="accessPersonActions"><select aria-label={`Perfil de ${m.profiles?.nome||m.profiles?.email||'usuário autorizado'}`} value={m.role} onChange={e=>data.updateFarmMember(m,e.target.value)}><option value="viewer">Visualizador</option><option value="admin">Administrador</option></select><button type="button" className="iconBtn danger" aria-label={`Remover acesso de ${m.profiles?.nome||m.profiles?.email||'usuário autorizado'}`} title="Remover acesso" onClick={()=>data.removeFarmMember(m.id)}><Trash2 size={16}/></button></div></article>)}
+    </div>
+    {!members.length&&<Empty icon={UserCheck} title="Nenhum acesso liberado" text="Adicione o e-mail de uma pessoa que já tenha conta no app."/>}
+  </section>
 }
 function InfoCard({title,rows}){return <div className="infoCard"><h3>{title}</h3>{rows.map(([a,b])=><div className="infoRow" key={a}><span>{a}</span><b>{b||'-'}</b></div>)}</div>}
 function FarmDetailGroup({title,Icon,rows=[],children}){
