@@ -24,7 +24,7 @@ import genexLogo from '../LOGO_GENEX.png';
 import urusLogo from '../LOGO_URUS.png';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
-const APP_VERSION = '3.0.18';
+const APP_VERSION = '3.0.19';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
 const FARM_VIEW_KEY = 'cta_farm_view_mode';
@@ -2043,7 +2043,25 @@ const centralMatches = (farm, value) => {
   return (farm.central || '') === value;
 };
 const farmHasPending = (farm, data) => farmStatus(farm) === 'Com pendência' || collarHasPending(farm) || data.visitas.some(v => v.fazenda_id === farm.id && visitHasOpenPending(v));
-const latestFarmVisit = (farm, data) => data.visitas.filter(v => v.fazenda_id === farm.id).sort((a,b) => String(b.data_visita || '').localeCompare(String(a.data_visita || '')))[0];
+const recordTimestamp = (...values) => {
+  for(const value of values){
+    if(!value)continue;
+    const timestamp=new Date(value).getTime();
+    if(Number.isFinite(timestamp))return timestamp;
+  }
+  return 0;
+};
+const farmVisitTimestamp = visit => recordTimestamp(visit?.data_visita,visit?.finalizada_em,visit?.iniciada_em,visit?.updated_at,visit?.created_at);
+const latestFarmVisit = (farm, data) => data.visitas.filter(v => v.fazenda_id === farm.id).sort((a,b) => farmVisitTimestamp(b)-farmVisitTimestamp(a))[0];
+const farmListTimestamp = (farm, lastVisit) => (farmStatus(farm)===FARM_STATUS_DONE||Boolean(farm?.servico_fim_em))
+  ? farmVisitTimestamp(lastVisit)||recordTimestamp(farm.servico_fim_em,farm.servico_inicio_em,farm.created_at,farm.updated_at)
+  : recordTimestamp(farm.created_at,farm.updated_at);
+const paginationItems=(current,total)=>{
+  if(total<=7)return Array.from({length:total},(_,index)=>index+1);
+  if(current<=4)return [1,2,3,4,5,'end-ellipsis',total];
+  if(current>=total-3)return [1,'start-ellipsis',total-4,total-3,total-2,total-1,total];
+  return [1,'start-ellipsis',current-1,current,current+1,'end-ellipsis',total];
+};
 const FARM_VIEW_MODES = [
   ['cards','Cards',Layers],
   ['lista','Lista',ClipboardList]
@@ -2066,6 +2084,11 @@ function Fazendas({data,onOpen,onOpenMap}){
   useEffect(()=>{if(central!=='Todas'&&!visibleCentrais.includes(central))setCentral('Todas');},[central,visibleCentrais.join('|')]);
   const stateOptions=useMemo(()=>Array.from(new Set(data.fazendas.map(getFarmUF).filter(Boolean))).sort((a,b)=>(UF_NAMES[a]||a).localeCompare(UF_NAMES[b]||b,'pt-BR')),[data.fazendas]);
   const cityOptions=useMemo(()=>Array.from(new Set(data.fazendas.filter(f=>stateFilter==='Todos'||getFarmUF(f)===stateFilter).map(f=>String(f.cidade||'').trim()).filter(Boolean))).sort((a,b)=>a.localeCompare(b,'pt-BR')),[data.fazendas,stateFilter]);
+  const latestVisitByFarm=useMemo(()=>data.visitas.reduce((map,visit)=>{
+    const current=map.get(visit.fazenda_id);
+    if(!current||farmVisitTimestamp(visit)>farmVisitTimestamp(current))map.set(visit.fazenda_id,visit);
+    return map;
+  },new Map()),[data.visitas]);
   useEffect(()=>{if(cityFilter!=='Todas'&&!cityOptions.includes(cityFilter))setCityFilter('Todas')},[cityFilter,cityOptions.join('|')]);
   const farmEquipments = (farm) => data.equipamentos.filter(e=>e.fazenda_id===farm.id);
   const farms=data.fazendas.filter(f=>{
@@ -2073,14 +2096,14 @@ function Fazendas({data,onOpen,onOpenMap}){
     const matchesText=[f.nome,f.cidade,f.estado_uf,f.responsavel,f.central,f.regional_nome,f.veterinario_apoio,equipmentText].join(' ').toLowerCase().includes(q.toLowerCase());
     const currentStatus=farmStatus(f);
     const matchesStatus=status==='Todos'||currentStatus===status;
-    const lastVisit=latestFarmVisit(f,data), lastVisitDate=String(lastVisit?.data_visita||lastVisit?.created_at||'').slice(0,10);
+    const lastVisit=latestVisitByFarm.get(f.id), lastVisitDate=String(lastVisit?.data_visita||lastVisit?.created_at||'').slice(0,10);
     const matchesVisitFrom=!visitFrom||Boolean(lastVisitDate&&lastVisitDate>=visitFrom);
     const matchesVisitTo=!visitTo||Boolean(lastVisitDate&&lastVisitDate<=visitTo);
     const matchesState=stateFilter==='Todos'||getFarmUF(f)===stateFilter;
     const matchesCity=cityFilter==='Todas'||String(f.cidade||'').trim()===cityFilter;
     const collars=num(f.qtd_colares_prevista), matchesMin=collarsMin===''||collars>=Number(collarsMin), matchesMax=collarsMax===''||collars<=Number(collarsMax);
     return matchesText&&centralMatches(f,central)&&matchesStatus&&matchesVisitFrom&&matchesVisitTo&&matchesState&&matchesCity&&matchesMin&&matchesMax;
-  });
+  }).sort((a,b)=>farmListTimestamp(b,latestVisitByFarm.get(b.id))-farmListTimestamp(a,latestVisitByFarm.get(a.id))||String(a.nome||'').localeCompare(String(b.nome||''),'pt-BR'));
   const counts={
     naoIniciadas:data.fazendas.filter(f=>farmStatus(f)==='Não iniciada').length,
     andamento:data.fazendas.filter(f=>farmStatus(f)==='Em andamento').length,
@@ -2104,6 +2127,7 @@ function Fazendas({data,onOpen,onOpenMap}){
   const pageStart=(currentPage-1)*pageSize;
   const pageEnd=Math.min(pageStart+pageSize,farms.length);
   const pagedFarms=farms.slice(pageStart,pageEnd);
+  const pageItems=paginationItems(currentPage,totalPages);
   useEffect(()=>{if(page>totalPages)setPage(totalPages)},[page,totalPages]);
   const changePage=next=>{
     setPage(Math.max(1,Math.min(totalPages,next)));
@@ -2167,7 +2191,9 @@ function Fazendas({data,onOpen,onOpenMap}){
       {renderFarmResults()}
       {farms.length>pageSize&&<div className="farmPagination">
         <button type="button" className="btn light" disabled={currentPage===1} onClick={()=>changePage(currentPage-1)}><ChevronLeft size={17}/> Anterior</button>
-        <span>Página <b>{currentPage}</b> de <b>{totalPages}</b></span>
+        <div className="farmPaginationPages" role="navigation" aria-label="Páginas de fazendas">
+          {pageItems.map(item=>typeof item==='number'?<button type="button" key={item} className={item===currentPage?'active':''} aria-current={item===currentPage?'page':undefined} aria-label={`Ir para a página ${item}`} onClick={()=>changePage(item)}>{item}</button>:<span key={item} aria-hidden="true">…</span>)}
+        </div>
         <button type="button" className="btn light" disabled={currentPage===totalPages} onClick={()=>changePage(currentPage+1)}>Próxima <ChevronLeft className="rotate" size={17}/></button>
       </div>}
     </section>
