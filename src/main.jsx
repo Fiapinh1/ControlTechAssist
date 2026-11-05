@@ -24,7 +24,7 @@ import genexLogo from '../LOGO_GENEX.png';
 import urusLogo from '../LOGO_URUS.png';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
-const APP_VERSION = '3.0.17';
+const APP_VERSION = '3.0.18';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
 const FARM_VIEW_KEY = 'cta_farm_view_mode';
@@ -2373,6 +2373,10 @@ function FazendaModal({farm={},data={},onClose,onSave}){
     if(!String(form.nome||'').trim())errors.nome='Informe o nome da fazenda.';
     if(!canAccessCentralValue(form.central,data))errors.central='Seu usuário não tem acesso a esta central.';
     if(Object.keys(errors).length){setFieldErrors(errors);setTab('dados');notify('Revise os campos destacados.','error');return;}
+    const selectedLatitude=mapDraft?.[0]??form.latitude;
+    const selectedLongitude=mapDraft?.[1]??form.longitude;
+    const latitude=selectedLatitude!==''&&selectedLatitude!==null&&Number.isFinite(Number(selectedLatitude))?Number(selectedLatitude):null;
+    const longitude=selectedLongitude!==''&&selectedLongitude!==null&&Number.isFinite(Number(selectedLongitude))?Number(selectedLongitude):null;
     setSaving(true);
     let result;
     try{result=await onSave({
@@ -2383,8 +2387,9 @@ function FazendaModal({farm={},data={},onClose,onSave}){
       motivo_colares_restantes:form.motivo_colares_restantes,
       observacoes_colares:form.observacoes_colares,
       status:autoServiceStatus(farm.servico_inicio_em || toIsoOrNull(form.servico_inicio_em), farm.servico_fim_em || toIsoOrNull(form.servico_fim_em), form.status),
-      latitude:form.latitude!==''&&form.latitude!==null?Number(form.latitude):null,
-      longitude:form.longitude!==''&&form.longitude!==null?Number(form.longitude):null,
+      latitude,
+      longitude,
+      localizacao_origem:mapDraft?'mapa':form.localizacao_origem,
       servico_inicio_em:toIsoOrNull(form.servico_inicio_em),
       servico_fim_em:toIsoOrNull(form.servico_fim_em)
     });}catch(error){setSaving(false);notify(`Não foi possível salvar: ${error?.message||'erro inesperado'}`,'error');return;}
@@ -2426,13 +2431,13 @@ function FazendaModal({farm={},data={},onClose,onSave}){
       </section>
     </div>}
     {tab==='localizacao'&&<div className="editorPane locationPane farmLocationPane">
-      <div className="farmMapIntro"><span><MapPinned size={18}/></span><div><h3>Defina o ponto exato</h3><p>Pesquise para navegar ou toque no mapa. O ponto só muda após sua confirmação.</p></div></div>
+      <div className="farmMapIntro"><span><MapPinned size={18}/></span><div><h3>Defina o ponto exato</h3><p>Pesquise para navegar ou toque no mapa. Revise o ponto antes de salvar.</p></div></div>
       <SearchMapControl onSelect={(lat,lng,label)=>{const point=[Number(lat),Number(lng)];setMapDraft(point);setFocus(point);setMapSearchLabel(label||'Resultado localizado no mapa.')}} placeholder="Cole um link, coordenadas ou pesquise um local..."/>
       {mapSearchLabel&&<div className="mapSearchFocusNotice"><MapPin size={16}/><span>Ponto sugerido em <b>{mapSearchLabel}</b>. Confirme abaixo ou toque no mapa para corrigir.</span></div>}
       <div className="locationActions"><button type="button" className="btn light" onClick={useGPS} disabled={locating}>{locating?<RefreshCw className="spin" size={17}/>:<Navigation size={17}/>} {locating?'Obtendo...':'Usar minha localização'}</button>{hasLocation&&<span className="coordinateBadge"><LocateFixed size={15}/><span><small>Ponto salvo</small>{locationText}</span></span>}</div>
-      <div className="mapSelectionHint"><Info size={16}/><span>Toque em um local do mapa para criar uma sugestão. Depois revise e confirme abaixo.</span></div>
+      <div className="mapSelectionHint"><Info size={16}/><span>Toque em um local do mapa para criar uma sugestão. Confirme abaixo ou salve a fazenda diretamente.</span></div>
       <div className="editorMap farmLocationMap"><FarmLocationPicker farm={mapFarm} lat={mapDraft?.[0]??form.latitude} lng={mapDraft?.[1]??form.longitude} focus={focus} onPick={(lat,lng)=>{setMapDraft([Number(lat),Number(lng)]);setMapSearchLabel('')}}/></div>
-      {mapDraft&&<div className="mapDraftConfirm"><div><span>Novo ponto selecionado</span><b>{draftLocationText}</b><small>A localização salva ainda não foi alterada.</small></div><div><button type="button" className="btn light" onClick={()=>setMapDraft(null)}>Descartar</button><button type="button" className="btn primary" onClick={()=>{applyFarmLocation(mapDraft[0],mapDraft[1],'mapa');notify('Ponto confirmado. Salve a fazenda para concluir.')}}><Check size={17}/> Confirmar este ponto</button></div></div>}
+      {mapDraft&&<div className="mapDraftConfirm"><div><span>Novo ponto selecionado</span><b>{draftLocationText}</b><small>Este ponto será confirmado ao salvar a fazenda.</small></div><div><button type="button" className="btn light" onClick={()=>setMapDraft(null)}>Descartar</button><button type="button" className="btn primary" onClick={()=>{applyFarmLocation(mapDraft[0],mapDraft[1],'mapa');notify('Ponto confirmado. Salve a fazenda para concluir.')}}><Check size={17}/> Confirmar este ponto</button></div></div>}
     </div>}
     <div className="stickyFormActions"><button type="button" className="btn light" onClick={requestClose} disabled={saving}>Cancelar</button><button className="btn primary" disabled={saving}>{saving?<RefreshCw className="spin" size={18}/>:<Save size={18}/>} {saving?'Salvando...':'Salvar fazenda'}</button></div>
   </form>{confirmClose&&<div className="confirmOverlay farmUnsavedOverlay"><div className="confirmCard"><div className="confirmIcon"><AlertTriangle/></div><h3>Descartar alterações?</h3><p>As informações preenchidas neste cadastro ainda não foram salvas.</p><div className="confirmActions"><button type="button" className="btn light" onClick={()=>setConfirmClose(false)}>Continuar preenchendo</button><button type="button" className="btn warning" onClick={onClose}>Descartar alterações</button></div></div></div>}</Modal>}
