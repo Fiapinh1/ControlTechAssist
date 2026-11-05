@@ -3090,6 +3090,22 @@ body,
   color: #16a34a;
 }
 
+.mapNeighborHint span b {
+  display: block;
+  margin-bottom: 2px;
+  color: currentColor;
+}
+
+.manualLocationHint {
+  border-color: #fed7aa;
+  color: #9a3412;
+  background: #fff7ed;
+}
+
+.manualLocationHint svg {
+  color: #ea580c;
+}
+
 .locationDangerButton {
   border-color: #fecaca !important;
   background: #fff7f7 !important;

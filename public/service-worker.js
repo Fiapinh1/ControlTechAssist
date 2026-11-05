@@ -1,4 +1,4 @@
-const CACHE_NAME = 'controltech-assist-v1-8';
+const CACHE_NAME = 'controltech-assist-v1-9';
 const CORE_ASSETS = [
   '/',
   '/index.html',
