@@ -24,7 +24,7 @@ import genexLogo from '../LOGO_GENEX.png';
 import urusLogo from '../LOGO_URUS.png';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
-const APP_VERSION = '3.0.14';
+const APP_VERSION = '3.0.16';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
 const FARM_VIEW_KEY = 'cta_farm_view_mode';
@@ -1651,7 +1651,8 @@ function App(){
   const activeTheme = view === 'fazenda' && selectedFarm ? brandThemeKey(selectedFarm.central) : brandThemeKey(data.empresaAcesso);
   return <div className={`app theme-${activeTheme}`}><NotificationCenter/><Sidebar view={view} setView={setMainView} user={user} cloud={data.cloud} localMode={localMode} onExitLocal={exitLocalMode} isAdmin={showGerencial}/><main className="main">
     {(!data.cloud || localMode) && <SystemStatus data={data} localMode={localMode} onDisableLocal={()=>{localStorage.removeItem(LOCAL_MODE_KEY); setLocalMode(false)}}/>}
-    {view==='fazendas' && <Fazendas data={data} onOpen={goFarm}/>}
+    {view==='fazendas' && <Fazendas data={data} onOpen={goFarm} onOpenMap={()=>setMainView('mapa-atuacao')}/>}
+    {view==='mapa-atuacao' && <MapaAtuacaoPage data={data} onOpen={goFarm} onBack={()=>setMainView('fazendas')}/>}
     {view==='suporte' && <SuporteTecnico data={data}/>}
     {(view==='produtividade'||view==='relatorios') && <Produtividade data={data} onOpen={goFarm} initialSection={view==='relatorios'?'relatorios':'visao'}/>}
     {view==='gerencial' && <GerencialUsuarios data={data}/>}
@@ -1819,6 +1820,7 @@ function SystemStatus({data, localMode, onDisableLocal}){
   return <section className={`systemStatus ${cls}`}><button className="systemSummary" onClick={()=>setOpen(!open)}><Database size={17}/><b>{statusText}</b><span>v{APP_VERSION}</span>{s.lastSync&&<small>Última sincronização: {s.lastSync}</small>}</button><button className="linkBtn" onClick={async()=>{await data.testConnection();}}>Testar Supabase</button><button className="linkBtn" onClick={forceRefreshApp}>Atualizar app/cache</button>{localMode&&<button className="linkBtn dangerText" onClick={onDisableLocal}>Sair do modo local</button>}{open&&<div className="systemDetails"><p><b>URL configurada:</b> {supabaseUrl ? 'sim' : 'não'}</p><p><b>Chave configurada:</b> {supabaseKey ? 'sim' : 'não'}</p><p><b>Usuário logado:</b> {supabase && !localMode ? 'sim' : localMode ? 'modo local' : 'não'}</p><p><b>Modo atual:</b> {data.cloud ? 'Supabase' : 'Local'}</p>{s.lastError&&<p><b>Último aviso:</b> {s.lastError}</p>}</div>}</section>
 }
 
+function MapAccessButton({active=false,onClick,className=''}){return <button type="button" className={`mapAccessButton ${active?'active':''} ${className}`} onClick={onClick} aria-label="Abrir mapa de atuação" title="Mapa de atuação"><span className="mapAccessGlyph"><Globe2 size={23}/><MapPin size={11}/></span></button>}
 function Sidebar({view,setView,user,cloud,localMode,onExitLocal,isAdmin=false}){const items=[['fazendas',MapPinned,'Fazendas'],['produtividade',Gauge,'Produtividade'],['suporte',LifeBuoy,'Suporte'],isAdmin&&['gerencial',ShieldCheck,'Gerencial']].filter(Boolean);return <aside className="sidebar"><Logo/><nav>{items.map(([id,Icon,label])=><button key={id} className={(id==='produtividade'?['produtividade','relatorios'].includes(view):view===id)?'active':''} onClick={()=>setView(id)}><Icon size={20}/>{label}</button>)}<a className="appSwitchLink" href={ROUTINE_ASSIST_URL} target="_blank" rel="noreferrer"><img src="/routine-assist-logo.png" alt=""/><span><b>Routine Assist</b><small>Abrir demandas</small></span></a></nav><div className="sideFoot"><span className={cloud?'cloud on':'cloud'}><Database size={15}/>{cloud?'Supabase ativo':'Modo local'}</span>{localMode&&<button className="logout" onClick={onExitLocal}><Database size={16}/> Voltar ao Supabase</button>}{user&&<button className="logout" onClick={()=>supabase.auth.signOut()}><LogOut size={16}/> Sair</button>}</div></aside>}
 function BottomNav({view,setView,user,localMode,onLogout,isAdmin=false}){const [open,setOpen]=useState(false);const items=[['fazendas',Home,'Início'],['produtividade',BarChart3,'Produtividade'],['suporte',LifeBuoy,'Suporte']];const go=id=>{setView(id);setOpen(false)};const moreActive=view==='gerencial';return <>{open&&<><button className="bottomMoreBackdrop" aria-label="Fechar menu" onClick={()=>setOpen(false)}/><div className="bottomMoreSheet"><div className="bottomMoreTitle"><span>Mais opções</span><button type="button" aria-label="Fechar menu" onClick={()=>setOpen(false)}><X size={16}/></button></div>{isAdmin&&<button className={view==='gerencial'?'active':''} onClick={()=>go('gerencial')}><ShieldCheck size={18}/><span>Admin</span></button>}<a className="appExternalNav sheet" href={ROUTINE_ASSIST_URL} target="_blank" rel="noreferrer" aria-label="Abrir Routine Assist"><img src="/routine-assist-logo.png" alt=""/><span>Routine Assist</span></a>{(user||localMode)&&<button className="mobileLogout" onClick={()=>{setOpen(false);onLogout();}}><LogOut size={18}/><span>Sair</span></button>}</div></> }<nav className="bottomNav" style={{gridTemplateColumns:'repeat(4,1fr)'}}>{items.map(([id,Icon,label])=><button key={id} className={(id==='produtividade'?['produtividade','relatorios'].includes(view):view===id)?'active':''} onClick={()=>go(id)}><Icon size={20}/><span>{label}</span></button>)}<button className={open||moreActive?'active':''} onClick={()=>setOpen(v=>!v)}><Layers size={20}/><span>Mais</span></button></nav></>}
 function FarmBottomNav({farm,tabs,tab,setTab,onBack,access,serviceActive,serviceDone,onStart,onFinish,onEdit,onNewVisit}){const [open,setOpen]=useState(false);const mainIds=['resumo','mapa','visitas','relatorio'];const mainTabs=tabs.filter(([id])=>mainIds.includes(id));const moreTabs=tabs.filter(([id])=>!mainIds.includes(id));const shortLabel=(id,label)=>id==='mapa'?'Instalação':id==='relatorio'?'Rel.':label;const go=id=>{setTab(id);setOpen(false)};return <><nav className="farmBottomNav"><button onClick={onBack}><Home size={20}/><span>Início</span></button>{mainTabs.map(([id,label,Icon])=><button key={id} className={tab===id?'active':''} onClick={()=>go(id)}><Icon size={20}/><span>{shortLabel(id,label)}</span></button>)}<button className={open?'active':''} onClick={()=>setOpen(v=>!v)}><Layers size={20}/><span>Mais</span></button></nav>{open&&<><button className="farmMoreBackdrop" aria-label="Fechar menu da fazenda" onClick={()=>setOpen(false)}/><div className="farmMoreSheet"><div className="farmMoreTitle"><span>Mais opções</span><button type="button" aria-label="Fechar menu" onClick={()=>setOpen(false)}><X size={16}/></button></div><div className="farmMoreGrid">{moreTabs.map(([id,label,Icon])=><button key={id} className={tab===id?'active':''} onClick={()=>go(id)}><Icon size={18}/><span>{label}</span></button>)}</div></div></>}</>}
@@ -1848,11 +1850,11 @@ function CoverageMapController({points,trigger}){
   const map=useMapEvents({});
   useEffect(()=>{
     const timer=setTimeout(()=>{
-      map.invalidateSize();
+      map.invalidateSize({animate:false,pan:false});
       const valid=points.filter(point=>Number.isFinite(point?.[0])&&Number.isFinite(point?.[1]));
-      if(!valid.length){map.setView([-15.8,-47.9],4);return;}
-      if(valid.length===1){map.setView(valid[0],7);return;}
-      map.fitBounds(L.latLngBounds(valid),{padding:[34,34],maxZoom:6});
+      if(!valid.length){map.setView([-15.8,-47.9],4,{animate:false});return;}
+      if(valid.length===1){map.setView(valid[0],7,{animate:false});return;}
+      map.fitBounds(L.latLngBounds(valid),{padding:[34,34],maxZoom:6,animate:false});
     },180);
     return()=>clearTimeout(timer);
   },[map,trigger,points.length]);
@@ -1970,6 +1972,16 @@ function BrasilAtuacaoMap({fazendas,onOpen,centrais=CENTRAIS,visitas=[],compact=
   </section>
 }
 
+function MapaAtuacaoPage({data,onOpen,onBack}){
+  return <div className="coverageStandalonePage">
+    <header className="coverageStandaloneHeader">
+      <button type="button" className="coverageBackButton" onClick={onBack}><ChevronLeft size={19}/> Voltar para fazendas</button>
+      <div><span className="eyebrow">Presença técnica</span><h1>Mapa de atuação</h1><p>Consulte fazendas, atendimentos e a distribuição das centrais por região.</p></div>
+    </header>
+    <BrasilAtuacaoMap fazendas={data.fazendas} visitas={data.visitas} onOpen={onOpen} centrais={allowedCentrais(data)}/>
+  </div>
+}
+
 function centralTone(central) {
   const text = String(central || '').toLowerCase();
   if (text.includes('alta')) return 'alta';
@@ -2038,7 +2050,7 @@ const FARM_VIEW_MODES = [
 ];
 const FARM_PAGE_SIZES = { cards: 9, lista: 10 };
 
-function Fazendas({data,onOpen}){
+function Fazendas({data,onOpen,onOpenMap}){
   const initialFilters=useMemo(readFarmFilters,[]);
   const [q,setQ]=useState(initialFilters.q),[modal,setModal]=useState(false),[central,setCentral]=useState(initialFilters.central),[status,setStatus]=useState(initialFilters.status),[visitFrom,setVisitFrom]=useState(initialFilters.visitFrom),[visitTo,setVisitTo]=useState(initialFilters.visitTo),[stateFilter,setStateFilter]=useState(initialFilters.state),[cityFilter,setCityFilter]=useState(initialFilters.city),[collarsMin,setCollarsMin]=useState(initialFilters.collarsMin),[collarsMax,setCollarsMax]=useState(initialFilters.collarsMax),[filtersOpen,setFiltersOpen]=useState(false),[settingsOpen,setSettingsOpen]=useState(false);
   const [page,setPage]=useState(1);
@@ -2114,9 +2126,10 @@ function Fazendas({data,onOpen}){
           <button type="button" className={status===FARM_STATUS_DONE?'active':''} aria-pressed={status===FARM_STATUS_DONE} onClick={()=>setStatus(FARM_STATUS_DONE)}><small>Concluídas</small><b>{counts.finalizadas}</b><em>finalizadas</em></button>
         </div>
       </div>
-      <div className="farmsHeroVisual" aria-hidden="true">
+      <div className="farmsHeroVisual">
+        <MapAccessButton className="farmsHeroMapButton" onClick={onOpenMap}/>
         <div className="fieldRadar"><BrandLogoMark brand={data.empresaAcesso} className="heroBrandLogo"/><i /><i /></div>
-        <div className="fieldLines"><span /><span /><span /></div>
+        <div className="fieldLines" aria-hidden="true"><span /><span /><span /></div>
       </div>
       <div className="farmsHeroActions">
         <button type="button" className="farmsUserGreeting" onClick={()=>setSettingsOpen(true)} title="Configurações do perfil">
@@ -2146,8 +2159,6 @@ function Fazendas({data,onOpen}){
       <div>{activeFilterLabels.map(label=><b key={label}>{label}</b>)}</div>
       <button type="button" onClick={resetFilters}>Limpar</button>
     </div>}
-
-    <div className="fieldMapSecondary farmsMapPreview"><BrasilAtuacaoMap compact fazendas={data.fazendas} visitas={data.visitas} onOpen={onOpen} centrais={visibleCentrais}/></div>
 
     <section className="farmResultsPanel" ref={resultsRef}>
       <div className="farmResultsHeader">
