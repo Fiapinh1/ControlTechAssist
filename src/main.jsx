@@ -7,7 +7,7 @@ import 'leaflet/dist/leaflet.css';
 import {
   Home, MapPinned, ClipboardCheck, Stethoscope, FileText, Plus, Search, Save, Pencil,
   Trash2, Cpu, RadioTower, Map as MapIcon, CalendarDays, BarChart3, LogOut, User,
-  Navigation, Satellite, Layers, CheckCircle2, AlertTriangle, ClipboardList, Building2,
+  Navigation, Layers, CheckCircle2, AlertTriangle, ClipboardList, Building2,
   Phone, MapPin, Hash, BadgeCheck, Wrench, X, Download, Database, Wifi, BookOpen,
   ChevronLeft, Sparkles, Route, HelpCircle, ShieldCheck, Tags, Ruler, Send, Target,
   ClipboardX, CircleAlert, Cable, Zap, Settings, Clock, Check, PlayCircle, Info,
@@ -24,7 +24,7 @@ import genexLogo from '../LOGO_GENEX.png';
 import urusLogo from '../LOGO_URUS.png';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
-const APP_VERSION = '3.0.13';
+const APP_VERSION = '3.0.14';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
 const FARM_VIEW_KEY = 'cta_farm_view_mode';
@@ -2416,8 +2416,8 @@ function FazendaModal({farm={},data={},onClose,onSave}){
     </div>}
     {tab==='localizacao'&&<div className="editorPane locationPane farmLocationPane">
       <div className="farmMapIntro"><span><MapPinned size={18}/></span><div><h3>Defina o ponto exato</h3><p>Pesquise para navegar ou toque no mapa. O ponto só muda após sua confirmação.</p></div></div>
-      <SearchMapControl onSelect={(lat,lng,label)=>{setMapDraft(null);setFocus([Number(lat),Number(lng)]);setMapSearchLabel(label||'Resultado localizado no mapa.')}} placeholder="Pesquisar cidade, estrada ou endereço..."/>
-      {mapSearchLabel&&<div className="mapSearchFocusNotice"><Search size={16}/><span>Mapa centralizado em <b>{mapSearchLabel}</b>. Toque no mapa se quiser selecionar um ponto.</span></div>}
+      <SearchMapControl onSelect={(lat,lng,label)=>{const point=[Number(lat),Number(lng)];setMapDraft(point);setFocus(point);setMapSearchLabel(label||'Resultado localizado no mapa.')}} placeholder="Cole um link, coordenadas ou pesquise um local..."/>
+      {mapSearchLabel&&<div className="mapSearchFocusNotice"><MapPin size={16}/><span>Ponto sugerido em <b>{mapSearchLabel}</b>. Confirme abaixo ou toque no mapa para corrigir.</span></div>}
       <div className="locationActions"><button type="button" className="btn light" onClick={useGPS} disabled={locating}>{locating?<RefreshCw className="spin" size={17}/>:<Navigation size={17}/>} {locating?'Obtendo...':'Usar minha localização'}</button>{hasLocation&&<span className="coordinateBadge"><LocateFixed size={15}/><span><small>Ponto salvo</small>{locationText}</span></span>}</div>
       <div className="mapSelectionHint"><Info size={16}/><span>Toque em um local do mapa para criar uma sugestão. Depois revise e confirme abaixo.</span></div>
       <div className="editorMap farmLocationMap"><FarmLocationPicker farm={mapFarm} lat={mapDraft?.[0]??form.latitude} lng={mapDraft?.[1]??form.longitude} focus={focus} onPick={(lat,lng)=>{setMapDraft([Number(lat),Number(lng)]);setMapSearchLabel('')}}/></div>
@@ -3084,14 +3084,58 @@ function MapPicker({farm,lat,lng,onPick,radius=0,equip={},focus,others=[]}){
     <Clicker/>
   </MapContainer>
 }
+function validMapCoordinates(lat,lng){const latitude=Number(lat),longitude=Number(lng);return Number.isFinite(latitude)&&Number.isFinite(longitude)&&Math.abs(latitude)<=90&&Math.abs(longitude)<=180?[latitude,longitude]:null;}
+function sharedMapUrl(value){const match=String(value||'').match(/https?:\/\/[^\s<>"']+/i);return match?.[0]?.replace(/[),.;\]]+$/,'')||'';}
+function isGoogleMapUrl(value){try{const host=new URL(value).hostname.toLowerCase();return host==='maps.app.goo.gl'||host==='goo.gl'||host==='maps.google.com'||host==='google.com'||host==='www.google.com';}catch{return false;}}
+function coordinatesFromMapText(value){
+  let text=String(value||'').trim().replace(/−/g,'-');
+  try{text=decodeURIComponent(text);}catch{/* Keep the pasted text as received. */}
+  const urlPatterns=[/@(-?\d{1,2}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/i,/\/maps\/(?:place|search)\/(-?\d{1,2}(?:\.\d+)?),(-?\d{1,3}(?:\.\d+)?)/i,/[?&](?:query|q|ll|destination)=(-?\d{1,2}(?:\.\d+)?)[,%20\s]+(-?\d{1,3}(?:\.\d+)?)/i,/!3d(-?\d{1,2}(?:\.\d+)?).*?!4d(-?\d{1,3}(?:\.\d+)?)/i];
+  for(const pattern of urlPatterns){const match=text.match(pattern),point=match&&validMapCoordinates(match[1],match[2]);if(point)return point;}
+  const dms=text.match(/(\d{1,2})\s*[°º]\s*(\d{1,2})\s*['’′]\s*(\d{1,2}(?:[.,]\d+)?)\s*(?:["”″])?\s*([NS])\s*[,;/\s]+\s*(\d{1,3})\s*[°º]\s*(\d{1,2})\s*['’′]\s*(\d{1,2}(?:[.,]\d+)?)\s*(?:["”″])?\s*([EWOL])/i);
+  if(dms){const decimal=(degrees,minutes,seconds,direction)=>{const result=Number(degrees)+(Number(minutes)/60)+(Number(String(seconds).replace(',','.'))/3600);return /[SWO]/i.test(direction)?-result:result;};return validMapCoordinates(decimal(dms[1],dms[2],dms[3],dms[4]),decimal(dms[5],dms[6],dms[7],dms[8]));}
+  const brazilian=text.match(/^\s*(-?\d{1,2},\d+)\s*;\s*(-?\d{1,3},\d+)\s*$/);
+  if(brazilian)return validMapCoordinates(brazilian[1].replace(',','.'),brazilian[2].replace(',','.'));
+  const decimal=text.match(/^\s*(-?\d{1,2}(?:\.\d+)?)\s*[,;\s]\s*(-?\d{1,3}(?:\.\d+)?)\s*$/);
+  return decimal?validMapCoordinates(decimal[1],decimal[2]):null;
+}
+async function mapCoordinateLabel(lat,lng){
+  try{const response=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lng)}&zoom=16&addressdetails=1`);if(!response.ok)return '';const result=await response.json();return result.display_name||'';}catch{return '';}
+}
 function SearchMapControl({onSelect,placeholder='Pesquisar cidade, endereço ou local...'}){
-  const [q,setQ]=useState(''),[results,setResults]=useState([]),[busy,setBusy]=useState(false),[err,setErr]=useState('');
-  const search=async()=>{if(!q.trim())return;setBusy(true);setErr('');try{const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&countrycodes=br&limit=6&addressdetails=1&q=${encodeURIComponent(q)}`);if(!r.ok)throw new Error('Falha na busca');const j=await r.json();setResults(j);}catch(e){setErr('Não foi possível pesquisar agora. Você ainda pode navegar manualmente no mapa.');}finally{setBusy(false)}};
-  return <div className="mapSearch"><div className="mapSearchBar"><Search size={18}/><input value={q} onChange={e=>setQ(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();search();}}} placeholder={placeholder}/><button type="button" onClick={search} disabled={busy}>{busy?'Buscando...':'Buscar'}</button></div>{results.length>0&&<div className="mapSearchResults">{results.map(r=><button type="button" key={r.place_id} onClick={()=>{onSelect(Number(r.lat),Number(r.lon),r.display_name);setResults([]);setQ(r.display_name)}}><MapPin size={15}/><span>{r.display_name}</span></button>)}</div>}{err&&<small className="sourceText">{err}</small>}</div>
+  const [q,setQ]=useState(''),[results,setResults]=useState([]),[busy,setBusy]=useState(false),[busyLabel,setBusyLabel]=useState('Buscando...'),[err,setErr]=useState('');
+  const locatePoint=async(point,fallback='Coordenadas localizadas')=>{const label=await mapCoordinateLabel(point[0],point[1]);const description=label||`${fallback}: ${point[0].toFixed(6)}, ${point[1].toFixed(6)}`;setQ(description);setResults([]);onSelect(point[0],point[1],description);};
+  const search=async(rawValue=q)=>{
+    const value=String(rawValue||'').trim();if(!value||busy)return;
+    setBusy(true);setBusyLabel('Buscando...');setErr('');setResults([]);
+    try{
+      const directPoint=coordinatesFromMapText(value);
+      if(directPoint){setBusyLabel('Localizando...');await locatePoint(directPoint);return;}
+      const link=sharedMapUrl(value);
+      if(link){
+        if(!isGoogleMapUrl(link))throw new Error('Cole um link compartilhado pelo Google Maps.');
+        setBusyLabel('Lendo link...');
+        const response=await fetch(`/api/resolve-map-link?url=${encodeURIComponent(link)}`);
+        const payload=await response.json().catch(()=>({}));
+        if(!response.ok)throw new Error(payload.error||'Não foi possível ler esse link do Google Maps.');
+        const point=validMapCoordinates(payload.lat,payload.lng);
+        if(!point)throw new Error('O link não possui coordenadas reconhecíveis.');
+        await locatePoint(point,'Local do Google Maps');return;
+      }
+      const response=await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=br&limit=8&addressdetails=1&namedetails=1&q=${encodeURIComponent(value)}`);
+      if(!response.ok)throw new Error('Falha na busca de endereço.');
+      const list=await response.json();setResults(Array.isArray(list)?list:[]);
+      if(!list?.length)setErr('Nenhum local encontrado. Tente cidade e estado, coordenadas ou cole o link do Google Maps.');
+    }catch(error){setErr(error?.message||'Não foi possível pesquisar agora. Você ainda pode navegar manualmente no mapa.');}
+    finally{setBusy(false);}
+  };
+  const paste=e=>{const value=e.clipboardData?.getData('text')||'';if(!sharedMapUrl(value)&&!coordinatesFromMapText(value))return;e.preventDefault();setQ(value.trim());queueMicrotask(()=>search(value));};
+  const choose=result=>{const point=validMapCoordinates(result.lat,result.lon);if(!point)return;setResults([]);setQ(result.display_name);onSelect(point[0],point[1],result.display_name);};
+  return <div className="mapSearch"><div className="mapSearchBar"><Search size={18}/><input value={q} onChange={e=>{setQ(e.target.value);setErr('');}} onPaste={paste} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();search();}}} placeholder={placeholder} aria-label="Buscar localização no mapa" autoCapitalize="none" autoCorrect="off" spellCheck="false"/><button type="button" onClick={()=>search()} disabled={busy}>{busy?busyLabel:'Buscar'}</button></div><div className="mapSearchHelp"><Link2 size={15}/><span><b>Mais fácil:</b> cole o link recebido pelo WhatsApp. Também aceita coordenadas decimais ou em graus.</span></div>{results.length>0&&<div className="mapSearchResults">{results.map(result=><button type="button" key={result.place_id} onClick={()=>choose(result)}><MapPin size={16}/><span><b>{result.namedetails?.name||result.name||result.display_name?.split(',')[0]}</b><small>{result.display_name}</small></span></button>)}</div>}{err&&<div className="mapSearchError"><AlertTriangle size={15}/><span>{err}</span></div>}</div>;
 }
 function RecenterMap({position,zoom=17}){const map=useMapEvents({});useEffect(()=>{if(position?.[0]&&position?.[1])map.flyTo(position,zoom,{duration:.8})},[position?.[0],position?.[1],zoom]);return null;}
 function FitBounds({points,trigger,animated=true}){const map=useMapEvents({});useEffect(()=>{const valid=points.filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));if(!valid.length)return;if(valid.length===1){if(animated)map.flyTo(valid[0],18,{duration:.6});else map.setView(valid[0],18,{animate:false});return;}map.fitBounds(L.latLngBounds(valid),{padding:[42,42],maxZoom:18,animate:animated});},[trigger,points.length,animated]);return null;}
-function HybridLayers({layer}){const imagery='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';if(layer==='mapa')return <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="OpenStreetMap"/>;return <><TileLayer url={imagery} attribution="Esri"/>{layer==='hibrido'&&<TileLayer url="https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png" attribution="CARTO"/>}</>}
+function HybridLayers({layer}){const imagery='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',transport='https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}',places='https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}';if(layer==='mapa')return <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="OpenStreetMap"/>;return <><TileLayer url={imagery} attribution="Esri"/>{layer==='hibrido'&&<><TileLayer url={transport} attribution="Esri"/><TileLayer url={places} attribution="Esri"/></>}</>}
 function TechnicalMapClick({mode,onPick}){useMapEvents({click(e){if(mode!=='navigate')onPick(e.latlng)}});return null;}
 function MapaFazenda({farm,data,canEdit=false,onEditEquip,embedded=false}){
   const farmEquipamentos=data.equipamentos.filter(e=>e.fazenda_id===farm.id);
