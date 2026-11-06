@@ -12330,6 +12330,265 @@ button.execCard.execMapCard:hover {
   background: #ecfdf5;
 }
 
+.adminSectionTabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: #f1f5f9;
+}
+
+.adminSectionTabs button {
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 15px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: transparent;
+  color: #64748b;
+  text-align: left;
+}
+
+.adminSectionTabs button.active {
+  border-color: #dbe4ef;
+  background: #fff;
+  color: var(--brand, #0f766e);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, .07);
+}
+
+.adminSectionTabs span,
+.adminSectionTabs b,
+.adminSectionTabs small {
+  display: block;
+}
+
+.adminSectionTabs b {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.adminSectionTabs small {
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.accessGroupsPage {
+  display: grid;
+  gap: 16px;
+}
+
+.adminKpis.groupKpis {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.accessGroupComposer,
+.accessGroupDirectory {
+  margin: 0;
+}
+
+.accessGroupForm {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.15fr) minmax(210px, 1fr) minmax(160px, .7fr) minmax(220px, 1.2fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.accessGroupForm .field {
+  min-width: 0;
+}
+
+.accessGroupForm .btn {
+  min-height: 46px;
+  white-space: nowrap;
+}
+
+.accessGroupDirectory > .sectionTitle {
+  align-items: flex-end;
+}
+
+.groupSearch {
+  width: min(340px, 100%);
+}
+
+.accessGroupGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.accessGroupCard {
+  min-width: 0;
+  border: 1px solid #dbe4ef;
+  border-radius: 20px;
+  padding: 15px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, .045);
+}
+
+.accessGroupCard.inactive {
+  border-color: #fed7aa;
+  background: #fffaf5;
+}
+
+.accessGroupCard > header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 11px;
+  align-items: center;
+}
+
+.accessGroupCard > header > div,
+.accessGroupCard > header b,
+.accessGroupCard > header small {
+  min-width: 0;
+  display: block;
+}
+
+.accessGroupCard > header b {
+  color: #0f172a;
+  font-size: 17px;
+}
+
+.accessGroupCard > header small {
+  margin-top: 3px;
+  color: #64748b;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.accessGroupIcon,
+.accessGroupMemberAvatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--brand, #0f766e);
+  background: var(--brand3, #ecfdf5);
+}
+
+.accessGroupIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 15px;
+}
+
+.accessGroupMeta {
+  margin-top: 13px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.accessGroupMeta > span:not(.centralPill) {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 6px 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #475569;
+  background: #f8fafc;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.accessGroupCard > p {
+  margin: 12px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.accessGroupMembers {
+  margin-top: 13px;
+  display: grid;
+  gap: 7px;
+}
+
+.accessGroupMembers > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 9px;
+  background: #f8fafc;
+}
+
+.accessGroupMemberAvatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+}
+
+.accessGroupMembers b,
+.accessGroupMembers small {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.accessGroupMembers b {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.accessGroupMembers small {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.accessGroupAdd {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.accessGroupAdd select {
+  min-width: 0;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 0 10px;
+  background: #fff;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.accessGroupCard > footer {
+  margin-top: 13px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.accessGroupCard > footer .btn {
+  min-height: 40px;
+  padding: 9px 12px;
+  border-radius: 12px;
+}
+
+.accessPersonCard.group {
+  border-color: var(--brand-line, #99f6e4);
+  background: color-mix(in srgb, var(--brand3, #ecfdf5) 55%, #fff);
+}
+
+.groupAccessHeader {
+  margin-top: 18px;
+}
+
 @media (max-width: 1050px) {
   .adminFilters {
     grid-template-columns: 1fr 1fr;
@@ -12355,6 +12614,14 @@ button.execCard.execMapCard:hover {
   .adminUserStatus,
   .adminUserActions {
     justify-content: flex-start;
+  }
+
+  .accessGroupForm {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .accessGroupForm .btn {
+    width: 100%;
   }
 }
 
@@ -12389,6 +12656,35 @@ button.execCard.execMapCard:hover {
   .adminUserActions .btn,
   .adminLockedPanel .btn,
   .adminUsersPage .pageHead .btn {
+    width: 100%;
+  }
+
+  .adminSectionTabs,
+  .adminKpis.groupKpis,
+  .accessGroupForm,
+  .accessGroupGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .adminSectionTabs button {
+    justify-content: flex-start;
+  }
+
+  .accessGroupDirectory > .sectionTitle,
+  .accessGroupCard > header {
+    align-items: flex-start;
+  }
+
+  .groupSearch {
+    width: 100%;
+  }
+
+  .accessGroupCard > footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .accessGroupCard > footer .btn {
     width: 100%;
   }
 }

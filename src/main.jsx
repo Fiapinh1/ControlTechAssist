@@ -13,7 +13,7 @@ import {
   ClipboardX, CircleAlert, Cable, Zap, Settings, Clock, Check, PlayCircle, Info,
   ClipboardPenLine, LifeBuoy, FileDown, Antenna, Gauge, ScanLine, Globe2, Filter, LocateFixed, Printer, Share2,
   BrickWall, Trees, Mountain, Warehouse, Signal, SignalLow, SignalZero, CloudOff, RefreshCw, Copy, UserCheck,
-  Image as ImageIcon, Camera, Upload, Eye, EyeOff, Link2, Milk, Mail, Maximize2, Minimize2, EllipsisVertical
+  Image as ImageIcon, Camera, Upload, Eye, EyeOff, Link2, Milk, Mail, Maximize2, Minimize2, EllipsisVertical, UsersRound
 } from 'lucide-react';
 import './styles.css';
 import appLogo from './assets/brand/controltech-logo.png';
@@ -24,7 +24,7 @@ import genexLogo from '../LOGO_GENEX.png';
 import urusLogo from '../LOGO_URUS.png';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
-const APP_VERSION = '3.0.20';
+const APP_VERSION = '3.0.21';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
 const FARM_VIEW_KEY = 'cta_farm_view_mode';
@@ -848,6 +848,8 @@ const normalizeEmpresaAcesso = value => EMPRESA_ACESSO.includes(value) ? value :
 const APP_ROLES = ['user', 'admin', 'super_admin'];
 const APP_ROLE_LABELS = {user:'Usuário',admin:'Administrador',super_admin:'Super admin'};
 const normalizeAppRole = value => APP_ROLES.includes(value) ? value : 'user';
+const normalizeGroupIdentifier = value => String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,'-');
+const validGroupIdentifier = value => /^[a-z0-9][a-z0-9._@-]{2,79}$/.test(normalizeGroupIdentifier(value));
 const normalizeProfile = profile => profile ? ({
   ...profile,
   empresa_acesso: normalizeEmpresaAcesso(profile.empresa_acesso),
@@ -1031,7 +1033,7 @@ const autoServiceStatus = (inicio, fim, fallback = 'Não iniciada') => {
 
 function useData(user, localMode=false){
   const [fazendas,setFazendas]=useState([]), [equipamentos,setEquipamentos]=useState([]), [visitas,setVisitas]=useState([]), [checklists,setChecklists]=useState([]), [diagnosticos,setDiagnosticos]=useState([]), [planejamentos,setPlanejamentos]=useState([]), [obstaculos,setObstaculos]=useState([]), [testesCobertura,setTestesCobertura]=useState([]), [evidencias,setEvidencias]=useState([]), [fazendaMembros,setFazendaMembros]=useState([]), [dadosRestritos,setDadosRestritos]=useState([]), [integrationLinks,setIntegrationLinks]=useState([]);
-  const [profiles,setProfiles]=useState([]), [adminLogs,setAdminLogs]=useState([]);
+  const [profiles,setProfiles]=useState([]), [adminLogs,setAdminLogs]=useState([]), [accessGroups,setAccessGroups]=useState([]), [accessGroupMembers,setAccessGroupMembers]=useState([]), [farmGroups,setFarmGroups]=useState([]);
   const [currentProfile,setCurrentProfile]=useState(null);
   const [loading,setLoading]=useState(false);
   const [dbStatus,setDbStatus]=useState({
@@ -1123,6 +1125,32 @@ function useData(user, localMode=false){
     return {ok:true};
   }
 
+  async function loadAccessGroups(){
+    if(!cloud){
+      setAccessGroups([]);
+      setAccessGroupMembers([]);
+      setFarmGroups([]);
+      return {ok:false};
+    }
+    const [groupsResult,membersResult,farmGroupsResult]=await Promise.all([
+      supabase.from('grupos_acesso').select('*').order('nome',{ascending:true}),
+      supabase.from('grupo_usuarios').select('*, profiles:user_id(id,email,nome,empresa_acesso,ativo)').order('created_at',{ascending:true}),
+      supabase.from('fazenda_grupos').select('*, grupos_acesso:grupo_id(id,nome,identificador,central,ativo)').order('created_at',{ascending:true})
+    ]);
+    const firstError=[groupsResult,membersResult,farmGroupsResult].find(result=>result.error)?.error;
+    if(firstError){
+      console.warn('Grupos de acesso não carregados:',firstError.message);
+      setAccessGroups([]);
+      setAccessGroupMembers([]);
+      setFarmGroups([]);
+      return {ok:false,error:firstError};
+    }
+    setAccessGroups(groupsResult.data||[]);
+    setAccessGroupMembers(membersResult.data||[]);
+    setFarmGroups(farmGroupsResult.data||[]);
+    return {ok:true};
+  }
+
   useEffect(()=>{
     let alive = true;
     async function load(){
@@ -1153,6 +1181,7 @@ function useData(user, localMode=false){
         if(!evidenciasResult.error)setEvidencias(await signEvidenceRows(evidenciasResult.data||[]));else{console.warn('Evidências não carregadas:',evidenciasResult.error.message);setEvidencias([]);}
         const membros = await supabase.from('fazenda_membros').select('*, profiles:user_id(id,email,nome,empresa_acesso)').order('created_at',{ascending:true});
         if(!membros.error)setFazendaMembros(membros.data||[]);else{console.warn('Compartilhamento não carregado:',membros.error.message);setFazendaMembros([]);}
+        await loadAccessGroups();
         const restritos = await supabase.from('fazenda_dados_restritos').select('*').order('updated_at',{ascending:false});
         if(!restritos.error)setDadosRestritos(restritos.data||[]);else{console.warn('Dados restritos não carregados:',restritos.error.message);setDadosRestritos([]);}
         const links = await supabase.from('external_integration_links').select('*').eq('provider','routine-assist').eq('entity_type','fazenda').order('created_at',{ascending:false});
@@ -1164,6 +1193,9 @@ function useData(user, localMode=false){
         setProfiles([]);
         setAdminLogs([]);
         setIntegrationLinks([]);
+        setAccessGroups([]);
+        setAccessGroupMembers([]);
+        setFarmGroups([]);
         setCurrentProfile(null);
         setDbStatus({mode:'local',connected:false,lastError: supabase ? 'Modo local de emergência ativado manualmente.' : 'Supabase não configurado no .env.local.', lastSync:new Date().toLocaleString('pt-BR'), details:{}});
       }
@@ -1406,13 +1438,25 @@ function useData(user, localMode=false){
     notify('Dados restritos salvos.');
     return {ok:true,data:saved};
   }
-  async function shareFarm(farm, email, role='viewer'){
+  async function shareFarm(farm, recipient, role='viewer'){
     if(!cloud){ notify('Compartilhamento exige Supabase ativo.','warning'); return {ok:false}; }
-    const cleanEmail=String(email||'').trim().toLowerCase();
-    if(!cleanEmail){ notify('Informe o e-mail do usuário.','warning'); return {ok:false}; }
-    const {data:profile,error:profileError}=await supabase.from('profiles').select('id,email,nome,empresa_acesso').eq('email',cleanEmail).maybeSingle();
+    const cleanRecipient=normalizeGroupIdentifier(recipient);
+    if(!cleanRecipient){ notify('Informe o e-mail da pessoa ou o identificador do grupo.','warning'); return {ok:false}; }
+    const {data:group,error:groupError}=await supabase.from('grupos_acesso').select('*').eq('identificador',cleanRecipient).maybeSingle();
+    if(groupError){ notify(`Não foi possível buscar o grupo: ${groupError.message}`,'error'); return {ok:false,error:groupError}; }
+    if(group){
+      if(!group.ativo){ notify('Este grupo está desativado.','warning'); return {ok:false}; }
+      if(group.central!=='Urus'&&group.central!==farm.central){ notify('O grupo pertence a outra central.','warning'); return {ok:false}; }
+      const row={fazenda_id:farm.id,grupo_id:group.id,role,created_by:user?.id,updated_at:nowISO()};
+      const {data:saved,error}=await supabase.from('fazenda_grupos').upsert(row,{onConflict:'fazenda_id,grupo_id'}).select('*, grupos_acesso:grupo_id(id,nome,identificador,central,ativo)').single();
+      if(error){ notify(`Não foi possível compartilhar com o grupo: ${error.message}`,'error'); return {ok:false,error}; }
+      setFarmGroups(prev=>[...prev.filter(item=>!(item.fazenda_id===farm.id&&item.grupo_id===group.id)),saved]);
+      notify(`Acesso liberado para o grupo ${group.nome}.`);
+      return {ok:true,data:saved,type:'group'};
+    }
+    const {data:profile,error:profileError}=await supabase.from('profiles').select('id,email,nome,empresa_acesso').eq('email',cleanRecipient).maybeSingle();
     if(profileError){ notify(`Não foi possível buscar o usuário: ${profileError.message}`,'error'); return {ok:false,error:profileError}; }
-    if(!profile){ notify('Usuário não encontrado. Ele precisa criar uma conta e entrar no app pelo menos uma vez.','warning'); return {ok:false}; }
+    if(!profile){ notify('Pessoa ou grupo não encontrado. A pessoa precisa entrar no app ao menos uma vez, ou o grupo deve ser criado no Gerencial.','warning'); return {ok:false}; }
     if(profile.id===farm.user_id){ notify('Este usuário já é o proprietário da fazenda.','warning'); return {ok:false}; }
     if(!canAccessCentralValue(farm.central,{currentUser:profile})){
       notify('Este usuário pertence a outra central e não pode acessar esta fazenda.','warning');
@@ -1423,7 +1467,7 @@ function useData(user, localMode=false){
     if(error){ notify(`Não foi possível compartilhar: ${error.message}`,'error'); return {ok:false,error}; }
     setFazendaMembros(prev=>{const next=prev.filter(m=>!(m.fazenda_id===farm.id&&m.user_id===profile.id));return [...next,saved];});
     notify('Acesso liberado para a fazenda.');
-    return {ok:true,data:saved};
+    return {ok:true,data:saved,type:'user'};
   }
   async function updateFarmMember(member, role){
     if(!cloud)return {ok:false};
@@ -1440,6 +1484,23 @@ function useData(user, localMode=false){
     if(error){ notify(`Não foi possível remover acesso: ${error.message}`,'error'); return {ok:false,error}; }
     setFazendaMembros(prev=>prev.filter(m=>m.id!==memberId));
     notify('Acesso removido.');
+    return {ok:true};
+  }
+  async function updateFarmGroup(groupLink, role){
+    if(!cloud)return {ok:false};
+    const {data:saved,error}=await supabase.from('fazenda_grupos').update({role,updated_at:nowISO()}).eq('id',groupLink.id).select('*, grupos_acesso:grupo_id(id,nome,identificador,central,ativo)').single();
+    if(error){ notify(`Não foi possível alterar a permissão do grupo: ${error.message}`,'error'); return {ok:false,error}; }
+    setFarmGroups(prev=>prev.map(item=>item.id===groupLink.id?saved:item));
+    notify('Permissão do grupo atualizada.');
+    return {ok:true,data:saved};
+  }
+  async function removeFarmGroup(groupLink){
+    if(!cloud)return {ok:false};
+    if(!confirm(`Remover o acesso do grupo ${groupLink.grupos_acesso?.nome||''}?`)) return {ok:false};
+    const {error}=await supabase.from('fazenda_grupos').delete().eq('id',groupLink.id);
+    if(error){ notify(`Não foi possível remover o grupo: ${error.message}`,'error'); return {ok:false,error}; }
+    setFarmGroups(prev=>prev.filter(item=>item.id!==groupLink.id));
+    notify('Acesso do grupo removido.');
     return {ok:true};
   }
   async function saveCurrentProfile(profile){
@@ -1471,6 +1532,61 @@ function useData(user, localMode=false){
     const {error}=await supabase.from('admin_logs').insert({actor_id:user?.id,target_user_id:targetUserId||null,acao,detalhes});
     if(error) console.warn('Auditoria não registrada:', error.message);
     else await loadAdminDirectory(currentProfile);
+  }
+  async function saveAccessGroup(group){
+    if(!cloud || !isAppAdminProfile(currentProfile)){ notify('Somente administradores podem gerenciar grupos.','warning'); return {ok:false}; }
+    const clean={
+      nome:String(group?.nome||'').trim(),
+      identificador:normalizeGroupIdentifier(group?.identificador),
+      central:normalizeEmpresaAcesso(group?.central),
+      descricao:String(group?.descricao||'').trim()||null,
+      ativo:group?.ativo!==false,
+      updated_at:nowISO()
+    };
+    if(clean.nome.length<2){ notify('Informe um nome para o grupo.','warning'); return {ok:false}; }
+    if(!validGroupIdentifier(clean.identificador)){ notify('Use um identificador com pelo menos 3 caracteres, sem espaços ou acentos.','warning'); return {ok:false}; }
+    let query;
+    if(group?.id) query=supabase.from('grupos_acesso').update(clean).eq('id',group.id);
+    else query=supabase.from('grupos_acesso').insert({...clean,created_by:user?.id});
+    const {data:saved,error}=await query.select('*').single();
+    if(error){
+      const duplicate=error.code==='23505'||/duplicate|unique/i.test(error.message||'');
+      notify(duplicate?'Este identificador já está sendo usado.':`Não foi possível salvar o grupo: ${error.message}`,'error');
+      return {ok:false,error};
+    }
+    setAccessGroups(prev=>[...prev.filter(item=>item.id!==saved.id),saved].sort((a,b)=>String(a.nome).localeCompare(String(b.nome),'pt-BR')));
+    await recordAdminLog(group?.id?'access_group_updated':'access_group_created',null,{grupo_id:saved.id,nome:saved.nome,identificador:saved.identificador,central:saved.central,ativo:saved.ativo});
+    notify(group?.id?'Grupo atualizado.':'Grupo criado.');
+    return {ok:true,data:saved};
+  }
+  async function addAccessGroupMember(group,userId){
+    if(!cloud || !isAppAdminProfile(currentProfile)){ notify('Somente administradores podem gerenciar grupos.','warning'); return {ok:false}; }
+    const profile=profiles.find(item=>item.id===userId);
+    if(!profile){ notify('Selecione um usuário cadastrado.','warning'); return {ok:false}; }
+    if(profile.ativo===false){ notify('Usuários bloqueados não podem entrar em grupos.','warning'); return {ok:false}; }
+    if(profile.empresa_acesso!=='Urus'&&profile.empresa_acesso!==group.central){ notify('O usuário pertence a outra central.','warning'); return {ok:false}; }
+    const {data:saved,error}=await supabase.from('grupo_usuarios').insert({grupo_id:group.id,user_id:profile.id,created_by:user?.id}).select('*, profiles:user_id(id,email,nome,empresa_acesso,ativo)').single();
+    if(error){
+      const duplicate=error.code==='23505'||/duplicate|unique/i.test(error.message||'');
+      notify(duplicate?'Este usuário já faz parte do grupo.':`Não foi possível adicionar ao grupo: ${error.message}`,'error');
+      return {ok:false,error};
+    }
+    setAccessGroupMembers(prev=>[...prev.filter(item=>!(item.grupo_id===group.id&&item.user_id===profile.id)),saved]);
+    await recordAdminLog('access_group_member_added',profile.id,{grupo_id:group.id,grupo_nome:group.nome});
+    notify(`${profile.nome||profile.email} foi adicionado ao grupo.`);
+    return {ok:true,data:saved};
+  }
+  async function removeAccessGroupMember(member){
+    if(!cloud || !isAppAdminProfile(currentProfile))return {ok:false};
+    const label=member.profiles?.nome||member.profiles?.email||'este usuário';
+    if(!confirm(`Remover ${label} do grupo?`)) return {ok:false};
+    const {error}=await supabase.from('grupo_usuarios').delete().eq('id',member.id);
+    if(error){ notify(`Não foi possível remover do grupo: ${error.message}`,'error'); return {ok:false,error}; }
+    setAccessGroupMembers(prev=>prev.filter(item=>item.id!==member.id));
+    const group=accessGroups.find(item=>item.id===member.grupo_id);
+    await recordAdminLog('access_group_member_removed',member.user_id,{grupo_id:member.grupo_id,grupo_nome:group?.nome});
+    notify('Usuário removido do grupo.');
+    return {ok:true};
   }
   async function saveAdminProfile(profile){
     if(!cloud || !isAppAdminProfile(currentProfile)){ notify('Acesso gerencial não disponível para esta conta.','warning'); return {ok:false}; }
@@ -1519,8 +1635,8 @@ function useData(user, localMode=false){
   const appAdmin = isAppAdminProfile(currentUserProfile);
   return {
     cloud, loading, dbStatus, testConnection,
-    userId:user?.id, currentUser:currentUserProfile, currentProfile, isAppAdmin:appAdmin, empresaAcesso, allowedCentrais:allowedCentraisForAccess(empresaAcesso), fazendas, equipamentos, visitas, checklists, diagnosticos, planejamentos, obstaculos, testesCobertura, evidencias, fazendaMembros, dadosRestritos, integrationLinks, profiles, adminLogs,
-    shareFarm, updateFarmMember, removeFarmMember, uploadEvidencias, saveEvidencia, delEvidencia, saveDadosRestritos, saveCurrentProfile, updateCurrentUserPassword, saveAdminProfile, resetAdminUserPassword, refreshAdminData:()=>loadAdminDirectory(currentProfile), promoteFirstAdmin,
+    userId:user?.id, currentUser:currentUserProfile, currentProfile, isAppAdmin:appAdmin, empresaAcesso, allowedCentrais:allowedCentraisForAccess(empresaAcesso), fazendas, equipamentos, visitas, checklists, diagnosticos, planejamentos, obstaculos, testesCobertura, evidencias, fazendaMembros, farmGroups, accessGroups, accessGroupMembers, dadosRestritos, integrationLinks, profiles, adminLogs,
+    shareFarm, updateFarmMember, removeFarmMember, updateFarmGroup, removeFarmGroup, uploadEvidencias, saveEvidencia, delEvidencia, saveDadosRestritos, saveCurrentProfile, updateCurrentUserPassword, saveAdminProfile, resetAdminUserPassword, saveAccessGroup, addAccessGroupMember, removeAccessGroupMember, refreshAdminData:()=>Promise.all([loadAdminDirectory(currentProfile),loadAccessGroups()]), promoteFirstAdmin,
     saveFazenda: r => upsert('fazendas', setFazendas, 'cta_fazendas', normalizeFarmRow(withExistingOwner(fazendas,r))),
     saveEquipamento: r => upsert('equipamentos', setEquipamentos, 'cta_equipamentos', withExistingOwner(equipamentos,r)),
     saveVisita: r => upsert('visitas', setVisitas, 'cta_visitas', withExistingOwner(visitas,r)),
@@ -1833,7 +1949,10 @@ function farmAccess(farm,data){
   if(!data.cloud)return {role:'owner',label:'Proprietário',canEdit:true,canManageAccess:true,isShared:false};
   const isOwner=farm.user_id===data.userId;
   const member=data.fazendaMembros?.find(m=>m.fazenda_id===farm.id&&m.user_id===data.userId);
-  const role=isOwner?'owner':(member?.role||'viewer');
+  const userGroupIds=new Set((data.accessGroupMembers||[]).filter(item=>item.user_id===data.userId).map(item=>item.grupo_id));
+  const groupRoles=(data.farmGroups||[]).filter(item=>item.fazenda_id===farm.id&&userGroupIds.has(item.grupo_id)&&item.grupos_acesso?.ativo!==false).map(item=>item.role);
+  const effectiveRole=member?.role==='admin'||groupRoles.includes('admin')?'admin':member||groupRoles.length?'viewer':'viewer';
+  const role=isOwner?'owner':effectiveRole;
   return {role,label:ACCESS_LABELS[role]||'Visualizador',canEdit:['owner','admin'].includes(role),canManageAccess:role==='owner',isShared:!isOwner};
 }
 function AccessBadge({access}){return <span className={`accessBadge ${access.role}`}>{access.label}</span>}
@@ -2888,15 +3007,16 @@ function DadosRestritosFazenda({farm,data,embedded=false}){
   </section>
 }
 function AcessosFazenda({farm,data,access,embedded=false}){
-  const [email,setEmail]=useState(''),[role,setRole]=useState('viewer'),[busy,setBusy]=useState(false);
+  const [recipient,setRecipient]=useState(''),[role,setRole]=useState('viewer'),[busy,setBusy]=useState(false);
   const members=data.fazendaMembros.filter(m=>m.fazenda_id===farm.id);
+  const groupLinks=(data.farmGroups||[]).filter(item=>item.fazenda_id===farm.id);
   const roles=[['viewer','Visualizador','Consulta dados, mapa, visitas e relatórios sem alterar informações.'],['admin','Administrador','Pode editar fazenda, equipamentos, visitas, checklists e relatórios.']];
-  const add=async(e)=>{e.preventDefault();setBusy(true);const r=await data.shareFarm(farm,email,role);if(r.ok)setEmail('');setBusy(false)};
+  const add=async(e)=>{e.preventDefault();setBusy(true);const r=await data.shareFarm(farm,recipient,role);if(r.ok)setRecipient('');setBusy(false)};
   if(!access.canManageAccess)return <section className="panel"><PermissionNotice/></section>;
   return <section className={`${embedded?'administrationSubpanel':'panel'} accessPanel`}>
-    <div className="administrationSectionTitle"><div><span className="eyebrow">Compartilhamento seguro</span><h3><UserCheck size={19}/> Acessos da fazenda</h3><p>Libere somente o nível de acesso necessário para cada pessoa.</p></div><span className="administrationCount">{members.length+1} pessoa(s)</span></div>
+    <div className="administrationSectionTitle"><div><span className="eyebrow">Compartilhamento seguro</span><h3><UserCheck size={19}/> Acessos da fazenda</h3><p>Libere acesso individual ou para um grupo criado no Gerencial.</p></div><span className="administrationCount">{members.length+groupLinks.length+1} acesso(s)</span></div>
     <form className="accessInvitePanel" onSubmit={add}>
-      <div className="accessInviteTop"><Field label="E-mail da pessoa"><input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="nome@email.com" required/></Field><button className="btn primary" disabled={busy}><UserCheck size={17}/> {busy?'Liberando...':'Liberar acesso'}</button></div>
+      <div className="accessInviteTop"><Field label="Pessoa ou grupo"><input value={recipient} onChange={e=>setRecipient(e.target.value)} placeholder="nome@email.com ou identificador-do-grupo" autoCapitalize="none" spellCheck="false" required/></Field><button className="btn primary" disabled={busy}><UserCheck size={17}/> {busy?'Liberando...':'Liberar acesso'}</button></div>
       <div className="accessRoleCards" role="radiogroup" aria-label="Perfil de acesso">{roles.map(([value,label,desc])=><button type="button" role="radio" aria-checked={role===value} key={value} className={role===value?'active':''} onClick={()=>setRole(value)}><span>{value==='admin'?<ShieldCheck size={18}/>:<UserCheck size={18}/>}</span><b>{label}</b><small>{desc}</small></button>)}</div>
     </form>
     <div className="accessPeopleHeader"><div><span className="eyebrow">Equipe autorizada</span><h3>Pessoas com acesso</h3></div><small>Perfis e permissões atuais</small></div>
@@ -2904,7 +3024,8 @@ function AcessosFazenda({farm,data,access,embedded=false}){
       <article className="accessPersonCard owner"><span className="accessPersonIcon"><ShieldCheck size={19}/></span><div><b>Proprietário</b><span>Controle total da fazenda e dos acessos liberados.</span></div><AccessBadge access={{role:'owner',label:'Proprietário'}}/></article>
       {members.map(m=><article className="accessPersonCard" key={m.id}><span className="accessPersonIcon"><UserCheck size={18}/></span><div><b>{m.profiles?.nome||m.profiles?.email||'Usuário autorizado'}</b><span>{m.profiles?.email||m.user_id}</span></div><div className="accessPersonActions"><select aria-label={`Perfil de ${m.profiles?.nome||m.profiles?.email||'usuário autorizado'}`} value={m.role} onChange={e=>data.updateFarmMember(m,e.target.value)}><option value="viewer">Visualizador</option><option value="admin">Administrador</option></select><button type="button" className="iconBtn danger" aria-label={`Remover acesso de ${m.profiles?.nome||m.profiles?.email||'usuário autorizado'}`} title="Remover acesso" onClick={()=>data.removeFarmMember(m.id)}><Trash2 size={16}/></button></div></article>)}
     </div>
-    {!members.length&&<Empty icon={UserCheck} title="Nenhum acesso liberado" text="Adicione o e-mail de uma pessoa que já tenha conta no app."/>}
+    {groupLinks.length>0&&<><div className="accessPeopleHeader groupAccessHeader"><div><span className="eyebrow">Acesso coletivo</span><h3>Grupos autorizados</h3></div><small>Membros atualizados pelo Gerencial</small></div><div className="accessPeopleGrid">{groupLinks.map(link=>{const group=link.grupos_acesso||data.accessGroups?.find(item=>item.id===link.grupo_id);const count=(data.accessGroupMembers||[]).filter(item=>item.grupo_id===link.grupo_id).length;return <article className="accessPersonCard group" key={link.id}><span className="accessPersonIcon"><UsersRound size={18}/></span><div><b>{group?.nome||'Grupo autorizado'}</b><span>{group?.identificador||link.grupo_id} • {count} membro(s)</span></div><div className="accessPersonActions"><select aria-label={`Perfil do grupo ${group?.nome||''}`} value={link.role} onChange={e=>data.updateFarmGroup(link,e.target.value)}><option value="viewer">Visualizador</option><option value="admin">Administrador</option></select><button type="button" className="iconBtn danger" aria-label={`Remover grupo ${group?.nome||''}`} title="Remover grupo" onClick={()=>data.removeFarmGroup(link)}><Trash2 size={16}/></button></div></article>})}</div></>}
+    {!members.length&&!groupLinks.length&&<Empty icon={UserCheck} title="Nenhum acesso liberado" text="Adicione uma pessoa cadastrada ou um identificador de grupo."/>}
   </section>
 }
 function InfoCard({title,rows}){return <div className="infoCard"><h3>{title}</h3>{rows.map(([a,b])=><div className="infoRow" key={a}><span>{a}</span><b>{b||'-'}</b></div>)}</div>}
@@ -3807,7 +3928,7 @@ function ProductivityLineChart({rows,suffix=' h',decimals=1}){
 }
 
 function GerencialUsuarios({data}){
-  const [q,setQ]=useState(''),[central,setCentral]=useState('Todas'),[role,setRole]=useState('Todos'),[status,setStatus]=useState('Todos');
+  const [section,setSection]=useState('usuarios'),[q,setQ]=useState(''),[central,setCentral]=useState('Todas'),[role,setRole]=useState('Todos'),[status,setStatus]=useState('Todos');
   const loadedRef=useRef(false);
   useEffect(()=>{
     if(data.isAppAdmin && !loadedRef.current){
@@ -3848,18 +3969,22 @@ function GerencialUsuarios({data}){
   const profileById=Object.fromEntries(users.map(profile=>[profile.id,profile]));
   const resetFilters=()=>{setQ('');setCentral('Todas');setRole('Todos');setStatus('Todos')};
   return <div className="adminUsersPage">
-    <PageHead eyebrow="Gerencial" title="Usuários e acessos">
+    <PageHead eyebrow="Gerencial" title="Usuários e grupos">
       <button className="btn light" onClick={data.refreshAdminData}><RefreshCw size={18}/> Atualizar</button>
     </PageHead>
     <section className="adminHero">
       <div>
         <span className="eyebrow">Controle de acesso</span>
         <h2><ShieldCheck size={25}/> Administração do app</h2>
-        <p>Gerencie central, perfil administrativo, bloqueio de acesso e recuperação de senha sem compartilhar senhas.</p>
+        <p>Gerencie perfis individuais e grupos reutilizáveis de acesso sem compartilhar contas ou senhas.</p>
       </div>
       <div className="adminHeroBadge"><b>{APP_ROLE_LABELS[normalizeAppRole(data.currentUser?.app_role)]||'Administrador'}</b><span>{centralOfficialName(data.currentUser?.empresa_acesso)}</span></div>
     </section>
-    <div className="adminKpis">
+    <div className="adminSectionTabs" role="tablist" aria-label="Áreas gerenciais">
+      <button type="button" role="tab" aria-selected={section==='usuarios'} className={section==='usuarios'?'active':''} onClick={()=>setSection('usuarios')}><UserCheck size={18}/><span><b>Usuários</b><small>Contas e permissões</small></span></button>
+      <button type="button" role="tab" aria-selected={section==='grupos'} className={section==='grupos'?'active':''} onClick={()=>setSection('grupos')}><UsersRound size={18}/><span><b>Grupos de acesso</b><small>Equipes e compartilhamentos</small></span></button>
+    </div>
+    {section==='usuarios'&&<><div className="adminKpis">
       <article><UserCheck size={20}/><span>Usuários</span><b>{stats.total}</b><small>{stats.active} ativo(s)</small></article>
       <article><ShieldCheck size={20}/><span>Admins</span><b>{stats.admins}</b><small>painel gerencial</small></article>
       <article><Building2 size={20}/><span>URUS</span><b>{stats.urus}</b><small>duas centrais</small></article>
@@ -3886,7 +4011,73 @@ function GerencialUsuarios({data}){
         })}</div>:<Empty icon={ClipboardList} title="Sem ações registradas" text="As alterações feitas pelo painel aparecerão aqui."/>}
       </section>
     </div>
+    </>}
+    {section==='grupos'&&<AccessGroupsPanel data={data}/>}
   </div>
+}
+
+function AccessGroupsPanel({data}){
+  const blank={nome:'',identificador:'',central:data.empresaAcesso==='Urus'?'Alta Genetics':data.empresaAcesso,descricao:'',ativo:true};
+  const [draft,setDraft]=useState(blank),[saving,setSaving]=useState(false),[query,setQuery]=useState('');
+  const groups=(data.accessGroups||[]).filter(group=>{
+    const text=String(query||'').trim().toLowerCase();
+    return !text||[group.nome,group.identificador,group.central,group.descricao].join(' ').toLowerCase().includes(text);
+  });
+  const members=data.accessGroupMembers||[];
+  const farmLinks=data.farmGroups||[];
+  const editing=Boolean(draft.id);
+  const centralLocked=editing&&(members.some(item=>item.grupo_id===draft.id)||farmLinks.some(item=>item.grupo_id===draft.id));
+  const set=(key,value)=>setDraft(prev=>({...prev,[key]:value}));
+  const reset=()=>setDraft({...blank,central:data.empresaAcesso==='Urus'?'Alta Genetics':data.empresaAcesso});
+  const save=async(e)=>{
+    e.preventDefault();
+    setSaving(true);
+    const result=await data.saveAccessGroup(draft);
+    setSaving(false);
+    if(result.ok)reset();
+  };
+  const activeCount=(data.accessGroups||[]).filter(group=>group.ativo!==false).length;
+  return <div className="accessGroupsPage">
+    <div className="adminKpis groupKpis">
+      <article><UsersRound size={20}/><span>Grupos</span><b>{data.accessGroups?.length||0}</b><small>{activeCount} ativo(s)</small></article>
+      <article><UserCheck size={20}/><span>Membros</span><b>{members.length}</b><small>vínculos em equipes</small></article>
+      <article><Building2 size={20}/><span>Fazendas</span><b>{farmLinks.length}</b><small>compartilhamentos por grupo</small></article>
+    </div>
+    <section className="panel accessGroupComposer">
+      <div className="sectionTitle"><div><span className="eyebrow">{editing?'Editar grupo':'Novo grupo'}</span><h2><UsersRound size={20}/>{editing?'Atualizar equipe':'Criar equipe de acesso'}</h2></div>{editing&&<button type="button" className="btn light" onClick={reset}><X size={17}/> Cancelar edição</button>}</div>
+      <form className="accessGroupForm" onSubmit={save}>
+        <Field label="Nome do grupo"><input value={draft.nome} onChange={e=>set('nome',e.target.value)} placeholder="Ex.: Equipe técnica Alta" required/></Field>
+        <Field label="Identificador"><input value={draft.identificador} onChange={e=>set('identificador',normalizeGroupIdentifier(e.target.value))} placeholder="equipe-alta ou alta@control.tech" autoCapitalize="none" spellCheck="false" required/></Field>
+        <Field label="Central"><select value={draft.central} onChange={e=>set('central',e.target.value)} disabled={data.empresaAcesso!=='Urus'||centralLocked} title={centralLocked?'Remova membros e fazendas antes de trocar a central.':''}>{(data.empresaAcesso==='Urus'?EMPRESA_ACESSO:[data.empresaAcesso]).map(item=><option key={item} value={item}>{centralOfficialName(item)}</option>)}</select></Field>
+        <Field label="Descrição opcional"><input value={draft.descricao||''} onChange={e=>set('descricao',e.target.value)} placeholder="Quem faz parte e quando utilizar"/></Field>
+        <button className="btn primary" disabled={saving}><Save size={17}/>{saving?'Salvando...':editing?'Salvar alterações':'Criar grupo'}</button>
+      </form>
+    </section>
+    <section className="panel accessGroupDirectory">
+      <div className="sectionTitle"><div><span className="eyebrow">Diretório de equipes</span><h2><UsersRound size={20}/> Grupos cadastrados</h2></div><div className="adminSearch groupSearch"><Search size={17}/><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Buscar grupo ou identificador"/></div></div>
+      <div className="accessGroupGrid">{groups.map(group=><AccessGroupCard key={group.id} group={group} profiles={data.profiles||[]} members={members.filter(item=>item.grupo_id===group.id)} farmCount={farmLinks.filter(item=>item.grupo_id===group.id).length} onEdit={()=>setDraft({...group})} onToggle={()=>data.saveAccessGroup({...group,ativo:group.ativo===false})} onAdd={data.addAccessGroupMember} onRemove={data.removeAccessGroupMember}/>)}</div>
+      {!groups.length&&<Empty icon={UsersRound} title="Nenhum grupo encontrado" text="Crie a primeira equipe ou ajuste a busca."/>}
+    </section>
+  </div>
+}
+
+function AccessGroupCard({group,profiles,members,farmCount,onEdit,onToggle,onAdd,onRemove}){
+  const [selected,setSelected]=useState(''),[adding,setAdding]=useState(false);
+  const memberIds=new Set(members.map(item=>item.user_id));
+  const candidates=profiles.filter(profile=>profile.ativo!==false&&!memberIds.has(profile.id)&&(profile.empresa_acesso==='Urus'||profile.empresa_acesso===group.central));
+  const add=async()=>{if(!selected)return;setAdding(true);const result=await onAdd(group,selected);setAdding(false);if(result.ok)setSelected('')};
+  return <article className={`accessGroupCard ${group.ativo===false?'inactive':''}`}>
+    <header>
+      <span className="accessGroupIcon"><UsersRound size={21}/></span>
+      <div><b>{group.nome}</b><small>{group.identificador}</small></div>
+      <span className={`status ${group.ativo===false?'warn':'ok'}`}>{group.ativo===false?'Desativado':'Ativo'}</span>
+    </header>
+    <div className="accessGroupMeta"><span className={`centralPill ${centralTone(group.central)}`}>{centralOfficialName(group.central)}</span><span><UserCheck size={14}/>{members.length} membro(s)</span><span><Building2 size={14}/>{farmCount} fazenda(s)</span></div>
+    {group.descricao&&<p>{group.descricao}</p>}
+    <div className="accessGroupMembers">{members.map(member=><div key={member.id}><span className="accessGroupMemberAvatar"><UserCheck size={15}/></span><span><b>{member.profiles?.nome||member.profiles?.email||'Usuário'}</b><small>{member.profiles?.email||member.user_id}</small></span><button type="button" className="iconBtn danger" title="Remover do grupo" aria-label={`Remover ${member.profiles?.nome||member.profiles?.email||'usuário'} do grupo`} onClick={()=>onRemove(member)}><Trash2 size={15}/></button></div>)}</div>
+    {group.ativo!==false&&<div className="accessGroupAdd"><select value={selected} onChange={e=>setSelected(e.target.value)} aria-label={`Adicionar usuário ao grupo ${group.nome}`}><option value="">Adicionar usuário...</option>{candidates.map(profile=><option key={profile.id} value={profile.id}>{profile.nome||profile.email} • {centralOfficialName(profile.empresa_acesso)}</option>)}</select><button type="button" className="iconBtn" disabled={!selected||adding} title="Adicionar ao grupo" onClick={add}><Plus size={17}/></button></div>}
+    <footer><button type="button" className="btn light" onClick={onEdit}><Pencil size={16}/> Editar</button><button type="button" className="btn light" onClick={onToggle}>{group.ativo===false?<PlayCircle size={16}/>:<X size={16}/>} {group.ativo===false?'Reativar':'Desativar'}</button></footer>
+  </article>
 }
 
 function AdminUserCard({profile,currentUserId,onSave,onReset}){
