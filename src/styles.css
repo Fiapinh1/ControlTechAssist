@@ -12505,6 +12505,38 @@ button.execCard.execMapCard:hover {
   line-height: 1.45;
 }
 
+.accessGroupRoleGuide {
+  margin: 14px 0;
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 13px;
+  border: 1px solid var(--brand-line, #99f6e4);
+  border-radius: 14px;
+  color: var(--brand, #0f766e);
+  background: color-mix(in srgb, var(--brand3, #ecfdf5) 62%, #fff);
+}
+
+.accessGroupRoleGuide > span,
+.accessGroupRoleGuide b,
+.accessGroupRoleGuide small {
+  display: block;
+  min-width: 0;
+}
+
+.accessGroupRoleGuide b {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.accessGroupRoleGuide small {
+  margin-top: 2px;
+  color: #526174;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .accessGroupMembers {
   margin-top: 13px;
   display: grid;
@@ -12514,7 +12546,7 @@ button.execCard.execMapCard:hover {
 .accessGroupMembers > div {
   min-width: 0;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   gap: 9px;
   align-items: center;
   border: 1px solid var(--line);
@@ -12529,11 +12561,34 @@ button.execCard.execMapCard:hover {
   border-radius: 11px;
 }
 
+.accessGroupMemberAvatar.admin {
+  color: #0f766e;
+  background: linear-gradient(145deg, #ccfbf1, #d1fae5);
+  border: 1px solid #99f6e4;
+}
+
 .accessGroupMembers b,
 .accessGroupMembers small {
   display: block;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.accessGroupMemberRole,
+.accessGroupNewRole {
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  padding: 0 30px 0 10px;
+  color: #334155;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.accessGroupMemberRole:disabled {
+  opacity: .62;
+  cursor: wait;
 }
 
 .accessGroupMembers b {
@@ -12550,7 +12605,7 @@ button.execCard.execMapCard:hover {
 .accessGroupAdd {
   margin-top: 12px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(130px, auto) auto;
   gap: 8px;
 }
 
@@ -12563,6 +12618,10 @@ button.execCard.execMapCard:hover {
   background: #fff;
   color: #0f172a;
   font-weight: 800;
+}
+
+.accessGroupAdd .accessGroupNewRole {
+  height: 42px;
 }
 
 .accessGroupCard > footer {
@@ -12686,6 +12745,28 @@ button.execCard.execMapCard:hover {
 
   .accessGroupCard > footer .btn {
     width: 100%;
+  }
+
+  .accessGroupMembers > div {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .accessGroupMemberRole {
+    width: 100%;
+    grid-column: 2;
+  }
+
+  .accessGroupMembers > div > .iconBtn {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
+
+  .accessGroupAdd {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .accessGroupAdd > select:first-child {
+    grid-column: 1 / -1;
   }
 }
 
@@ -14525,6 +14606,26 @@ textarea {
 
 .btn.deleteDanger:hover {
   transform: translateY(-1px);
+}
+
+.confirmationModal.info {
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--brand3, #ecfdf5) 92%, #fff), transparent 38%),
+    linear-gradient(180deg, #fff, #f8fafc);
+}
+
+.confirmationModal.info .confirmationIcon {
+  color: var(--brand, #0f766e);
+  background: color-mix(in srgb, var(--brand3, #ecfdf5) 80%, #fff);
+  border-color: var(--brand-line, #99f6e4);
+}
+
+.confirmationDetails span svg {
+  color: var(--brand, #0f766e);
+}
+
+.confirmationModal .deleteConfirmActions .btn {
+  min-height: 48px;
 }
 
 @media (max-width: 720px) {

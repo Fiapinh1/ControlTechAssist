@@ -1090,10 +1090,29 @@ create table if not exists public.grupo_usuarios (
   id uuid primary key default gen_random_uuid(),
   grupo_id uuid not null references public.grupos_acesso(id) on delete cascade,
   user_id uuid not null references public.profiles(id) on delete cascade,
+  role text not null default 'viewer',
   created_by uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
+  constraint grupo_usuarios_role_check check (role in ('viewer', 'admin')),
   unique (grupo_id, user_id)
 );
+
+alter table public.grupo_usuarios add column if not exists role text;
+update public.grupo_usuarios set role = 'admin' where role is null;
+alter table public.grupo_usuarios alter column role set default 'viewer';
+alter table public.grupo_usuarios alter column role set not null;
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+    where conrelid = 'public.grupo_usuarios'::regclass
+      and conname = 'grupo_usuarios_role_check'
+  ) then
+    alter table public.grupo_usuarios
+      add constraint grupo_usuarios_role_check check (role in ('viewer', 'admin'));
+  end if;
+end
+$$;
 
 create table if not exists public.fazenda_grupos (
   id uuid primary key default gen_random_uuid(),
@@ -1121,6 +1140,7 @@ revoke all on table public.grupo_usuarios from anon;
 revoke all on table public.fazenda_grupos from anon;
 grant select, insert, update on table public.grupos_acesso to authenticated;
 grant select, insert, delete on table public.grupo_usuarios to authenticated;
+grant update (role) on table public.grupo_usuarios to authenticated;
 grant select, insert, update, delete on table public.fazenda_grupos to authenticated;
 
 drop policy if exists "grupos_acesso_select_central" on public.grupos_acesso;
@@ -1136,12 +1156,27 @@ with check (public.is_app_admin() and public.can_access_central(central));
 
 drop policy if exists "grupo_usuarios_select_central" on public.grupo_usuarios;
 drop policy if exists "grupo_usuarios_insert_admin" on public.grupo_usuarios;
+drop policy if exists "grupo_usuarios_update_admin" on public.grupo_usuarios;
 drop policy if exists "grupo_usuarios_delete_admin" on public.grupo_usuarios;
 create policy "grupo_usuarios_select_central" on public.grupo_usuarios for select to authenticated
 using (exists (select 1 from public.grupos_acesso g where g.id = grupo_id and public.can_access_central(g.central) and (g.ativo or public.is_app_admin())));
 create policy "grupo_usuarios_insert_admin" on public.grupo_usuarios for insert to authenticated
 with check (
   public.is_app_admin() and created_by = (select auth.uid()) and exists (
+    select 1 from public.grupos_acesso g join public.profiles p on p.id = user_id
+    where g.id = grupo_id and public.can_access_central(g.central) and g.ativo and p.ativo
+      and (p.empresa_acesso = 'Urus' or p.empresa_acesso = g.central)
+  )
+);
+create policy "grupo_usuarios_update_admin" on public.grupo_usuarios for update to authenticated
+using (
+  public.is_app_admin() and exists (
+    select 1 from public.grupos_acesso g
+    where g.id = grupo_id and public.can_access_central(g.central)
+  )
+)
+with check (
+  public.is_app_admin() and exists (
     select 1 from public.grupos_acesso g join public.profiles p on p.id = user_id
     where g.id = grupo_id and public.can_access_central(g.central) and g.ativo and p.ativo
       and (p.empresa_acesso = 'Urus' or p.empresa_acesso = g.central)
@@ -1189,6 +1224,7 @@ returns text language sql stable security definer set search_path = public as $$
       join public.grupo_usuarios gu on gu.grupo_id = g.id and gu.user_id = target_user_id
       join public.profiles p on p.id = gu.user_id and p.ativo
       where fg.fazenda_id = target_fazenda_id and fg.role = 'admin'
+        and gu.role = 'admin'
         and (p.empresa_acesso = 'Urus' or p.empresa_acesso = g.central)
     ) then 'admin'
     when exists (
