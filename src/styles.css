@@ -6015,6 +6015,44 @@ body,
   gap: 14px !important;
 }
 
+.serviceSessionCollars {
+  display: grid;
+  gap: 12px;
+  padding: 15px 0;
+  border-top: 1px solid #dbe4ef;
+  border-bottom: 1px solid #dbe4ef;
+}
+
+.serviceSessionCollarsHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.serviceSessionCollarsHead > span {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: #15803d;
+  background: #dcfce7;
+}
+
+.serviceSessionCollarsHead b,
+.serviceSessionCollarsHead p {
+  display: block;
+  margin: 0;
+}
+
+.serviceSessionCollarsHead p {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .serviceEditNotice {
   display: flex;
   align-items: flex-start;

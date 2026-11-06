@@ -24,7 +24,7 @@ import genexLogo from '../LOGO_GENEX.png';
 import urusLogo from '../LOGO_URUS.png';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
-const APP_VERSION = '3.0.19';
+const APP_VERSION = '3.0.20';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
 const FARM_VIEW_KEY = 'cta_farm_view_mode';
@@ -2596,7 +2596,7 @@ function ServicePeriodsModal({farm,visits=[],canEdit=false,onClose,onEditVisit,o
           </div>
           <small className="servicePeriodResponsible"><UserCheck size={14}/>{session.responsible||'Técnico não informado'}</small>
         </div>
-        {canEdit&&<button type="button" className="iconBtn" aria-label={`Editar atendimento ${session.tipo}`} title="Corrigir horário ou técnico" onClick={()=>session.visit?onEditVisit(session.visit):onEditLegacy()}><Pencil size={17}/></button>}
+        {canEdit&&<button type="button" className="iconBtn" aria-label={`Editar atendimento ${session.tipo}`} title="Corrigir horário, técnico ou colares" onClick={()=>session.visit?onEditVisit(session.visit):onEditLegacy()}><Pencil size={17}/></button>}
       </article>)}</div>
       {!sessions.length&&<Empty icon={Clock} title="Nenhum atendimento registrado" text="Inicie o serviço para criar o primeiro período."/>}
       <div className="servicePeriodsTotal"><span>Tempo total registrado</span><b>{serviceTotalLabel(farm,visits)}</b></div>
@@ -2610,10 +2610,20 @@ function ServiceSessionEditModal({farm,visit,data,onClose,onSave}){
   const [form,setForm]=useState({
     iniciada_em:dateTimeInput(visit.iniciada_em),
     finalizada_em:dateTimeInput(visit.finalizada_em),
-    responsavel_tecnico:visit.responsavel_tecnico||farm.servico_responsavel||currentUserName||''
+    responsavel_tecnico:visit.responsavel_tecnico||farm.servico_responsavel||currentUserName||'',
+    qtd_colares_instalada:farm.qtd_colares_instalada??'',
+    qtd_colares_entregue_cliente:farm.qtd_colares_entregue_cliente??'',
+    motivo_colares_restantes:farm.motivo_colares_restantes||'',
+    observacoes_colares:farm.observacoes_colares||''
   });
   const [saving,setSaving]=useState(false);
   const set=(key,value)=>setForm(prev=>({...prev,[key]:value}));
+  const planned=num(farm.qtd_colares_prevista);
+  const installed=num(form.qtd_colares_instalada);
+  const delivered=num(form.qtd_colares_entregue_cliente);
+  const handled=installed+delivered;
+  const remaining=planned?Math.max(planned-handled,0):0;
+  const handledProgress=planned?Math.min(100,Math.round((handled/planned)*100)):0;
   const submit=async event=>{
     event.preventDefault();
     const start=toIsoOrNull(form.iniciada_em);
@@ -2622,16 +2632,28 @@ function ServiceSessionEditModal({farm,visit,data,onClose,onSave}){
     if(end&&new Date(end)<=new Date(start)){notify('O fim precisa ser posterior ao início.','warning');return;}
     if(!cleanDisplayName(form.responsavel_tecnico)){notify('Informe o técnico responsável.','warning');return;}
     setSaving(true);
-    const result=await onSave({...visit,data_visita:dateInputFromIso(start),iniciada_em:start,finalizada_em:end,responsavel_tecnico:cleanDisplayName(form.responsavel_tecnico),updated_at:nowISO()});
+    const result=await onSave(
+      {...visit,data_visita:dateInputFromIso(start),iniciada_em:start,finalizada_em:end,responsavel_tecnico:cleanDisplayName(form.responsavel_tecnico),updated_at:nowISO()},
+      {qtd_colares_instalada:installed,qtd_colares_entregue_cliente:delivered,motivo_colares_restantes:form.motivo_colares_restantes,observacoes_colares:form.observacoes_colares}
+    );
     setSaving(false);
     if(result?.ok!==false)onClose();
   };
   return <Modal title="Ajustar atendimento" onClose={onClose}>
     <form className="form modern serviceSessionEdit" onSubmit={submit}>
-      <div className="serviceSessionEditHero"><div><Clock size={22}/></div><span><small>{visit.tipo||'Visita'} • {brDate(visit.data_visita)}</small><b>Corrigir período registrado</b><p>Use quando o início ou o fim não foi registrado no horário correto.</p></span></div>
+      <div className="serviceSessionEditHero"><div><Clock size={22}/></div><span><small>{visit.tipo||'Visita'} • {brDate(visit.data_visita)}</small><b>Corrigir atendimento registrado</b><p>Ajuste horário, técnico e os totais acumulados da fazenda.</p></span></div>
       <div className="grid2"><Field label="Início do atendimento" icon={PlayCircle}><input type="datetime-local" value={form.iniciada_em} onChange={e=>set('iniciada_em',e.target.value)} required/></Field><Field label="Fim do atendimento" icon={CheckCircle2}><input type="datetime-local" value={form.finalizada_em} onChange={e=>set('finalizada_em',e.target.value)}/></Field></div>
       <ResponsibleServiceField value={form.responsavel_tecnico} onChange={value=>set('responsavel_tecnico',value)} options={options}/>
-      <div className="serviceEditNotice"><Info size={16}/><span>Essa correção atualiza o histórico, os relatórios e o total de horas da fazenda.</span></div>
+      <section className="serviceSessionCollars">
+        <div className="serviceSessionCollarsHead"><span><Milk size={19}/></span><div><b>Totais de colares da fazenda</b><p>Valores acumulados de todos os atendimentos, não apenas desta visita.</p></div></div>
+        <div className="serviceCloseGrid">
+          <Field label="Instalados em animais" icon={Hash}><input type="number" min="0" inputMode="numeric" value={form.qtd_colares_instalada} onChange={e=>set('qtd_colares_instalada',e.target.value)} placeholder="0"/></Field>
+          <Field label="Entregues ao cliente / reserva" icon={BadgeCheck}><input type="number" min="0" inputMode="numeric" value={form.qtd_colares_entregue_cliente} onChange={e=>set('qtd_colares_entregue_cliente',e.target.value)} placeholder="0"/></Field>
+          <article className={remaining>0?'serviceCollarPreview pending':'serviceCollarPreview'}><Hash size={18}/><div><b>{planned?`${handled} / ${planned}`:`${handled}`}</b><span>{planned?`${remaining} restante(s) • ${handledProgress}% atendido`:'sem meta prevista'}</span></div></article>
+        </div>
+        {remaining>0&&<div className="grid2 collarReasonGrid"><Field label="Motivo dos colares restantes" icon={AlertTriangle}><select value={form.motivo_colares_restantes} onChange={e=>set('motivo_colares_restantes',e.target.value)}><option value="">Selecione...</option>{COLLAR_REASONS.map(reason=><option key={reason}>{reason}</option>)}</select></Field><Field label="Observação dos colares" icon={Info}><input value={form.observacoes_colares} onChange={e=>set('observacoes_colares',e.target.value)} placeholder="Ex.: ficaram com o cliente ou retorno combinado"/></Field></div>}
+      </section>
+      <div className="serviceEditNotice"><Info size={16}/><span>A correção atualiza o histórico, os relatórios, as horas e os totais de colares da fazenda.</span></div>
       <div className="stickyFormActions"><button type="button" className="btn light" onClick={onClose} disabled={saving}>Cancelar</button><button className="btn primary" disabled={saving}><Save size={18}/>{saving?'Salvando...':'Salvar correção'}</button></div>
     </form>
   </Modal>
@@ -2750,17 +2772,22 @@ function FazendaDetalhe({farm,data,onBack}){
     notify(finishing?(openVisit&&visitHasPending(openVisit)?'Serviço finalizado com pendência registrada na visita.':'Serviço finalizado e visita encerrada.'):'Ajuste do serviço salvo.');
     return result;
   };
-  const saveServiceSession=async row=>{
+  const saveServiceSession=async(row,collarUpdates={})=>{
     if(!access.canEdit)return {ok:false};
     const visitResult=await data.saveVisita(row);
     if(!visitResult.ok)return visitResult;
     const nextVisits=visits.map(item=>item.id===row.id?row:item);
     const latest=[...nextVisits].filter(item=>item.iniciada_em).sort((a,b)=>new Date(b.iniciada_em)-new Date(a.iniciada_em))[0];
-    if(latest?.id===row.id){
-      const farmResult=await data.saveFazenda({...farm,servico_inicio_em:row.iniciada_em,servico_fim_em:row.finalizada_em||null,servico_responsavel:row.responsavel_tecnico||farm.servico_responsavel||'',status:autoServiceStatus(row.iniciada_em,row.finalizada_em,farm.status)});
-      if(!farmResult.ok)return farmResult;
-    }
-    notify('Atendimento corrigido. Horas e técnico foram atualizados.');
+    const farmResult=await data.saveFazenda({
+      ...farm,
+      ...collarUpdates,
+      servico_inicio_em:latest?.iniciada_em||farm.servico_inicio_em,
+      servico_fim_em:latest?.finalizada_em||null,
+      servico_responsavel:latest?.responsavel_tecnico||farm.servico_responsavel||'',
+      status:autoServiceStatus(latest?.iniciada_em,latest?.finalizada_em,farm.status)
+    });
+    if(!farmResult.ok)return farmResult;
+    notify('Atendimento corrigido. Horas, técnico e colares foram atualizados.');
     return {ok:true};
   };
   return <div className="farmDetail">
@@ -2811,7 +2838,7 @@ function DeleteFarmModal({farm,busy=false,onCancel,onConfirm}){
   </div>
 }
 
-function ServiceControl({farm,visits=[],canEdit,onStart,onFinish,onEdit}){const sessions=farmServiceSessions(farm,visits), active=Boolean(farm.servico_inicio_em&&!farm.servico_fim_em), done=Boolean(sessions.length&&!active), status=farmStatus(farm), firstStart=firstServiceStart(sessions), lastEnd=lastServiceEnd(sessions); return <div className={`serviceControl ${active?'active':done?'done':''}`}><div className="serviceLead"><span className="eyebrow">Produtividade</span><h2><Clock size={20}/> Serviço da fazenda</h2></div><div className="serviceFacts"><div><span>Situação</span><b>{status}</b></div><div><span>Períodos</span><b>{sessions.length||'-'}</b></div><div><span>Primeiro início</span><b>{brDateTime(firstStart)}</b></div><div><span>Tempo total</span><b>{serviceTotalLabel(farm,visits)}</b></div><div><span>Último fim</span><b>{active?'em andamento':brDateTime(lastEnd)}</b></div></div><div className="serviceActions">{canEdit&&!active&&<button className="btn primary" onClick={onStart}><PlayCircle size={17}/> {sessions.length?'Iniciar novo serviço':'Iniciar serviço'}</button>}{canEdit&&active&&<button className="btn primary" onClick={onFinish}><CheckCircle2 size={17}/> Finalizar serviço</button>}{canEdit&&<button className="btn light" onClick={onEdit}><Pencil size={17}/> Ajustar datas</button>}</div>{farm.servico_observacoes&&<p className="serviceNote">{farm.servico_observacoes}</p>}</div>}
+function ServiceControl({farm,visits=[],canEdit,onStart,onFinish,onEdit}){const sessions=farmServiceSessions(farm,visits), active=Boolean(farm.servico_inicio_em&&!farm.servico_fim_em), done=Boolean(sessions.length&&!active), status=farmStatus(farm), firstStart=firstServiceStart(sessions), lastEnd=lastServiceEnd(sessions); return <div className={`serviceControl ${active?'active':done?'done':''}`}><div className="serviceLead"><span className="eyebrow">Produtividade</span><h2><Clock size={20}/> Serviço da fazenda</h2></div><div className="serviceFacts"><div><span>Situação</span><b>{status}</b></div><div><span>Períodos</span><b>{sessions.length||'-'}</b></div><div><span>Primeiro início</span><b>{brDateTime(firstStart)}</b></div><div><span>Tempo total</span><b>{serviceTotalLabel(farm,visits)}</b></div><div><span>Último fim</span><b>{active?'em andamento':brDateTime(lastEnd)}</b></div></div><div className="serviceActions">{canEdit&&!active&&<button className="btn primary" onClick={onStart}><PlayCircle size={17}/> {sessions.length?'Iniciar novo serviço':'Iniciar serviço'}</button>}{canEdit&&active&&<button className="btn primary" onClick={onFinish}><CheckCircle2 size={17}/> Finalizar serviço</button>}{canEdit&&<button className="btn light" onClick={onEdit}><Pencil size={17}/> Ajustar serviço</button>}</div>{farm.servico_observacoes&&<p className="serviceNote">{farm.servico_observacoes}</p>}</div>}
 function AdministracaoFazenda({farm,data,access,section,onSectionChange}){
   const canManageAccess=Boolean(access.canManageAccess);
   const canViewRestricted=Boolean(access.canEdit);
@@ -2937,7 +2964,7 @@ function FarmExecutiveSummary({farm,visits,checks,diags,equips,evidencias=[],can
     canEdit&&farm.servico_observacoes&&['Observações do serviço',farm.servico_observacoes,Clock]
   ].filter(Boolean);
   const serviceAction=active?['Finalizar',CheckCircle2,onFinish]:[serviceSessions.length?'Novo serviço':'Iniciar',PlayCircle,onStart];
-  const serviceAdjustButton=canEdit&&serviceSessions.length?<button type="button" className="serviceMiniEdit" onClick={onAdjustService} aria-label="Ajustar atendimentos" title="Corrigir horários ou técnico"><Pencil size={15}/></button>:null;
+  const serviceAdjustButton=canEdit&&serviceSessions.length?<button type="button" className="serviceMiniEdit" onClick={onAdjustService} aria-label="Ajustar atendimentos e colares" title="Corrigir horários, técnico ou colares"><Pencil size={15}/></button>:null;
   return <section className="panel executiveSummaryPanel compactExecutiveSummary">
     <div className="execSummaryHead">
       <div><span className="eyebrow">Resumo</span><h2><Gauge size={22}/> Operação</h2></div>
