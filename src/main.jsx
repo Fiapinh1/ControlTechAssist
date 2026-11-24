@@ -24,7 +24,7 @@ import genexLogo from '../LOGO_GENEX.png';
 import urusLogo from '../LOGO_URUS.png';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
-const APP_VERSION = '3.0.22';
+const APP_VERSION = '3.0.24';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
 const FARM_VIEW_KEY = 'cta_farm_view_mode';
@@ -35,13 +35,14 @@ const readAppContext = () => {
   try { return JSON.parse(localStorage.getItem(APP_CONTEXT_KEY) || '{}') || {}; } catch { return {}; }
 };
 const readFarmFilters = () => {
-  const empty = { q:'', central:'Todas', status:'Todos', visitFrom:'', visitTo:'', state:'Todos', city:'Todas', collarsMin:'', collarsMax:'' };
+  const empty = { q:'', central:'Todas', status:'Todos', technician:'Todos', visitFrom:'', visitTo:'', state:'Todos', city:'Todas', collarsMin:'', collarsMax:'' };
   try {
     const saved = JSON.parse(localStorage.getItem(FARM_FILTER_KEY) || '{}') || {};
     return {
       q: typeof saved.q === 'string' ? saved.q : '',
       central: typeof saved.central === 'string' ? saved.central : 'Todas',
       status: typeof saved.status === 'string' ? saved.status : 'Todos',
+      technician: typeof saved.technician === 'string' ? saved.technician : 'Todos',
       visitFrom: typeof saved.visitFrom === 'string' ? saved.visitFrom : '',
       visitTo: typeof saved.visitTo === 'string' ? saved.visitTo : '',
       state: typeof saved.state === 'string' ? saved.state : 'Todos',
@@ -2252,7 +2253,7 @@ const FARM_PAGE_SIZES = { cards: 9, lista: 10 };
 
 function Fazendas({data,onOpen,onOpenMap}){
   const initialFilters=useMemo(readFarmFilters,[]);
-  const [q,setQ]=useState(initialFilters.q),[modal,setModal]=useState(false),[central,setCentral]=useState(initialFilters.central),[status,setStatus]=useState(initialFilters.status),[visitFrom,setVisitFrom]=useState(initialFilters.visitFrom),[visitTo,setVisitTo]=useState(initialFilters.visitTo),[stateFilter,setStateFilter]=useState(initialFilters.state),[cityFilter,setCityFilter]=useState(initialFilters.city),[collarsMin,setCollarsMin]=useState(initialFilters.collarsMin),[collarsMax,setCollarsMax]=useState(initialFilters.collarsMax),[filtersOpen,setFiltersOpen]=useState(false),[settingsOpen,setSettingsOpen]=useState(false);
+  const [q,setQ]=useState(initialFilters.q),[modal,setModal]=useState(false),[central,setCentral]=useState(initialFilters.central),[status,setStatus]=useState(initialFilters.status),[technician,setTechnician]=useState(initialFilters.technician),[visitFrom,setVisitFrom]=useState(initialFilters.visitFrom),[visitTo,setVisitTo]=useState(initialFilters.visitTo),[stateFilter,setStateFilter]=useState(initialFilters.state),[cityFilter,setCityFilter]=useState(initialFilters.city),[collarsMin,setCollarsMin]=useState(initialFilters.collarsMin),[collarsMax,setCollarsMax]=useState(initialFilters.collarsMax),[filtersOpen,setFiltersOpen]=useState(false),[settingsOpen,setSettingsOpen]=useState(false);
   const [page,setPage]=useState(1);
   const [secondaryFiltersOpen,setSecondaryFiltersOpen]=useState(Boolean(initialFilters.visitFrom||initialFilters.visitTo||initialFilters.collarsMin!==''||initialFilters.collarsMax!==''));
   const resultsRef=useRef(null);
@@ -2260,8 +2261,8 @@ function Fazendas({data,onOpen,onOpenMap}){
     try{const saved=localStorage.getItem(FARM_VIEW_KEY);return FARM_VIEW_MODES.some(([id])=>id===saved)?saved:'cards';}catch{return 'cards';}
   });
   useEffect(()=>{try{localStorage.setItem(FARM_VIEW_KEY,viewMode)}catch{}},[viewMode]);
-  useEffect(()=>{try{localStorage.setItem(FARM_FILTER_KEY,JSON.stringify({q,central,status,visitFrom,visitTo,state:stateFilter,city:cityFilter,collarsMin,collarsMax}))}catch{}},[q,central,status,visitFrom,visitTo,stateFilter,cityFilter,collarsMin,collarsMax]);
-  useEffect(()=>{setPage(1)},[q,central,status,visitFrom,visitTo,stateFilter,cityFilter,collarsMin,collarsMax,viewMode]);
+  useEffect(()=>{try{localStorage.setItem(FARM_FILTER_KEY,JSON.stringify({q,central,status,technician,visitFrom,visitTo,state:stateFilter,city:cityFilter,collarsMin,collarsMax}))}catch{}},[q,central,status,technician,visitFrom,visitTo,stateFilter,cityFilter,collarsMin,collarsMax]);
+  useEffect(()=>{setPage(1)},[q,central,status,technician,visitFrom,visitTo,stateFilter,cityFilter,collarsMin,collarsMax,viewMode]);
   const visibleCentrais=allowedCentrais(data);
   useEffect(()=>{if(central!=='Todas'&&!visibleCentrais.includes(central))setCentral('Todas');},[central,visibleCentrais.join('|')]);
   const stateOptions=useMemo(()=>Array.from(new Set(data.fazendas.map(getFarmUF).filter(Boolean))).sort((a,b)=>(UF_NAMES[a]||a).localeCompare(UF_NAMES[b]||b,'pt-BR')),[data.fazendas]);
@@ -2271,31 +2272,49 @@ function Fazendas({data,onOpen,onOpenMap}){
     if(!current||farmVisitTimestamp(visit)>farmVisitTimestamp(current))map.set(visit.fazenda_id,visit);
     return map;
   },new Map()),[data.visitas]);
+  const technicianIndex=useMemo(()=>{
+    const labels=new Map(), byFarm=new Map();
+    const add=(farmId,value)=>{
+      const name=cleanDisplayName(value);
+      if(!farmId||!name)return;
+      const key=normalizeText(name);
+      if(!labels.has(key))labels.set(key,name);
+      if(!byFarm.has(farmId))byFarm.set(farmId,new Set());
+      byFarm.get(farmId).add(key);
+    };
+    data.fazendas.forEach(farm=>add(farm.id,farm.servico_responsavel));
+    data.visitas.forEach(visit=>add(visit.fazenda_id,visit.responsavel_tecnico));
+    return {labels:Array.from(labels.values()).sort((a,b)=>a.localeCompare(b,'pt-BR')),labelByKey:labels,byFarm};
+  },[data.fazendas,data.visitas]);
   useEffect(()=>{if(cityFilter!=='Todas'&&!cityOptions.includes(cityFilter))setCityFilter('Todas')},[cityFilter,cityOptions.join('|')]);
+  useEffect(()=>{if(!data.loading&&technician!=='Todos'&&!technicianIndex.labels.some(name=>normalizeText(name)===normalizeText(technician)))setTechnician('Todos')},[data.loading,technician,technicianIndex.labels.join('|')]);
   const farmEquipments = (farm) => data.equipamentos.filter(e=>e.fazenda_id===farm.id);
   const farms=data.fazendas.filter(f=>{
     const equipmentText=farmEquipments(f).map(e=>[e.tipo,e.apelido,e.local_nome].join(' ')).join(' ');
-    const matchesText=[f.nome,f.cidade,f.estado_uf,f.responsavel,f.central,f.regional_nome,f.veterinario_apoio,equipmentText].join(' ').toLowerCase().includes(q.toLowerCase());
+    const technicianText=Array.from(technicianIndex.byFarm.get(f.id)||[]).map(key=>technicianIndex.labelByKey.get(key)||key).join(' ');
+    const matchesText=normalizeText([f.nome,f.cidade,f.estado_uf,f.responsavel,f.central,f.regional_nome,f.veterinario_apoio,f.servico_responsavel,technicianText,equipmentText].join(' ')).includes(normalizeText(q));
     const currentStatus=farmStatus(f);
     const matchesStatus=status==='Todos'||currentStatus===status;
+    const matchesTechnician=technician==='Todos'||technicianIndex.byFarm.get(f.id)?.has(normalizeText(technician));
     const lastVisit=latestVisitByFarm.get(f.id), lastVisitDate=String(lastVisit?.data_visita||lastVisit?.created_at||'').slice(0,10);
     const matchesVisitFrom=!visitFrom||Boolean(lastVisitDate&&lastVisitDate>=visitFrom);
     const matchesVisitTo=!visitTo||Boolean(lastVisitDate&&lastVisitDate<=visitTo);
     const matchesState=stateFilter==='Todos'||getFarmUF(f)===stateFilter;
     const matchesCity=cityFilter==='Todas'||String(f.cidade||'').trim()===cityFilter;
     const collars=num(f.qtd_colares_prevista), matchesMin=collarsMin===''||collars>=Number(collarsMin), matchesMax=collarsMax===''||collars<=Number(collarsMax);
-    return matchesText&&centralMatches(f,central)&&matchesStatus&&matchesVisitFrom&&matchesVisitTo&&matchesState&&matchesCity&&matchesMin&&matchesMax;
+    return matchesText&&centralMatches(f,central)&&matchesStatus&&matchesTechnician&&matchesVisitFrom&&matchesVisitTo&&matchesState&&matchesCity&&matchesMin&&matchesMax;
   }).sort((a,b)=>farmListTimestamp(b,latestVisitByFarm.get(b.id))-farmListTimestamp(a,latestVisitByFarm.get(a.id))||String(a.nome||'').localeCompare(String(b.nome||''),'pt-BR'));
   const counts={
     naoIniciadas:data.fazendas.filter(f=>farmStatus(f)==='Não iniciada').length,
     andamento:data.fazendas.filter(f=>farmStatus(f)==='Em andamento').length,
     finalizadas:data.fazendas.filter(f=>farmStatus(f)===FARM_STATUS_DONE).length
   };
-  const resetFilters=()=>{setQ('');setCentral('Todas');setStatus('Todos');setVisitFrom('');setVisitTo('');setStateFilter('Todos');setCityFilter('Todas');setCollarsMin('');setCollarsMax('');setSecondaryFiltersOpen(false)};
-  const hasActiveFilters=central!=='Todas'||status!=='Todos'||Boolean(visitFrom)||Boolean(visitTo)||stateFilter!=='Todos'||cityFilter!=='Todas'||collarsMin!==''||collarsMax!=='';
+  const resetFilters=()=>{setQ('');setCentral('Todas');setStatus('Todos');setTechnician('Todos');setVisitFrom('');setVisitTo('');setStateFilter('Todos');setCityFilter('Todas');setCollarsMin('');setCollarsMax('');setSecondaryFiltersOpen(false)};
+  const hasActiveFilters=central!=='Todas'||status!=='Todos'||technician!=='Todos'||Boolean(visitFrom)||Boolean(visitTo)||stateFilter!=='Todos'||cityFilter!=='Todas'||collarsMin!==''||collarsMax!=='';
   const activeFilterLabels=[
     central!=='Todas'&&centralOfficialName(central),
     status!=='Todos'&&status,
+    technician!=='Todos'&&`Técnico: ${technician}`,
     stateFilter!=='Todos'&&(UF_NAMES[stateFilter]||stateFilter),
     cityFilter!=='Todas'&&cityFilter,
     (visitFrom||visitTo)&&`Visita: ${visitFrom?brDate(visitFrom):'início'} a ${visitTo?brDate(visitTo):'hoje'}`,
@@ -2387,6 +2406,10 @@ function Fazendas({data,onOpen,onOpenMap}){
           <label>Central<select aria-label="Central" value={central} onChange={e=>setCentral(e.target.value)}><option>Todas</option>{visibleCentrais.map(c=><option key={c} value={c}>{centralOfficialName(c)}</option>)}</select></label>
           <label>Status<select aria-label="Status" value={status} onChange={e=>setStatus(e.target.value)}><option>Todos</option>{FARM_STATUS.map(s=><option key={s}>{s}</option>)}</select></label>
         </div>
+        <section className="farmFilterGroup">
+          <div className="farmFilterGroupTitle"><UserCheck size={16}/><span><b>Técnico</b><small>Responsável atual ou registrado nas visitas.</small></span></div>
+          <div className="farmFilterGrid farmFilterGridSingle"><label>Técnico responsável<select aria-label="Técnico responsável" value={technician} onChange={e=>setTechnician(e.target.value)}><option value="Todos">Todos</option>{technicianIndex.labels.map(name=><option key={normalizeText(name)} value={name}>{name}</option>)}</select></label></div>
+        </section>
         <section className="farmFilterGroup">
           <div className="farmFilterGroupTitle"><MapPin size={16}/><span><b>Localização</b><small>A cidade acompanha o estado selecionado.</small></span></div>
           <div className="farmFilterGrid"><label>Estado<select aria-label="Estado" value={stateFilter} onChange={e=>{setStateFilter(e.target.value);setCityFilter('Todas')}}><option value="Todos">Todos</option>{stateOptions.map(uf=><option key={uf} value={uf}>{UF_NAMES[uf]||uf} ({uf})</option>)}</select></label><label>Cidade<select aria-label="Cidade" value={cityFilter} onChange={e=>setCityFilter(e.target.value)}><option value="Todas">Todas</option>{cityOptions.map(city=><option key={city} value={city}>{city}</option>)}</select></label></div>
@@ -2991,7 +3014,7 @@ function FazendaDetalhe({farm,data,onBack}){
       </div>}
     </section>
     {!access.canEdit&&<PermissionNotice/>}
-    <div className="tabs farmTabs">{tabs.map(([id,label,Icon])=><button key={id} onClick={()=>goTab(id)} className={(tab===id||(tab==='equipamentos'&&id==='mapa'))?'active':''}><Icon size={17}/>{label}</button>)}</div>
+    <nav className="tabs farmTabs" role="tablist" aria-label="Seções da fazenda">{tabs.map(([id,label,Icon])=>{const active=tab===id||(tab==='equipamentos'&&id==='mapa');return <button type="button" role="tab" aria-selected={active} key={id} onClick={()=>goTab(id)} className={active?'active':''}><Icon size={17}/>{label}</button>})}</nav>
     {tab==='resumo'&&<FarmExecutiveSummary farm={farm} visits={visits} checks={checks} diags={diags} equips={equips} evidencias={evidencias} canEdit={access.canEdit} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)} onAdjustService={()=>farmServiceSessions(farm,visits).some(session=>session.visit)?setServicePeriodsOpen(true):setServiceModal('adjust')} onNewVisit={openVisitModal} onOpenMap={()=>setTab('mapa')} onNavigate={goTab}/>}
     {tab==='checklists'&&<ChecklistsFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {(tab==='mapa'||tab==='equipamentos')&&<InstalacaoTecnicaFazenda farm={farm} data={data} canEdit={access.canEdit} view={tab==='equipamentos'?'equipamentos':installationView} onViewChange={next=>{setTab('mapa');setInstallationView(next)}} openNew={()=>setEquipModal({})} onEditEquip={openEquipmentFromMap}/>} {tab==='visitas'&&<VisitasFazenda farm={farm} data={data} canEdit={access.canEdit} openNew={openVisitModal} onStartReturn={startReturnFromVisit}/>} {tab==='evidencias'&&<EvidenciasFazenda farm={farm} data={data} canEdit={access.canEdit}/>} {tab==='relatorio'&&<RelatorioFazenda farm={farm} data={data}/>} {tab==='administracao'&&administrationAvailable&&<AdministracaoFazenda farm={farm} data={data} access={access} section={administrationTab} onSectionChange={setAdministrationTab}/>}
     <FarmBottomNav farm={farm} tabs={tabs} tab={tab==='equipamentos'?'mapa':tab} setTab={goTab} onBack={onBack} access={access} serviceActive={serviceActive} serviceDone={serviceDone} onStart={startService} onFinish={finishService} onEdit={()=>setEdit(true)} onNewVisit={openVisitModal}/>
@@ -3079,8 +3102,10 @@ function AcessosFazenda({farm,data,access,embedded=false}){
   return <section className={`${embedded?'administrationSubpanel':'panel'} accessPanel`}>
     <div className="administrationSectionTitle"><div><span className="eyebrow">Compartilhamento seguro</span><h3><UserCheck size={19}/> Acessos da fazenda</h3><p>Libere acesso individual ou para um grupo criado no Gerencial.</p></div><span className="administrationCount">{members.length+groupLinks.length+1} acesso(s)</span></div>
     <form className="accessInvitePanel" onSubmit={add}>
+      <div className="accessInviteLegend"><div><b>Novo acesso</b><small>Informe uma pessoa ou grupo e escolha o nível de permissão.</small></div><span>Novo</span></div>
       <div className="accessInviteTop"><Field label="Pessoa ou grupo"><input value={recipient} onChange={e=>setRecipient(e.target.value)} placeholder="nome@email.com ou identificador-do-grupo" autoCapitalize="none" spellCheck="false" required/></Field><button className="btn primary" disabled={busy}><UserCheck size={17}/> {busy?'Liberando...':'Liberar acesso'}</button></div>
-      <div className="accessRoleCards" role="radiogroup" aria-label="Perfil de acesso">{roles.map(([value,label,desc])=><button type="button" role="radio" aria-checked={role===value} key={value} className={role===value?'active':''} onClick={()=>setRole(value)}><span>{value==='admin'?<ShieldCheck size={18}/>:<UserCheck size={18}/>}</span><b>{label}</b><small>{desc}</small></button>)}</div>
+      <div className="accessRoleHeader"><b>Perfil de acesso</b><small>Selecione uma opção antes de liberar</small></div>
+      <div className="accessRoleCards" role="radiogroup" aria-label="Perfil de acesso">{roles.map(([value,label,desc])=><button type="button" role="radio" aria-checked={role===value} key={value} className={role===value?'active':''} onClick={()=>setRole(value)}><span className="accessRoleIcon">{value==='admin'?<ShieldCheck size={18}/>:<UserCheck size={18}/>}</span><b>{label}</b><small>{desc}</small><span className="accessRoleState" aria-hidden="true">{role===value&&<Check size={13}/>}</span></button>)}</div>
     </form>
     <div className="accessPeopleHeader"><div><span className="eyebrow">Equipe autorizada</span><h3>Pessoas com acesso</h3></div><small>Perfis e permissões atuais</small></div>
     <div className="accessPeopleGrid">
