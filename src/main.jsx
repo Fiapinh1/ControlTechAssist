@@ -24,7 +24,7 @@ import genexLogo from '../LOGO_GENEX.png';
 import urusLogo from '../LOGO_URUS.png';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
-const APP_VERSION = '3.0.24';
+const APP_VERSION = '3.0.25';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
 const FARM_VIEW_KEY = 'cta_farm_view_mode';
@@ -369,6 +369,7 @@ const ledToneClass = value => {
 };
 const LED_COLOR_OPTIONS = ['Verde', 'Azul', 'Laranja', 'Vermelho', 'Branco'];
 const LED_MODE_OPTIONS = ['Aceso', 'Apagado', 'Pisca lentamente', 'Pisca rapidamente', '1 flash curto', '2 flashes curtos', '3 flashes curtos'];
+const LED_COLOR_HEX = {Verde:'#22c55e',Azul:'#2563eb',Laranja:'#f59e0b',Vermelho:'#ef4444',Branco:'#f8fafc'};
 const VP8002_LED_NORMALS = {
   power: { color:'Verde', mode:'Aceso', meaning:'Alimentação principal ligada e reserva interna carregada.', action:'Condição normal de alimentação.' },
   status: { color:'Azul', mode:'Pisca lentamente', meaning:'VP8002 em funcionamento normal.', action:'Condição normal. Continuar a validação da instalação.' },
@@ -841,6 +842,112 @@ const ledDiagnosticForRich = (ledId, observed={}) => {
   }
 
   return make({procedureId: exact ? actionForLed(ledId)?.id : undefined});
+};
+const buildVp8002Diagnosis = (observedStates={}) => {
+  const markerById = Object.fromEntries(VP8002_LED_MARKERS.map(marker=>[marker.id,marker]));
+  const divergentIds = VP8002_LED_MARKERS
+    .filter(marker=>!ledStateMatches(VP8002_LED_NORMALS[marker.id], observedStates[marker.id]||VP8002_LED_NORMALS[marker.id]))
+    .map(marker=>marker.id);
+  const divergentSet = new Set(divergentIds);
+  const consumed = new Set();
+  const issues = [];
+  const severityRank = {danger:3,warn:2,info:1,ok:0};
+  const issueSeverity = ids => ids
+    .map(id=>ledDiagnosticForRich(id, observedStates[id]||VP8002_LED_NORMALS[id]).severity||'warn')
+    .sort((a,b)=>(severityRank[b]||0)-(severityRank[a]||0))[0]||'warn';
+  const observationsFor = ids => ids.map(id=>({
+    id,
+    label:markerById[id]?.label||id,
+    expected:ledLabelState(VP8002_LED_NORMALS[id]),
+    observed:ledLabelState(observedStates[id]||VP8002_LED_NORMALS[id])
+  }));
+  const addGroup = ({id,ids,title,meaning,probableCause,action,procedureId,checks}) => {
+    const activeIds=ids.filter(ledId=>divergentSet.has(ledId)&&!consumed.has(ledId));
+    if(activeIds.length<2) return false;
+    activeIds.forEach(ledId=>consumed.add(ledId));
+    const rich=activeIds.map(ledId=>ledDiagnosticForRich(ledId,observedStates[ledId]||VP8002_LED_NORMALS[ledId]));
+    issues.push({
+      id,
+      ledIds:activeIds,
+      observations:observationsFor(activeIds),
+      severity:issueSeverity(activeIds),
+      title,
+      meaning,
+      probableCause,
+      action,
+      procedureId:procedureId||rich.find(item=>item.procedureId)?.procedureId,
+      checks:checks?.length?checks:[...new Set(rich.flatMap(item=>item.checks||[]))].slice(0,6)
+    });
+    return true;
+  };
+
+  const supplyIds=['power','vin1','vin2','vout1','vout2'];
+  const supplyDivergences=supplyIds.filter(id=>divergentSet.has(id));
+  if((divergentSet.has('power')&&supplyDivergences.length>=2)||supplyDivergences.length>=3){
+    addGroup({
+      id:'power-chain',
+      ids:supplyIds,
+      title:'Falha no conjunto de alimentação',
+      meaning:'Mais de um LED da alimentação está fora do padrão esperado.',
+      probableCause:'Fonte instável, queda de tensão, borne/cabo com problema, curto ou sobrecarga nas saídas.',
+      action:'Normalize a alimentação como um único circuito antes de validar rede, CAN e periféricos.',
+      procedureId:'power-check',
+      checks:['Medir a tensão de entrada.', 'Revisar fonte, borne, polaridade e cabos.', 'Isolar cargas suspeitas.', 'Confirmar POWER, Vin e Vout no padrão após a correção.']
+    });
+  }
+
+  const canIds=['status','can1','can2'];
+  const canDivergences=canIds.filter(id=>divergentSet.has(id));
+  const statusDiagnosis=divergentSet.has('status')?ledDiagnosticForRich('status',observedStates.status||VP8002_LED_NORMALS.status):null;
+  if(canDivergences.filter(id=>id.startsWith('can')).length===2||(statusDiagnosis?.procedureId==='menu-de'&&canDivergences.some(id=>id.startsWith('can')))){
+    addGroup({
+      id:'can-sequence',
+      ids:canIds,
+      title:'Falha combinada no barramento CAN',
+      meaning:'STATUS e/ou os barramentos CAN apresentam uma sequência relacionada de alerta.',
+      probableCause:'Erro ativo no sistema, curto, sobrecarga, cabo rompido, conector oxidado ou dispositivo CAN sem comunicação.',
+      action:'Consulte o código dE, identifique o barramento afetado e corrija a causa antes de liberar a instalação.',
+      procedureId:'menu-de',
+      checks:['Consultar e anotar o código dE.', 'Identificar o barramento indicado.', 'Inspecionar cabos, conectores e dispositivos.', 'Confirmar STATUS e CAN no padrão após a correção.']
+    });
+  }
+
+  [['link1','act1','LAN 1'],['link2','act2','LAN 2']].forEach(([linkId,actId,port])=>{
+    if(divergentSet.has(linkId)&&divergentSet.has(actId)) addGroup({
+      id:`network-${port}`,
+      ids:[linkId,actId],
+      title:`Falha de comunicação na ${port}`,
+      meaning:`LINK e ACT da ${port} estão fora do padrão ao mesmo tempo.`,
+      probableCause:'Cabo desconectado ou defeituoso, porta incorreta, roteador/switch desligado ou DHCP indisponível.',
+      action:'Valide a conexão física, troque cabo/porta e confirme um IP válido no display.',
+      procedureId:'lan-link-act',
+      checks:['Reencaixar ou trocar o cabo Ethernet.', 'Testar outra porta do roteador/switch.', 'Confirmar LINK aceso e ACT com atividade.', 'Validar um IP correto no display.']
+    });
+  });
+
+  if(divergentSet.has('usb1')&&divergentSet.has('usb2')) addGroup({
+    id:'usb-sequence',
+    ids:['usb1','usb2'],
+    title:'Atividade simultânea nas portas USB',
+    meaning:'As duas portas USB estão diferentes do estado normal sem atividade.',
+    probableCause:'Dispositivos conectados, transferência/backup em andamento ou falha comum nas portas USB.',
+    action:'Confirme se o uso é intencional e não remova dispositivos durante leitura ou gravação.',
+    procedureId:'menu-da',
+    checks:['Identificar os dispositivos conectados.', 'Confirmar se há backup ou transferência em andamento.', 'Remover somente após concluir a gravação.', 'Revalidar os LEDs USB.']
+  });
+
+  divergentIds.filter(id=>!consumed.has(id)).forEach(id=>{
+    const rich=ledDiagnosticForRich(id,observedStates[id]||VP8002_LED_NORMALS[id]);
+    issues.push({
+      ...rich,
+      id:`led-${id}`,
+      ledIds:[id],
+      observations:observationsFor([id])
+    });
+  });
+
+  issues.sort((a,b)=>(severityRank[b.severity]||0)-(severityRank[a.severity]||0));
+  return {issues,divergentCount:divergentIds.length,isNormal:divergentIds.length===0};
 };
 function normalizeFarmStatus(value){
   const raw = String(value || '').trim();
@@ -4373,9 +4480,14 @@ function download(filename, text){const blob=new Blob([text],{type:'text/tab-sep
 function SuporteTecnico({data}){
   const [tab,setTab]=useState('resolver'),[q,setQ]=useState(''),[symptomId,setSymptomId]=useState(SYMPTOMS[0]?.id||''),[guideId,setGuideId]=useState(INSTALL_GUIDES[0]?.id||''),[actionId,setActionId]=useState(VP8002_FIELD_ACTIONS[0]?.id||''),[farm,setFarm]=useState(''),[obs,setObs]=useState(''),[checked,setChecked]=useState({});
   const [mobilePanel,setMobilePanel]=useState(null);
-  const [selectedLedId,setSelectedLedId]=useState('power');
+  const [selectedLedId,setSelectedLedId]=useState(null);
   const [observedLedStates,setObservedLedStates]=useState(()=>defaultVp8002LedStates());
-  const ledInspectorRef = useRef(null);
+  const [confirmedLedIds,setConfirmedLedIds]=useState([]);
+  const [ledDiagnosis,setLedDiagnosis]=useState(null);
+  const [ledFullscreen,setLedFullscreen]=useState(false);
+  const [ledPortrait,setLedPortrait]=useState(false);
+  const ledSimulatorRef=useRef(null);
+  const ledDiagnosisRef=useRef(null);
   const query=q.trim().toLowerCase();
   const matches=(...parts)=>!query||parts.flat().join(' ').toLowerCase().includes(query);
   const symptomResults=SYMPTOMS.filter(s=>matches(s.title,s.category,s.cause,s.action,s.checks));
@@ -4384,23 +4496,20 @@ function SuporteTecnico({data}){
   const selectedSymptom=symptomResults.find(s=>s.id===symptomId)||symptomResults[0];
   const selectedGuide=guideResults.find(g=>g.id===guideId)||guideResults[0];
   const selectedAction=actionResults.find(action=>action.id===actionId)||actionResults[0]||VP8002_FIELD_ACTIONS[0];
-  const selectedLedMarker=VP8002_LED_MARKERS.find(marker=>marker.id===selectedLedId)||VP8002_LED_MARKERS[0];
-  const selectedLedNormal=VP8002_LED_NORMALS[selectedLedMarker.id]||{};
-  const selectedLedObserved=observedLedStates[selectedLedMarker.id]||selectedLedNormal;
-  const selectedLedDiagnostic=ledDiagnosticForRich(selectedLedMarker.id, selectedLedObserved);
-  const selectedLedCanCodes=canCodesForLed(selectedLedMarker.id);
-  const selectedLedAction=actionForLed(selectedLedMarker.id);
-  const selectedLedProcedureAction=VP8002_FIELD_ACTIONS.find(action=>action.id===selectedLedDiagnostic.procedureId)||selectedLedAction;
+  const selectedLedMarker=VP8002_LED_MARKERS.find(marker=>marker.id===selectedLedId)||null;
+  const selectedLedNormal=selectedLedMarker?VP8002_LED_NORMALS[selectedLedMarker.id]||{}:{};
+  const selectedLedObserved=selectedLedMarker?observedLedStates[selectedLedMarker.id]||selectedLedNormal:{};
   const simulatedLedStates=Object.fromEntries(VP8002_LED_MARKERS.map(marker=>{
     const normal=VP8002_LED_NORMALS[marker.id]||{};
     const observed=observedLedStates[marker.id]||normal;
     return [marker.id,{...observed,different:!ledStateMatches(normal,observed)}];
   }));
-  const ledDivergenceCount=VP8002_LED_MARKERS.filter(marker=>simulatedLedStates[marker.id]?.different).length;
+  const confirmedLedCount=confirmedLedIds.length;
+  const allLedsConfirmed=confirmedLedCount===VP8002_LED_MARKERS.length;
   const done=SUPPORT_CHECKS.filter((_,i)=>checked[i]).length;
   const tabs=[
     ['resolver',Stethoscope,'Problemas',symptomResults.length],
-    ['leds',Cpu,'VP8002',ledDivergenceCount||VP8002_LED_MARKERS.length],
+    ['leds',Cpu,'VP8002',`${confirmedLedCount}/${VP8002_LED_MARKERS.length}`],
     ['procedimentos',Wrench,'Procedimentos',actionResults.length],
     ['guia',BookOpen,'Guias',guideResults.length],
     ['suporte',LifeBuoy,'Checklist',SUPPORT_CHECKS.length]
@@ -4415,16 +4524,72 @@ function SuporteTecnico({data}){
   };
   const selectLedMarker=marker=>{
     setSelectedLedId(marker.id);
-    const scrollToInspector=()=>ledInspectorRef.current?.scrollIntoView({behavior:'smooth', block:'center'});
-    if(typeof requestAnimationFrame==='function') requestAnimationFrame(scrollToInspector);
-    else setTimeout(scrollToInspector, 0);
+    const revealEditor=()=>document.querySelector('.ledInlineEditor')?.scrollIntoView({behavior:'smooth',block:'nearest',inline:'nearest'});
+    if(typeof requestAnimationFrame==='function') requestAnimationFrame(()=>requestAnimationFrame(revealEditor));
+    else setTimeout(revealEditor,0);
   };
-  const updateObservedLed=patch=>setObservedLedStates(prev=>({
-    ...prev,
-    [selectedLedMarker.id]: {...(prev[selectedLedMarker.id]||selectedLedNormal), ...patch}
-  }));
-  const resetObservedLed=()=>setObservedLedStates(prev=>({...prev,[selectedLedMarker.id]: {...selectedLedNormal}}));
-  const resetAllLeds=()=>setObservedLedStates(defaultVp8002LedStates());
+  const updateObservedLed=patch=>{
+    if(!selectedLedMarker) return;
+    setObservedLedStates(prev=>({
+      ...prev,
+      [selectedLedMarker.id]: {...(prev[selectedLedMarker.id]||selectedLedNormal), ...patch}
+    }));
+    setConfirmedLedIds(prev=>prev.filter(id=>id!==selectedLedMarker.id));
+    setLedDiagnosis(null);
+  };
+  const confirmSelectedLed=()=>{
+    if(!selectedLedMarker) return;
+    setConfirmedLedIds(prev=>prev.includes(selectedLedMarker.id)?prev:[...prev,selectedLedMarker.id]);
+    setSelectedLedId(null);
+    setLedDiagnosis(null);
+  };
+  const confirmSelectedLedAsNormal=()=>{
+    if(!selectedLedMarker) return;
+    setObservedLedStates(prev=>({...prev,[selectedLedMarker.id]:{...selectedLedNormal}}));
+    setConfirmedLedIds(prev=>prev.includes(selectedLedMarker.id)?prev:[...prev,selectedLedMarker.id]);
+    setSelectedLedId(null);
+    setLedDiagnosis(null);
+  };
+  const resetAllLeds=()=>{
+    setObservedLedStates(defaultVp8002LedStates());
+    setConfirmedLedIds([]);
+    setSelectedLedId(null);
+    setLedDiagnosis(null);
+  };
+  const generateLedDiagnosis=()=>{
+    if(!allLedsConfirmed){
+      notify(`Confira os ${VP8002_LED_MARKERS.length-confirmedLedCount} LED(s) restantes antes do diagnóstico.`,'error');
+      return;
+    }
+    setLedDiagnosis({...buildVp8002Diagnosis(observedLedStates),generatedAt:new Date().toISOString()});
+    setSelectedLedId(null);
+    const scrollToResult=()=>ledDiagnosisRef.current?.scrollIntoView({behavior:'smooth',block:'start'});
+    if(typeof requestAnimationFrame==='function') requestAnimationFrame(scrollToResult);
+    else setTimeout(scrollToResult,0);
+  };
+  const closeLedFullscreen=async()=>{
+    setLedFullscreen(false);
+    try{window.screen?.orientation?.unlock?.();}catch{}
+    try{if(document.fullscreenElement) await document.exitFullscreen();}catch{}
+  };
+  const toggleLedFullscreen=async()=>{
+    if(ledFullscreen){await closeLedFullscreen();return;}
+    setLedFullscreen(true);
+    try{await ledSimulatorRef.current?.requestFullscreen?.();}catch{}
+    try{await window.screen?.orientation?.lock?.('landscape');}catch{}
+  };
+  useEffect(()=>{
+    const media=window.matchMedia('(orientation: portrait)');
+    const syncOrientation=()=>setLedPortrait(media.matches);
+    const syncFullscreen=()=>{if(!document.fullscreenElement&&ledFullscreen)setLedFullscreen(false);};
+    syncOrientation();
+    media.addEventListener?.('change',syncOrientation);
+    document.addEventListener('fullscreenchange',syncFullscreen);
+    return ()=>{
+      media.removeEventListener?.('change',syncOrientation);
+      document.removeEventListener('fullscreenchange',syncFullscreen);
+    };
+  },[ledFullscreen]);
   useEffect(()=>{setMobilePanel(null);},[tab,q]);
   const saveSymptom=()=>{
     if(!selectedSymptom) return;
@@ -4464,6 +4629,37 @@ function SuporteTecnico({data}){
     </div>}
     <p className="sourceText">{SOURCES.vp8002}</p>
   </article>:<Empty icon={Wrench} title="Nenhum procedimento encontrado" text="Limpe a busca ou procure por IP, dE, dA, reset, rede ou antena."/>;
+  const LedInlineEditor=({marker,state})=><div className="ledInlineEditor" role="dialog" aria-label={`Informar estado do LED ${marker.label}`}>
+    <header>
+      <div><span className={`ledInspectorDot ${ledToneClass(state.color)}`}/><span><small>LED observado</small><b>{marker.label}</b></span></div>
+      <button type="button" onClick={()=>setSelectedLedId(null)} aria-label="Fechar editor do LED"><X size={16}/></button>
+    </header>
+    <div className="ledInlineField">
+      <small>Cor</small>
+      <div className="ledColorSwatches">
+        {LED_COLOR_OPTIONS.map(color=><button
+          key={color}
+          type="button"
+          className={state.color===color?'active':''}
+          style={{'--swatch':LED_COLOR_HEX[color]}}
+          onClick={()=>updateObservedLed({color})}
+          title={color}
+          aria-label={`Cor ${color}`}
+          aria-pressed={state.color===color}
+        ><span/>{state.color===color&&<Check size={12}/>}</button>)}
+      </div>
+    </div>
+    <label className="ledInlineField">
+      <small>Comportamento</small>
+      <select value={state.mode||'Aceso'} onChange={event=>updateObservedLed({mode:event.target.value})}>
+        {LED_MODE_OPTIONS.map(mode=><option key={mode}>{mode}</option>)}
+      </select>
+    </label>
+    <footer>
+      <button type="button" className="ledNormalShortcut" onClick={confirmSelectedLedAsNormal}><CheckCircle2 size={15}/> Igual ao padrão</button>
+      <button type="button" className="ledConfirmButton" onClick={confirmSelectedLed}><Check size={16}/> Confirmar</button>
+    </footer>
+  </div>;
   return <div className="supportPage">
     <PageHead eyebrow="Suporte técnico" title="Resolver no campo"/>
     <section className="supportHero">
@@ -4527,92 +4723,70 @@ function SuporteTecnico({data}){
       </article></div>:<Empty icon={BookOpen} title="Nenhum guia encontrado" text="Limpe a busca ou procure por VP8002, antena, Nedap Now ou colares."/>}
     </section>}
 
-    {tab==='leds'&&<section className="panel supportCardPanel ledSimulatorPanel">
-      <div className="sectionTitle">
+    {tab==='leds'&&<section ref={ledSimulatorRef} className={`panel supportCardPanel ledSimulatorPanel ${ledFullscreen?'is-fullscreen':''}`}>
+      <div className="ledSimulatorHead">
         <div><span className="eyebrow">Simulador visual</span><h2><Cpu size={20}/> LEDs da VP8002</h2></div>
-        <span className={`pill ${ledDivergenceCount?'warn':''}`}>{ledDivergenceCount?`${ledDivergenceCount} divergente(s)`:'Operação normal'}</span>
+        <div className="ledSimulatorHeadActions">
+          <span className={`ledProgressPill ${allLedsConfirmed?'complete':''}`}><CheckCircle2 size={16}/><b>{confirmedLedCount}/{VP8002_LED_MARKERS.length}</b> conferidos</span>
+          <button type="button" className="iconBtn" onClick={resetAllLeds} title="Reiniciar conferência" aria-label="Reiniciar conferência"><RefreshCw size={18}/></button>
+          <button type="button" className="iconBtn ledFullscreenButton" onClick={toggleLedFullscreen} title={ledFullscreen?'Sair da tela cheia':'Abrir em tela cheia'} aria-label={ledFullscreen?'Sair da tela cheia':'Abrir simulador em tela cheia'}>{ledFullscreen?<Minimize2 size={19}/>:<Maximize2 size={19}/>}</button>
+        </div>
       </div>
-      <div className="ledSimulatorLayout">
-        <div className="ledSimulatorStage">
-          <div className="ledSimulatorIntro">
-            <div>
-              <b>Modo: Funcionamento normal</b>
-              <span>Compare com a VP8002 física e toque no LED que estiver diferente.</span>
-            </div>
-            <button type="button" className="btn light" onClick={resetAllLeds}><RefreshCw size={16}/> Restaurar funcionamento normal</button>
-          </div>
+      <div className="ledSimulatorWorkspace">
+        <div className="ledSimulatorGuide">
+          <div><Target size={18}/><span><b>Toque em cada LED</b><small>Informe como ele está na VP8002 física e confirme.</small></span></div>
+          <div className="ledProgressTrack" aria-label={`${confirmedLedCount} de ${VP8002_LED_MARKERS.length} LEDs conferidos`}><span style={{width:`${Math.round((confirmedLedCount/VP8002_LED_MARKERS.length)*100)}%`}}/></div>
+        </div>
+        <div className="ledDeviceViewport">
+          <button type="button" className="ledMobileLandscapeCallout" onClick={toggleLedFullscreen}>
+            <Maximize2 size={24}/><span><b>Abrir conferência horizontal</b><small>Gire o celular para visualizar e tocar nos LEDs.</small></span>
+          </button>
           <DeviceLedMap
+            className="vp8002InteractiveMap"
             imageSrc={vp8002LedPanelImage}
             imageAlt="Painel frontal da VP8002 com LEDs e conectores"
             markers={VP8002_LED_MARKERS}
             stateById={simulatedLedStates}
-            activeIds={[selectedLedMarker.id]}
+            activeIds={selectedLedId?[selectedLedId]:[]}
+            confirmedIds={confirmedLedIds}
             onMarkerClick={selectLedMarker}
+            renderMarkerEditor={(marker,state)=><LedInlineEditor marker={marker} state={state}/>}
           />
-          <div className="ledSelectorRail" aria-label="Selecionar LED da VP8002">
-            {VP8002_LED_MARKERS.map(marker=>{
-              const state=simulatedLedStates[marker.id]||{};
-              const active=marker.id===selectedLedMarker.id;
-              return <button key={marker.id} type="button" className={`${active?'active':''} ${state.different?'different':''}`} onClick={()=>selectLedMarker(marker)}>
-                <span className={`ledSelectorDot ${ledToneClass(state.color)}`}/>
-                <b>{marker.label}</b>
-              </button>
-            })}
-          </div>
         </div>
-        <aside className="ledInspectorPanel" ref={ledInspectorRef}>
-          <header>
-            <span className={`ledInspectorDot ${ledToneClass(selectedLedObserved.color)}`}/>
-            <div>
-              <span className="eyebrow">LED selecionado</span>
-              <h3>{selectedLedMarker.label}</h3>
-            </div>
-            <span className={`status ${selectedLedDiagnostic.isNormal?'ok':selectedLedDiagnostic.severity||'warn'}`}>{selectedLedDiagnostic.isNormal?'Normal':'Divergente'}</span>
-          </header>
-          <div className="ledCompareGrid">
-            <article>
-              <small>Estado normal esperado</small>
-              <b>{ledLabelState(selectedLedNormal)}</b>
-              <span>{selectedLedNormal.meaning}</span>
-            </article>
-            <article className={selectedLedDiagnostic.isNormal?'ok':selectedLedDiagnostic.severity||'warn'}>
-              <small>Estado observado</small>
-              <b>{ledLabelState(selectedLedObserved)}</b>
-              <span>{selectedLedDiagnostic.isNormal?'Igual ao funcionamento esperado.':'Diferente do funcionamento normal.'}</span>
-            </article>
+        <div className="ledSimulatorFooter">
+          <div className="ledFooterStatus">
+            {allLedsConfirmed?<CheckCircle2 size={19}/>:<Info size={19}/>}
+            <span><b>{allLedsConfirmed?'Conferência concluída':`${VP8002_LED_MARKERS.length-confirmedLedCount} LED(s) pendente(s)`}</b><small>{allLedsConfirmed?'O diagnóstico já pode ser gerado.':'Os estados iniciais seguem o padrão normal do manual.'}</small></span>
           </div>
-          <div className="ledObservedControls">
-            <Field label="Cor observada">
-              <select value={selectedLedObserved.color||'Verde'} onChange={e=>updateObservedLed({color:e.target.value})}>
-                {LED_COLOR_OPTIONS.map(color=><option key={color}>{color}</option>)}
-              </select>
-            </Field>
-            <Field label="Comportamento observado">
-              <select value={selectedLedObserved.mode||'Aceso'} onChange={e=>updateObservedLed({mode:e.target.value})}>
-                {LED_MODE_OPTIONS.map(mode=><option key={mode}>{mode}</option>)}
-              </select>
-            </Field>
-          </div>
-          <article className={`ledDiagnosticResult ${selectedLedDiagnostic.severity||'warn'} ${selectedLedDiagnostic.isNormal?'ok':'warn'}`}>
-            <span>Diagnóstico</span>
-            <h4>{selectedLedDiagnostic.title}</h4>
-            <p>{selectedLedDiagnostic.meaning}</p>
-            {selectedLedDiagnostic.probableCause&&<><b>Leitura provavel</b><p>{selectedLedDiagnostic.probableCause}</p></>}
-            <b>Ação recomendada</b>
-            <p>{selectedLedDiagnostic.action}</p>
-            {selectedLedDiagnostic.checks?.length>0&&<div className="ledActionSteps">
-              {selectedLedDiagnostic.checks.map((item,i)=><div key={item}><span>{i+1}</span><b>{item}</b></div>)}
-            </div>}
-          </article>
-          {(selectedLedProcedureAction||selectedLedCanCodes.length>0)&&<div className="ledProcedureHint">
-            <div><Wrench size={17}/><span><b>Procedimento relacionado</b>{selectedLedProcedureAction?.title||'Consultar dE - erros CAN'}</span></div>
-            {selectedLedCanCodes.length>0&&<div className="ledMiniCodes">{selectedLedCanCodes.slice(0,6).map(code=><span key={code.code}>{code.code}</span>)}</div>}
-            <button type="button" className="btn light full" onClick={()=>openAction(selectedLedProcedureAction?.id||'menu-de')}>Abrir procedimento visual</button>
-          </div>}
-          <button type="button" className="btn light full" onClick={resetObservedLed}><RefreshCw size={16}/> Voltar este LED ao normal</button>
-          <p className="sourceText">{SOURCES.vp8002}</p>
-        </aside>
+          <button type="button" className="btn primary ledDiagnosisButton" disabled={!allLedsConfirmed} onClick={generateLedDiagnosis}><Stethoscope size={18}/> Gerar diagnóstico</button>
+        </div>
+        <p className="sourceText">{SOURCES.vp8002}</p>
       </div>
+      {ledFullscreen&&ledPortrait&&<div className="ledRotatePrompt">
+        <Maximize2 size={32}/><b>Gire o celular</b><span>Use o aparelho na horizontal para tocar nos LEDs com precisão.</span>
+        <button type="button" onClick={closeLedFullscreen}><X size={17}/> Sair da tela cheia</button>
+      </div>}
+      {ledDiagnosis&&<section className="ledDiagnosisSummary" ref={ledDiagnosisRef}>
+        <header>
+          <div><span className="eyebrow">Resultado da conferência</span><h3>{ledDiagnosis.isNormal?<><CheckCircle2 size={22}/> Funcionamento normal</>:<><AlertTriangle size={22}/> {ledDiagnosis.issues.length} {ledDiagnosis.issues.length===1?'diagnóstico encontrado':'diagnósticos encontrados'}</>}</h3></div>
+          <span>{ledDiagnosis.divergentCount} {ledDiagnosis.divergentCount===1?'LED fora':'LEDs fora'} do padrão</span>
+        </header>
+        {ledDiagnosis.isNormal?<article className="ledDiagnosisNormal"><CheckCircle2 size={28}/><div><b>Nenhuma divergência encontrada</b><p>Os 18 LEDs correspondem ao funcionamento normal configurado para a VP8002.</p></div></article>:
+          <div className="ledDiagnosisList">{ledDiagnosis.issues.map((issue,index)=>{
+            const procedure=VP8002_FIELD_ACTIONS.find(action=>action.id===issue.procedureId);
+            return <article key={issue.id} className={`ledDiagnosisCard ${issue.severity||'warn'}`}>
+              <div className="ledDiagnosisNumber">{index+1}</div>
+              <div className="ledDiagnosisContent">
+                <div className="ledDiagnosisTitle"><div><span>{issue.ledIds.length>1?'Sequência relacionada':'LED identificado'}</span><h4>{issue.title}</h4></div><div>{issue.ledIds.map(id=><b key={id}>{VP8002_LED_MARKERS.find(marker=>marker.id===id)?.label||id}</b>)}</div></div>
+                <p>{issue.meaning}</p>
+                <div className="ledObservationGrid">{issue.observations.map(item=><div key={item.id}><b>{item.label}</b><span>Observado: {item.observed}</span><small>Esperado: {item.expected}</small></div>)}</div>
+                {issue.probableCause&&<div className="ledDiagnosisCallout"><span>Leitura provável</span><b>{issue.probableCause}</b></div>}
+                <div className="ledDiagnosisCallout action"><span>Ação recomendada</span><b>{issue.action}</b></div>
+                {issue.checks?.length>0&&<div className="ledActionSteps">{issue.checks.map((item,itemIndex)=><div key={item}><span>{itemIndex+1}</span><b>{item}</b></div>)}</div>}
+                {procedure&&<button type="button" className="btn light ledProcedureButton" onClick={()=>{if(ledFullscreen)closeLedFullscreen();openAction(procedure.id)}}><Wrench size={16}/> Abrir procedimento: {procedure.title}</button>}
+              </div>
+            </article>})}</div>}
+      </section>}
     </section>}
 
     {tab==='suporte'&&<section className="panel supportBeforePanel">

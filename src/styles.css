@@ -19511,3 +19511,786 @@ button.execCard.execMapCard:focus-visible {
     display: none;
   }
 }
+
+/* VP8002: conferência direta dos LEDs e diagnóstico consolidado */
+.ledSimulatorPanel {
+  position: relative;
+  overflow: visible;
+}
+
+.ledSimulatorHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.ledSimulatorHead h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+}
+
+.ledSimulatorHeadActions,
+.ledProgressPill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ledProgressPill {
+  min-height: 42px;
+  padding: 0 13px;
+  border: 1px solid #dbe4ef;
+  border-radius: 12px;
+  color: #475569;
+  background: #f8fafc;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ledProgressPill b {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.ledProgressPill.complete {
+  border-color: #86efac;
+  color: #166534;
+  background: #f0fdf4;
+}
+
+.ledSimulatorWorkspace {
+  border: 1px solid #dbe4ef;
+  border-radius: 20px;
+  padding: 14px;
+  background: linear-gradient(180deg, #f8fafc 0, #fff 45%);
+}
+
+.ledSimulatorGuide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, .55fr);
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid #dbe4ef;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.ledSimulatorGuide > div:first-child,
+.ledFooterStatus {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ledSimulatorGuide > div:first-child > svg {
+  color: #0f766e;
+}
+
+.ledSimulatorGuide b,
+.ledSimulatorGuide small,
+.ledFooterStatus b,
+.ledFooterStatus small {
+  display: block;
+}
+
+.ledSimulatorGuide b,
+.ledFooterStatus b {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.ledSimulatorGuide small,
+.ledFooterStatus small {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ledProgressTrack {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e2e8f0;
+}
+
+.ledProgressTrack span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0f766e, #22c55e);
+  transition: width .24s ease;
+}
+
+.ledDeviceViewport {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 250px;
+  padding: 34px 20px 42px;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  background:
+    linear-gradient(rgba(248, 250, 252, .92), rgba(248, 250, 252, .92)),
+    repeating-linear-gradient(90deg, transparent 0 39px, rgba(148, 163, 184, .12) 40px),
+    repeating-linear-gradient(0deg, transparent 0 39px, rgba(148, 163, 184, .12) 40px);
+}
+
+.vp8002InteractiveMap {
+  width: min(100%, 1080px);
+  min-width: 0;
+  overflow: visible;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, .10);
+}
+
+.vp8002InteractiveMap .deviceLedMarker.active {
+  animation: none;
+}
+
+.vp8002InteractiveMap .deviceLedMarker.pending::after {
+  border: 2px dashed rgba(100, 116, 139, .62);
+}
+
+.vp8002InteractiveMap .deviceLedMarker.confirmed::after {
+  border: 2px solid rgba(34, 197, 94, .8);
+  background: rgba(34, 197, 94, .08);
+}
+
+.vp8002InteractiveMap .deviceLedMarker.confirmed::before {
+  content: "✓";
+  position: absolute;
+  top: -11px;
+  right: -11px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  color: #fff;
+  background: #16a34a;
+  font-size: 9px;
+  font-weight: 950;
+  box-shadow: 0 4px 10px rgba(22, 163, 74, .28);
+}
+
+.vp8002InteractiveMap .deviceLedMarker.confirmed.different::after {
+  border-color: #f97316;
+  background: rgba(249, 115, 22, .10);
+}
+
+.vp8002InteractiveMap .deviceLedMarker.confirmed.different::before {
+  background: #ea580c;
+}
+
+.deviceLedEditorAnchor {
+  position: absolute;
+  z-index: 40;
+  width: min(284px, calc(100% - 12px));
+  pointer-events: auto;
+}
+
+.deviceLedEditorAnchor.from-center { transform: translateX(-50%); }
+.deviceLedEditorAnchor.from-right { transform: translateX(-100%); }
+.deviceLedEditorAnchor.from-left { transform: translateX(0); }
+.deviceLedEditorAnchor.below { margin-top: 22px; }
+.deviceLedEditorAnchor.above { margin-top: -22px; }
+.deviceLedEditorAnchor.from-center.above { transform: translate(-50%, -100%); }
+.deviceLedEditorAnchor.from-right.above { transform: translate(-100%, -100%); }
+.deviceLedEditorAnchor.from-left.above { transform: translate(0, -100%); }
+
+.ledInlineEditor {
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  border-radius: 16px;
+  padding: 11px;
+  color: #0f172a;
+  background: rgba(255, 255, 255, .98);
+  box-shadow: 0 24px 55px rgba(15, 23, 42, .24);
+  backdrop-filter: blur(14px);
+}
+
+.ledInlineEditor header,
+.ledInlineEditor header > div,
+.ledInlineEditor header > div > span:last-child {
+  display: flex;
+  align-items: center;
+}
+
+.ledInlineEditor header {
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.ledInlineEditor header > div {
+  gap: 10px;
+}
+
+.ledInlineEditor header > div > span:last-child {
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ledInlineEditor header small,
+.ledInlineField > small {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.ledInlineEditor header b {
+  font-size: 16px;
+}
+
+.ledInlineEditor header button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 9px;
+  color: #475569;
+  background: #f1f5f9;
+}
+
+.ledInlineField {
+  display: grid;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.ledInlineField select {
+  min-width: 0;
+  width: 100%;
+  height: 38px;
+  border: 1px solid #dbe4ef;
+  border-radius: 10px;
+  padding: 0 9px;
+  color: #0f172a;
+  background: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ledColorSwatches {
+  display: flex;
+  gap: 7px;
+}
+
+.ledColorSwatches button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #dbe4ef;
+  border-radius: 10px;
+  color: #0f172a;
+  background: #f8fafc;
+}
+
+.ledColorSwatches button > span {
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(15, 23, 42, .16);
+  border-radius: 999px;
+  background: var(--swatch);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--swatch) 65%, transparent);
+}
+
+.ledColorSwatches button > svg {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  border-radius: 999px;
+  padding: 1px;
+  color: #fff;
+  background: #0f172a;
+}
+
+.ledColorSwatches button.active {
+  border-color: #0f766e;
+  background: #ecfdf5;
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, .12);
+}
+
+.ledInlineEditor footer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-top: 11px;
+}
+
+.ledInlineEditor footer button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 38px;
+  border-radius: 10px;
+  padding: 6px 8px;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.ledNormalShortcut {
+  border: 1px solid #bbf7d0;
+  color: #166534;
+  background: #f0fdf4;
+}
+
+.ledConfirmButton {
+  border: 1px solid #0f766e;
+  color: #fff;
+  background: #0f766e;
+}
+
+.ledSimulatorFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.ledFooterStatus > svg {
+  color: #0f766e;
+}
+
+.ledDiagnosisButton {
+  min-width: 190px;
+}
+
+.ledDiagnosisButton:disabled {
+  cursor: not-allowed;
+  opacity: .45;
+  filter: grayscale(.35);
+}
+
+.ledMobileLandscapeCallout {
+  display: none;
+}
+
+.ledDiagnosisSummary {
+  margin-top: 18px;
+  scroll-margin-top: 16px;
+}
+
+.ledDiagnosisSummary > header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.ledDiagnosisSummary > header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+  color: #0f172a;
+  font-size: 22px;
+}
+
+.ledDiagnosisSummary > header > span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.ledDiagnosisNormal {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid #86efac;
+  border-radius: 18px;
+  padding: 18px;
+  color: #166534;
+  background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+}
+
+.ledDiagnosisNormal b {
+  display: block;
+  color: #14532d;
+  font-size: 17px;
+}
+
+.ledDiagnosisNormal p {
+  margin: 3px 0 0;
+}
+
+.ledDiagnosisList {
+  display: grid;
+  gap: 12px;
+}
+
+.ledDiagnosisCard {
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 12px;
+  overflow: hidden;
+  border: 1px solid #fed7aa;
+  border-radius: 18px;
+  padding: 15px;
+  background: linear-gradient(135deg, #fff7ed, #fff);
+}
+
+.ledDiagnosisCard.danger {
+  border-color: #fecaca;
+  background: linear-gradient(135deg, #fef2f2, #fff);
+}
+
+.ledDiagnosisCard.info {
+  border-color: #bfdbfe;
+  background: linear-gradient(135deg, #eff6ff, #fff);
+}
+
+.ledDiagnosisNumber {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  color: #9a3412;
+  background: #ffedd5;
+  font-weight: 950;
+}
+
+.ledDiagnosisCard.danger .ledDiagnosisNumber {
+  color: #991b1b;
+  background: #fee2e2;
+}
+
+.ledDiagnosisCard.info .ledDiagnosisNumber {
+  color: #1d4ed8;
+  background: #dbeafe;
+}
+
+.ledDiagnosisContent > p {
+  margin: 8px 0 12px;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.ledDiagnosisTitle,
+.ledDiagnosisTitle > div:last-child {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ledDiagnosisTitle span,
+.ledDiagnosisCallout span {
+  display: block;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.ledDiagnosisTitle h4 {
+  margin: 3px 0 0;
+  color: #0f172a;
+  font-size: 17px;
+}
+
+.ledDiagnosisTitle > div:last-child {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.ledDiagnosisTitle > div:last-child b {
+  border: 1px solid #dbe4ef;
+  border-radius: 999px;
+  padding: 4px 7px;
+  color: #334155;
+  background: #fff;
+  font-size: 10px;
+}
+
+.ledObservationGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 7px;
+  margin-bottom: 10px;
+}
+
+.ledObservationGrid > div {
+  border: 1px solid rgba(148, 163, 184, .25);
+  border-radius: 11px;
+  padding: 9px;
+  background: rgba(255, 255, 255, .78);
+}
+
+.ledObservationGrid b,
+.ledObservationGrid span,
+.ledObservationGrid small {
+  display: block;
+}
+
+.ledObservationGrid b {
+  margin-bottom: 3px;
+  color: #0f172a;
+  font-size: 11px;
+}
+
+.ledObservationGrid span,
+.ledObservationGrid small {
+  color: #475569;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.ledObservationGrid small {
+  color: #64748b;
+}
+
+.ledDiagnosisCallout {
+  border-left: 3px solid #f59e0b;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, .68);
+}
+
+.ledDiagnosisCallout.action {
+  margin-top: 7px;
+  border-left-color: #0f766e;
+}
+
+.ledDiagnosisCallout b {
+  display: block;
+  margin-top: 3px;
+  color: #1e293b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.ledProcedureButton {
+  margin-top: 10px;
+}
+
+.ledSimulatorPanel.is-fullscreen,
+.ledSimulatorPanel:fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  width: 100%;
+  height: 100dvh;
+  max-width: none;
+  overflow: auto;
+  border: 0;
+  border-radius: 0;
+  padding: 16px;
+  background: #f8fafc;
+}
+
+.ledSimulatorPanel.is-fullscreen .ledDeviceViewport,
+.ledSimulatorPanel:fullscreen .ledDeviceViewport {
+  min-height: 55vh;
+}
+
+.ledRotatePrompt {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 28px;
+  color: #fff;
+  background: rgba(15, 23, 42, .96);
+  text-align: center;
+}
+
+.ledRotatePrompt b {
+  font-size: 22px;
+}
+
+.ledRotatePrompt span {
+  max-width: 300px;
+  color: #cbd5e1;
+  font-size: 13px;
+}
+
+.ledRotatePrompt button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  border: 1px solid rgba(255, 255, 255, .3);
+  border-radius: 11px;
+  padding: 9px 12px;
+  color: #fff;
+  background: rgba(255, 255, 255, .08);
+  font-weight: 800;
+}
+
+@media (max-width: 900px) {
+  .ledSimulatorHead {
+    align-items: flex-start;
+  }
+
+  .ledSimulatorHeadActions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .ledSimulatorGuide {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .ledDeviceViewport {
+    min-height: 190px;
+    padding: 14px;
+  }
+
+  .vp8002InteractiveMap {
+    min-width: 0;
+  }
+
+  .ledSimulatorFooter {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ledDiagnosisButton {
+    width: 100%;
+  }
+
+  .ledDiagnosisSummary > header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+}
+
+@media (max-width: 600px) and (orientation: portrait) {
+  .ledSimulatorPanel:not(.is-fullscreen) .vp8002InteractiveMap {
+    display: none;
+  }
+
+  .ledSimulatorPanel:not(.is-fullscreen) .ledMobileLandscapeCallout {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 96px;
+    border: 1px solid #bae6fd;
+    border-radius: 16px;
+    padding: 14px;
+    color: #075985;
+    background: linear-gradient(135deg, #f0f9ff, #ecfeff);
+    text-align: left;
+  }
+
+  .ledMobileLandscapeCallout > svg {
+    flex: 0 0 auto;
+  }
+
+  .ledMobileLandscapeCallout b,
+  .ledMobileLandscapeCallout small {
+    display: block;
+  }
+
+  .ledMobileLandscapeCallout b {
+    color: #0f172a;
+    font-size: 14px;
+  }
+
+  .ledMobileLandscapeCallout small {
+    margin-top: 3px;
+    color: #475569;
+    font-size: 11px;
+  }
+}
+
+@media (max-height: 540px) and (orientation: landscape) {
+  .ledSimulatorPanel.is-fullscreen,
+  .ledSimulatorPanel:fullscreen {
+    padding: 8px 12px;
+  }
+
+  .ledSimulatorPanel.is-fullscreen .ledSimulatorHead,
+  .ledSimulatorPanel:fullscreen .ledSimulatorHead {
+    margin-bottom: 6px;
+  }
+
+  .ledSimulatorPanel.is-fullscreen .ledSimulatorHead > div:first-child .eyebrow,
+  .ledSimulatorPanel:fullscreen .ledSimulatorHead > div:first-child .eyebrow,
+  .ledSimulatorPanel.is-fullscreen .ledSimulatorGuide,
+  .ledSimulatorPanel:fullscreen .ledSimulatorGuide,
+  .ledSimulatorPanel.is-fullscreen .sourceText,
+  .ledSimulatorPanel:fullscreen .sourceText {
+    display: none;
+  }
+
+  .ledSimulatorPanel.is-fullscreen .ledSimulatorWorkspace,
+  .ledSimulatorPanel:fullscreen .ledSimulatorWorkspace {
+    padding: 7px;
+  }
+
+  .ledSimulatorPanel.is-fullscreen .ledDeviceViewport,
+  .ledSimulatorPanel:fullscreen .ledDeviceViewport {
+    min-height: 0;
+    padding: 12px 28px 22px;
+  }
+
+  .ledSimulatorPanel.is-fullscreen .vp8002InteractiveMap,
+  .ledSimulatorPanel:fullscreen .vp8002InteractiveMap {
+    width: min(82vw, 840px);
+  }
+
+  .ledSimulatorPanel.is-fullscreen .ledSimulatorFooter,
+  .ledSimulatorPanel:fullscreen .ledSimulatorFooter {
+    margin-top: 6px;
+    padding-top: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ledSimulatorHead {
+    flex-direction: column;
+  }
+
+  .ledSimulatorHeadActions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .ledProgressPill {
+    flex: 1 1 auto;
+  }
+
+  .ledDiagnosisCard {
+    grid-template-columns: 1fr;
+  }
+
+  .ledDiagnosisTitle {
+    flex-direction: column;
+  }
+
+  .ledDiagnosisTitle > div:last-child {
+    justify-content: flex-start;
+  }
+}
