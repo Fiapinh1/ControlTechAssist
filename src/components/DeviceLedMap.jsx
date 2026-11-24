@@ -8,6 +8,7 @@ export default function DeviceLedMap({
   activeIds = [],
   onMarkerClick,
   renderMarkerEditor,
+  children,
   className = ''
 }) {
   const activeSet = new Set(Array.isArray(activeIds) ? activeIds : [activeIds].filter(Boolean));
@@ -69,6 +70,7 @@ export default function DeviceLedMap({
             </React.Fragment>
           );
         })}
+        {children}
       </div>
     </div>
   );

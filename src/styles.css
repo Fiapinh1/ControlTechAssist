@@ -19678,6 +19678,277 @@ button.execCard.execMapCard:focus-visible {
   box-shadow: 0 4px 10px rgba(234, 88, 12, .28);
 }
 
+.vp8002DisplayReadout {
+  position: absolute;
+  z-index: 6;
+  left: 44.7%;
+  top: 30.5%;
+  display: grid;
+  place-items: center;
+  width: 9.2%;
+  height: 25%;
+  transform: translate(-50%, -50%);
+  overflow: hidden;
+  border: 1px solid #334155;
+  border-radius: 2px;
+  color: #334155;
+  background: #eef0ed;
+  font-family: "Courier New", ui-monospace, monospace;
+  font-size: clamp(9px, 2vw, 23px);
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: .08em;
+  text-shadow: 1px 1px 0 #cbd5e1;
+  pointer-events: none;
+}
+
+.vp8002DisplayReadout.running {
+  color: #0f766e;
+  box-shadow: inset 0 0 10px rgba(15, 118, 110, .14), 0 0 12px rgba(15, 118, 110, .18);
+}
+
+.vp8002HardwareButton {
+  position: absolute;
+  z-index: 7;
+  left: 56.4%;
+  top: 30.5%;
+  width: 5.5%;
+  height: 29%;
+  transform: translate(-50%, -50%);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 0;
+  background: transparent;
+  pointer-events: auto;
+  transition: background .18s ease, border-color .18s ease, box-shadow .18s ease, transform .12s ease;
+}
+
+.vp8002HardwareButton:hover,
+.vp8002HardwareButton:focus-visible {
+  border-color: #0ea5e9;
+  outline: 0;
+  background: rgba(14, 165, 233, .12);
+  box-shadow: 0 0 0 5px rgba(14, 165, 233, .12);
+}
+
+.vp8002HardwareButton:active,
+.vp8002HardwareButton.active {
+  transform: translate(-50%, -50%) scale(.91);
+  border-color: #0f766e;
+  background: rgba(15, 118, 110, .16);
+  box-shadow: 0 0 0 5px rgba(15, 118, 110, .14);
+}
+
+.vp8002IpSimulator {
+  margin-top: 12px;
+  border: 1px solid #dbe4ef;
+  border-radius: 15px;
+  padding: 11px 12px;
+  background: #fff;
+}
+
+.vp8002IpSimulator > header,
+.vp8002IpSimulator > header > div,
+.vp8002IpSimulator > header span,
+.vp8002IpSimulator > header em,
+.vp8002IpResult,
+.vp8002IpResult > span {
+  display: flex;
+  align-items: center;
+}
+
+.vp8002IpSimulator > header {
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.vp8002IpSimulator > header > div {
+  gap: 9px;
+}
+
+.vp8002IpSimulator > header > div > svg {
+  color: #0f766e;
+}
+
+.vp8002IpSimulator > header span,
+.vp8002IpResult > span {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.vp8002IpSimulator > header b,
+.vp8002IpSimulator > header small,
+.vp8002IpResult b,
+.vp8002IpResult small {
+  display: block;
+}
+
+.vp8002IpSimulator > header b {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.vp8002IpSimulator > header small {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.vp8002IpSimulator > header em {
+  flex: 0 0 auto;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 6px 9px;
+  color: #0f766e;
+  background: #ecfdf5;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.vp8002IpSimulator > header em svg {
+  animation: vpDisplaySpin 1s linear infinite;
+}
+
+@keyframes vpDisplaySpin {
+  to { transform: rotate(360deg); }
+}
+
+.vp8002IpControls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, .36fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.vp8002IpScenarios {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.vp8002IpScenarios button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 40px;
+  border: 1px solid #dbe4ef;
+  border-radius: 10px;
+  padding: 7px 9px;
+  color: #475569;
+  background: #f8fafc;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.vp8002IpScenarios button small {
+  color: #64748b;
+  font-size: 9px;
+}
+
+.vp8002IpScenarios button.active {
+  border-color: #5eead4;
+  color: #115e59;
+  background: #f0fdfa;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, .10);
+}
+
+.vp8002IpScenarios button.active.danger {
+  border-color: #fca5a5;
+  color: #991b1b;
+  background: #fef2f2;
+}
+
+.vp8002IpScenarios button.active.warn {
+  border-color: #fcd34d;
+  color: #92400e;
+  background: #fffbeb;
+}
+
+.vp8002IpField {
+  display: grid;
+  gap: 5px;
+}
+
+.vp8002IpField span {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.vp8002IpField input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  border: 1px solid #dbe4ef;
+  border-radius: 10px;
+  padding: 0 11px;
+  color: #0f172a;
+  background: #fff;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-weight: 800;
+}
+
+.vp8002IpField input:focus {
+  border-color: #0f766e;
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, .10);
+}
+
+.vp8002IpResult {
+  gap: 9px;
+  margin-top: 9px;
+  border: 1px solid #86efac;
+  border-radius: 11px;
+  padding: 9px 10px;
+  color: #166534;
+  background: #f0fdf4;
+}
+
+.vp8002IpResult.offline {
+  border-color: #fca5a5;
+  color: #991b1b;
+  background: #fef2f2;
+}
+
+.vp8002IpResult.dhcp {
+  border-color: #fcd34d;
+  color: #92400e;
+  background: #fffbeb;
+}
+
+.vp8002IpResult > span {
+  flex: 1 1 auto;
+}
+
+.vp8002IpResult b {
+  color: currentColor;
+  font-size: 11px;
+}
+
+.vp8002IpResult small {
+  margin-top: 2px;
+  color: #475569;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.vp8002IpResult code {
+  flex: 0 0 auto;
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: #0f172a;
+  background: rgba(255, 255, 255, .82);
+  font-size: 11px;
+  font-weight: 900;
+}
+
 .deviceLedEditorAnchor {
   position: absolute;
   z-index: 40;
@@ -20156,6 +20427,10 @@ button.execCard.execMapCard:focus-visible {
     min-width: 0;
   }
 
+  .vp8002IpControls {
+    grid-template-columns: 1fr;
+  }
+
   .ledSimulatorFooter {
     align-items: stretch;
     flex-direction: column;
@@ -20253,6 +20528,26 @@ button.execCard.execMapCard:focus-visible {
     margin-top: 6px;
     padding-top: 6px;
   }
+
+  .ledSimulatorPanel.is-fullscreen .vp8002IpSimulator,
+  .ledSimulatorPanel:fullscreen .vp8002IpSimulator {
+    padding: 7px 9px;
+  }
+
+  .ledSimulatorPanel.is-fullscreen .vp8002IpSimulator > header,
+  .ledSimulatorPanel:fullscreen .vp8002IpSimulator > header {
+    margin-bottom: 6px;
+  }
+
+  .ledSimulatorPanel.is-fullscreen .vp8002IpSimulator > header small,
+  .ledSimulatorPanel:fullscreen .vp8002IpSimulator > header small {
+    display: none;
+  }
+
+  .ledSimulatorPanel.is-fullscreen .vp8002IpControls,
+  .ledSimulatorPanel:fullscreen .vp8002IpControls {
+    grid-template-columns: minmax(0, 1fr) 180px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -20267,6 +20562,23 @@ button.execCard.execMapCard:focus-visible {
 
   .ledProgressPill {
     flex: 1 1 auto;
+  }
+
+  .vp8002IpScenarios {
+    grid-template-columns: 1fr;
+  }
+
+  .vp8002IpScenarios button {
+    justify-content: flex-start;
+  }
+
+  .vp8002IpResult {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .vp8002IpResult code {
+    margin-left: 28px;
   }
 
   .ledDiagnosisCard {

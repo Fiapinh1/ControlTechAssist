@@ -24,7 +24,7 @@ import genexLogo from '../LOGO_GENEX.png';
 import urusLogo from '../LOGO_URUS.png';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
-const APP_VERSION = '3.0.27';
+const APP_VERSION = '3.0.28';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
 const FARM_VIEW_KEY = 'cta_farm_view_mode';
@@ -948,6 +948,54 @@ const buildVp8002Diagnosis = (observedStates={}) => {
 
   issues.sort((a,b)=>(severityRank[b.severity]||0)-(severityRank[a.severity]||0));
   return {issues,divergentCount:divergentIds.length,isNormal:divergentIds.length===0};
+};
+const VP8002_DEFAULT_IP = '192.168.1.254';
+const VP8002_IP_SCENARIOS = {
+  valid: {label:'IP válido', address:VP8002_DEFAULT_IP},
+  offline: {label:'Sem rede', address:'0.0.0.0'},
+  dhcp: {label:'Sem DHCP', address:'169.254.12.34'}
+};
+const isValidIpv4 = value => {
+  const parts=String(value||'').trim().split('.');
+  return parts.length===4&&parts.every(part=>/^\d{1,3}$/.test(part)&&Number(part)>=0&&Number(part)<=255);
+};
+const vp8002DisplaySequence = address => ['IP',...String(address).split('.').flatMap((octet,index)=>{
+  const chunks=octet.match(/.{1,2}/g)||['0'];
+  if(index<3){
+    const last=chunks.length-1;
+    if(chunks[last].length===1) chunks[last]=`${chunks[last]}-`;
+    else chunks.push('-');
+  }
+  return chunks;
+})];
+const vp8002DisplayIssue = reading => {
+  if(!reading||reading.scenario==='valid') return null;
+  if(reading.scenario==='offline') return {
+    id:'display-no-network',
+    source:'display',
+    severity:'danger',
+    ledIds:[],
+    title:'Sem conexão de rede',
+    meaning:'O display mostrou 0.0.0.0, indicando que a VP8002 não encontrou uma conexão de rede.',
+    probableCause:'Cabo Ethernet desconectado ou com defeito, porta LAN incorreta, roteador/switch desligado ou rede indisponível.',
+    action:'Revise a conexão física na LAN 1 e confirme a rede antes de tentar acessar o Velos.',
+    checks:['Conferir o cabo na LAN 1.', 'Testar outro cabo e outra porta do roteador.', 'Confirmar roteador/switch ligado.', 'Pressionar o botão novamente após corrigir a rede.'],
+    procedureId:'display-ip',
+    observations:[{id:'display-ip',label:'Display',expected:'IP válido da rede local',observed:'0.0.0.0'}]
+  };
+  return {
+    id:'display-no-dhcp',
+    source:'display',
+    severity:'warn',
+    ledIds:[],
+    title:'VP8002 sem endereço do roteador',
+    meaning:'Um endereço 169.254.x.x indica que a VP8002 não recebeu IP pelo DHCP do roteador.',
+    probableCause:'DHCP desativado ou sem resposta, cabo em rede incorreta ou configuração incompatível.',
+    action:'Ative ou revise o DHCP e reinicie a conexão antes de acessar o Velos.',
+    checks:['Confirmar DHCP ativo no roteador.', 'Verificar se VP8002 e celular/PC estão na mesma rede.', 'Reiniciar a VP8002 após corrigir o DHCP.', 'Consultar um especialista de rede se persistir.'],
+    procedureId:'display-ip',
+    observations:[{id:'display-ip',label:'Display',expected:'IP válido da rede local',observed:'169.254.x.x'}]
+  };
 };
 function normalizeFarmStatus(value){
   const raw = String(value || '').trim();
@@ -4485,8 +4533,14 @@ function SuporteTecnico({data}){
   const [ledDiagnosis,setLedDiagnosis]=useState(null);
   const [ledFullscreen,setLedFullscreen]=useState(false);
   const [ledPortrait,setLedPortrait]=useState(false);
+  const [ipDisplayScenario,setIpDisplayScenario]=useState('valid');
+  const [ipAddress,setIpAddress]=useState(VP8002_DEFAULT_IP);
+  const [ipDisplayValue,setIpDisplayValue]=useState('--');
+  const [ipDisplayReading,setIpDisplayReading]=useState(null);
+  const [ipDisplayRunning,setIpDisplayRunning]=useState(false);
   const ledSimulatorRef=useRef(null);
   const ledDiagnosisRef=useRef(null);
+  const ipDisplayTimerRef=useRef(null);
   const query=q.trim().toLowerCase();
   const matches=(...parts)=>!query||parts.flat().join(' ').toLowerCase().includes(query);
   const symptomResults=SYMPTOMS.filter(s=>matches(s.title,s.category,s.cause,s.action,s.checks));
@@ -4504,10 +4558,12 @@ function SuporteTecnico({data}){
     return [marker.id,{...observed,different:!ledStateMatches(normal,observed)}];
   }));
   const ledDivergenceCount=VP8002_LED_MARKERS.filter(marker=>simulatedLedStates[marker.id]?.different).length;
+  const ipNetworkIssue=vp8002DisplayIssue(ipDisplayReading);
+  const simulatorIssueCount=ledDivergenceCount+(ipNetworkIssue?1:0);
   const done=SUPPORT_CHECKS.filter((_,i)=>checked[i]).length;
   const tabs=[
     ['resolver',Stethoscope,'Problemas',symptomResults.length],
-    ['leds',Cpu,'VP8002',ledDivergenceCount],
+    ['leds',Cpu,'VP8002',simulatorIssueCount],
     ['procedimentos',Wrench,'Procedimentos',actionResults.length],
     ['guia',BookOpen,'Guias',guideResults.length],
     ['suporte',LifeBuoy,'Checklist',SUPPORT_CHECKS.length]
@@ -4545,17 +4601,64 @@ function SuporteTecnico({data}){
     setSelectedLedId(null);
     setLedDiagnosis(null);
   };
+  const clearIpDisplayTimer=()=>{
+    if(ipDisplayTimerRef.current){
+      window.clearInterval(ipDisplayTimerRef.current);
+      ipDisplayTimerRef.current=null;
+    }
+  };
+  const selectIpDisplayScenario=scenario=>{
+    clearIpDisplayTimer();
+    setIpDisplayScenario(scenario);
+    setIpDisplayValue('--');
+    setIpDisplayReading(null);
+    setIpDisplayRunning(false);
+    setLedDiagnosis(null);
+  };
+  const runIpDisplay=()=>{
+    const address=ipDisplayScenario==='valid'?ipAddress.trim():VP8002_IP_SCENARIOS[ipDisplayScenario].address;
+    if(!isValidIpv4(address)){
+      notify('Informe um endereço IP válido, por exemplo 192.168.1.254.','error');
+      return;
+    }
+    clearIpDisplayTimer();
+    setSelectedLedId(null);
+    setIpDisplayReading(null);
+    setLedDiagnosis(null);
+    setIpDisplayRunning(true);
+    const sequence=vp8002DisplaySequence(address);
+    let position=0;
+    setIpDisplayValue(sequence[position]);
+    ipDisplayTimerRef.current=window.setInterval(()=>{
+      position+=1;
+      if(position<sequence.length){
+        setIpDisplayValue(sequence[position]);
+        return;
+      }
+      clearIpDisplayTimer();
+      setIpDisplayRunning(false);
+      setIpDisplayReading({scenario:ipDisplayScenario,address});
+    },520);
+  };
   const resetAllLeds=()=>{
+    clearIpDisplayTimer();
     setObservedLedStates(defaultVp8002LedStates());
     setSelectedLedId(null);
     setLedDiagnosis(null);
+    setIpDisplayScenario('valid');
+    setIpAddress(VP8002_DEFAULT_IP);
+    setIpDisplayValue('--');
+    setIpDisplayReading(null);
+    setIpDisplayRunning(false);
   };
   const generateLedDiagnosis=()=>{
-    if(!ledDivergenceCount){
-      notify('Altere pelo menos um LED que esteja diferente do padrão para gerar o diagnóstico.','error');
+    if(!simulatorIssueCount){
+      notify('Altere um LED ou simule uma leitura de rede com falha para gerar o diagnóstico.','error');
       return;
     }
-    setLedDiagnosis({...buildVp8002Diagnosis(observedLedStates),generatedAt:new Date().toISOString()});
+    const ledResult=buildVp8002Diagnosis(observedLedStates);
+    const issues=ipNetworkIssue?[...ledResult.issues,ipNetworkIssue]:ledResult.issues;
+    setLedDiagnosis({...ledResult,issues,isNormal:issues.length===0,displayIssueCount:ipNetworkIssue?1:0,generatedAt:new Date().toISOString()});
     setSelectedLedId(null);
     const scrollToResult=()=>ledDiagnosisRef.current?.scrollIntoView({behavior:'smooth',block:'start'});
     if(typeof requestAnimationFrame==='function') requestAnimationFrame(scrollToResult);
@@ -4584,6 +4687,7 @@ function SuporteTecnico({data}){
       document.removeEventListener('fullscreenchange',syncFullscreen);
     };
   },[ledFullscreen]);
+  useEffect(()=>()=>clearIpDisplayTimer(),[]);
   useEffect(()=>{setMobilePanel(null);},[tab,q]);
   const saveSymptom=()=>{
     if(!selectedSymptom) return;
@@ -4721,15 +4825,15 @@ function SuporteTecnico({data}){
       <div className="ledSimulatorHead">
         <div><span className="eyebrow">Simulador visual</span><h2><Cpu size={20}/> LEDs da VP8002</h2></div>
         <div className="ledSimulatorHeadActions">
-          <span className={`ledProgressPill ${ledDivergenceCount?'has-changes':'complete'}`}>{ledDivergenceCount?<AlertTriangle size={16}/>:<CheckCircle2 size={16}/>}<b>{ledDivergenceCount}</b> {ledDivergenceCount===1?'LED alterado':'LEDs alterados'}</span>
+          <span className={`ledProgressPill ${simulatorIssueCount?'has-changes':'complete'}`}>{simulatorIssueCount?<AlertTriangle size={16}/>:<CheckCircle2 size={16}/>}<b>{simulatorIssueCount}</b> {simulatorIssueCount===1?'alteração':'alterações'}</span>
           <button type="button" className="iconBtn" onClick={resetAllLeds} title="Restaurar padrão normal" aria-label="Restaurar todos os LEDs ao padrão normal"><RefreshCw size={18}/></button>
           <button type="button" className="iconBtn ledFullscreenButton" onClick={toggleLedFullscreen} title={ledFullscreen?'Sair da tela cheia':'Abrir em tela cheia'} aria-label={ledFullscreen?'Sair da tela cheia':'Abrir simulador em tela cheia'}>{ledFullscreen?<Minimize2 size={19}/>:<Maximize2 size={19}/>}</button>
         </div>
       </div>
       <div className="ledSimulatorWorkspace">
         <div className="ledSimulatorGuide">
-          <div><Target size={18}/><span><b>Toque somente nos LEDs diferentes</b><small>Altere a cor ou o comportamento observado na VP8002 física.</small></span></div>
-          <div className="ledDefaultStateHint"><CheckCircle2 size={17}/><span>Os demais LEDs já estão no padrão normal.</span></div>
+          <div><Target size={18}/><span><b>Compare LEDs e consulte o display</b><small>Altere somente os LEDs diferentes ou pressione o botão quadrado para ler o IP.</small></span></div>
+          <div className="ledDefaultStateHint"><CheckCircle2 size={17}/><span>Os LEDs começam no padrão normal.</span></div>
         </div>
         <div className="ledDeviceViewport">
           <button type="button" className="ledMobileLandscapeCallout" onClick={toggleLedFullscreen}>
@@ -4744,14 +4848,33 @@ function SuporteTecnico({data}){
             activeIds={selectedLedId?[selectedLedId]:[]}
             onMarkerClick={selectLedMarker}
             renderMarkerEditor={(marker,state)=><LedInlineEditor marker={marker} state={state}/>}
-          />
+          >
+            <output className={`vp8002DisplayReadout ${ipDisplayRunning?'running':''}`} aria-live="polite" aria-label={`Display da VP8002: ${ipDisplayValue}`}>{ipDisplayValue}</output>
+            <button type="button" className={`vp8002HardwareButton ${ipDisplayRunning?'active':''}`} onClick={runIpDisplay} aria-label="Pressionar botão da VP8002 para mostrar o endereço IP" title="Pressione para mostrar o IP no display"><span className="srOnly">Mostrar IP no display</span></button>
+          </DeviceLedMap>
         </div>
+        <section className="vp8002IpSimulator" aria-label="Simulador do display de rede">
+          <header><div><Globe2 size={18}/><span><b>Botão e display de rede</b><small>Escolha o que está acontecendo e pressione o botão quadrado no equipamento.</small></span></div>{ipDisplayRunning&&<em><RefreshCw size={14}/> Lendo IP</em>}</header>
+          <div className="vp8002IpControls">
+            <div className="vp8002IpScenarios" role="radiogroup" aria-label="Situação da conexão de rede">
+              <button type="button" role="radio" aria-checked={ipDisplayScenario==='valid'} className={ipDisplayScenario==='valid'?'active':''} onClick={()=>selectIpDisplayScenario('valid')}><Wifi size={16}/> IP válido</button>
+              <button type="button" role="radio" aria-checked={ipDisplayScenario==='offline'} className={ipDisplayScenario==='offline'?'active danger':''} onClick={()=>selectIpDisplayScenario('offline')}><SignalZero size={16}/> Sem rede <small>0.0.0.0</small></button>
+              <button type="button" role="radio" aria-checked={ipDisplayScenario==='dhcp'} className={ipDisplayScenario==='dhcp'?'active warn':''} onClick={()=>selectIpDisplayScenario('dhcp')}><AlertTriangle size={16}/> Sem DHCP <small>169.254.x.x</small></button>
+            </div>
+            {ipDisplayScenario==='valid'&&<label className="vp8002IpField"><span>IP para simular</span><input value={ipAddress} inputMode="decimal" placeholder={VP8002_DEFAULT_IP} disabled={ipDisplayRunning} onChange={event=>{setIpAddress(event.target.value);setIpDisplayReading(null);setLedDiagnosis(null);setIpDisplayValue('--')}}/></label>}
+          </div>
+          {ipDisplayReading&&<div className={`vp8002IpResult ${ipDisplayReading.scenario}`}>
+            {ipDisplayReading.scenario==='valid'?<CheckCircle2 size={19}/>:ipDisplayReading.scenario==='offline'?<SignalZero size={19}/>:<AlertTriangle size={19}/>}
+            <span><b>{ipDisplayReading.scenario==='valid'?'IP válido encontrado':ipDisplayReading.scenario==='offline'?'Sem conexão de rede':'DHCP não respondeu'}</b><small>{ipDisplayReading.scenario==='valid'?'Use este endereço no navegador conectado à mesma rede.':ipDisplayReading.scenario==='offline'?'Confira cabo, LAN 1 e roteador antes de continuar.':'Revise o DHCP do roteador antes de acessar o Velos.'}</small></span>
+            <code>{ipDisplayReading.scenario==='dhcp'?'169.254.x.x':ipDisplayReading.address}</code>
+          </div>}
+        </section>
         <div className="ledSimulatorFooter">
           <div className="ledFooterStatus">
-            {ledDivergenceCount?<AlertTriangle size={19}/>:<Info size={19}/>}
-            <span><b>{ledDivergenceCount?`${ledDivergenceCount} ${ledDivergenceCount===1?'LED diferente':'LEDs diferentes'}`:'Nenhuma diferença informada'}</b><small>{ledDivergenceCount?'O diagnóstico considerará somente os LEDs alterados.':'Toque apenas nos LEDs que não correspondem ao desenho inicial.'}</small></span>
+            {simulatorIssueCount?<AlertTriangle size={19}/>:<Info size={19}/>}
+            <span><b>{simulatorIssueCount?`${simulatorIssueCount} ${simulatorIssueCount===1?'alteração identificada':'alterações identificadas'}`:'Nenhuma diferença informada'}</b><small>{simulatorIssueCount?'O diagnóstico considerará os LEDs alterados e a leitura do display.':'Altere somente o que estiver diferente no equipamento real.'}</small></span>
           </div>
-          <button type="button" className="btn primary ledDiagnosisButton" disabled={!ledDivergenceCount} onClick={generateLedDiagnosis}><Stethoscope size={18}/> Gerar diagnóstico</button>
+          <button type="button" className="btn primary ledDiagnosisButton" disabled={!simulatorIssueCount} onClick={generateLedDiagnosis}><Stethoscope size={18}/> Gerar diagnóstico</button>
         </div>
         <p className="sourceText">{SOURCES.vp8002}</p>
       </div>
@@ -4762,7 +4885,7 @@ function SuporteTecnico({data}){
       {ledDiagnosis&&<section className="ledDiagnosisSummary" ref={ledDiagnosisRef}>
         <header>
           <div><span className="eyebrow">Resultado da conferência</span><h3>{ledDiagnosis.isNormal?<><CheckCircle2 size={22}/> Funcionamento normal</>:<><AlertTriangle size={22}/> {ledDiagnosis.issues.length} {ledDiagnosis.issues.length===1?'diagnóstico encontrado':'diagnósticos encontrados'}</>}</h3></div>
-          <span>{ledDiagnosis.divergentCount} {ledDiagnosis.divergentCount===1?'LED fora':'LEDs fora'} do padrão</span>
+          <span>{[ledDiagnosis.divergentCount?`${ledDiagnosis.divergentCount} ${ledDiagnosis.divergentCount===1?'LED fora':'LEDs fora'} do padrão`:null,ledDiagnosis.displayIssueCount?`${ledDiagnosis.displayIssueCount} alerta no display`:null].filter(Boolean).join(' • ')}</span>
         </header>
         {ledDiagnosis.isNormal?<article className="ledDiagnosisNormal"><CheckCircle2 size={28}/><div><b>Nenhuma divergência encontrada</b><p>Os 18 LEDs correspondem ao funcionamento normal configurado para a VP8002.</p></div></article>:
           <div className="ledDiagnosisList">{ledDiagnosis.issues.map((issue,index)=>{
@@ -4770,7 +4893,7 @@ function SuporteTecnico({data}){
             return <article key={issue.id} className={`ledDiagnosisCard ${issue.severity||'warn'}`}>
               <div className="ledDiagnosisNumber">{index+1}</div>
               <div className="ledDiagnosisContent">
-                <div className="ledDiagnosisTitle"><div><span>{issue.ledIds.length>1?'Sequência relacionada':'LED identificado'}</span><h4>{issue.title}</h4></div><div>{issue.ledIds.map(id=><b key={id}>{VP8002_LED_MARKERS.find(marker=>marker.id===id)?.label||id}</b>)}</div></div>
+                <div className="ledDiagnosisTitle"><div><span>{issue.source==='display'?'Leitura de rede':issue.ledIds.length>1?'Sequência relacionada':'LED identificado'}</span><h4>{issue.title}</h4></div><div>{issue.source==='display'?<b>DISPLAY</b>:issue.ledIds.map(id=><b key={id}>{VP8002_LED_MARKERS.find(marker=>marker.id===id)?.label||id}</b>)}</div></div>
                 <p>{issue.meaning}</p>
                 <div className="ledObservationGrid">{issue.observations.map(item=><div key={item.id}><b>{item.label}</b><span>Observado: {item.observed}</span><small>Esperado: {item.expected}</small></div>)}</div>
                 {issue.probableCause&&<div className="ledDiagnosisCallout"><span>Leitura provável</span><b>{issue.probableCause}</b></div>}
