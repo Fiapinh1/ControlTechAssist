@@ -19562,6 +19562,12 @@ button.execCard.execMapCard:focus-visible {
   background: #f0fdf4;
 }
 
+.ledProgressPill.has-changes {
+  border-color: #fdba74;
+  color: #9a3412;
+  background: #fff7ed;
+}
+
 .ledSimulatorWorkspace {
   border: 1px solid #dbe4ef;
   border-radius: 20px;
@@ -19613,20 +19619,14 @@ button.execCard.execMapCard:focus-visible {
   font-weight: 700;
 }
 
-.ledProgressTrack {
-  height: 8px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #e2e8f0;
-}
-
-.ledProgressTrack span {
-  display: block;
-  width: 0;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #0f766e, #22c55e);
-  transition: width .24s ease;
+.ledDefaultStateHint {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  color: #166534;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .ledDeviceViewport {
@@ -19654,17 +19654,13 @@ button.execCard.execMapCard:focus-visible {
   animation: none;
 }
 
-.vp8002InteractiveMap .deviceLedMarker.pending::after {
-  border: 2px dashed rgba(100, 116, 139, .62);
+.vp8002InteractiveMap .deviceLedMarker.different::after {
+  border: 2px solid #f97316;
+  background: rgba(249, 115, 22, .10);
 }
 
-.vp8002InteractiveMap .deviceLedMarker.confirmed::after {
-  border: 2px solid rgba(34, 197, 94, .8);
-  background: rgba(34, 197, 94, .08);
-}
-
-.vp8002InteractiveMap .deviceLedMarker.confirmed::before {
-  content: "✓";
+.vp8002InteractiveMap .deviceLedMarker.different::before {
+  content: "!";
   position: absolute;
   top: -11px;
   right: -11px;
@@ -19676,19 +19672,10 @@ button.execCard.execMapCard:focus-visible {
   border: 2px solid #fff;
   border-radius: 999px;
   color: #fff;
-  background: #16a34a;
+  background: #ea580c;
   font-size: 9px;
   font-weight: 950;
-  box-shadow: 0 4px 10px rgba(22, 163, 74, .28);
-}
-
-.vp8002InteractiveMap .deviceLedMarker.confirmed.different::after {
-  border-color: #f97316;
-  background: rgba(249, 115, 22, .10);
-}
-
-.vp8002InteractiveMap .deviceLedMarker.confirmed.different::before {
-  background: #ea580c;
+  box-shadow: 0 4px 10px rgba(234, 88, 12, .28);
 }
 
 .deviceLedEditorAnchor {

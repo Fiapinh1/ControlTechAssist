@@ -24,7 +24,7 @@ import genexLogo from '../LOGO_GENEX.png';
 import urusLogo from '../LOGO_URUS.png';
 import { SOURCES, INSTALL_GUIDES, SYMPTOMS, LED_DIAGNOSTICS, CAN_ERRORS, SUPPORT_CHECKS, QUICK_CHECKLISTS } from './data/manualContent.js';
 
-const APP_VERSION = '3.0.25';
+const APP_VERSION = '3.0.27';
 const LOCAL_MODE_KEY = 'cta_allow_local_mode';
 const APP_CONTEXT_KEY = 'cta_last_context';
 const FARM_VIEW_KEY = 'cta_farm_view_mode';
@@ -4482,7 +4482,6 @@ function SuporteTecnico({data}){
   const [mobilePanel,setMobilePanel]=useState(null);
   const [selectedLedId,setSelectedLedId]=useState(null);
   const [observedLedStates,setObservedLedStates]=useState(()=>defaultVp8002LedStates());
-  const [confirmedLedIds,setConfirmedLedIds]=useState([]);
   const [ledDiagnosis,setLedDiagnosis]=useState(null);
   const [ledFullscreen,setLedFullscreen]=useState(false);
   const [ledPortrait,setLedPortrait]=useState(false);
@@ -4504,12 +4503,11 @@ function SuporteTecnico({data}){
     const observed=observedLedStates[marker.id]||normal;
     return [marker.id,{...observed,different:!ledStateMatches(normal,observed)}];
   }));
-  const confirmedLedCount=confirmedLedIds.length;
-  const allLedsConfirmed=confirmedLedCount===VP8002_LED_MARKERS.length;
+  const ledDivergenceCount=VP8002_LED_MARKERS.filter(marker=>simulatedLedStates[marker.id]?.different).length;
   const done=SUPPORT_CHECKS.filter((_,i)=>checked[i]).length;
   const tabs=[
     ['resolver',Stethoscope,'Problemas',symptomResults.length],
-    ['leds',Cpu,'VP8002',`${confirmedLedCount}/${VP8002_LED_MARKERS.length}`],
+    ['leds',Cpu,'VP8002',ledDivergenceCount],
     ['procedimentos',Wrench,'Procedimentos',actionResults.length],
     ['guia',BookOpen,'Guias',guideResults.length],
     ['suporte',LifeBuoy,'Checklist',SUPPORT_CHECKS.length]
@@ -4534,31 +4532,27 @@ function SuporteTecnico({data}){
       ...prev,
       [selectedLedMarker.id]: {...(prev[selectedLedMarker.id]||selectedLedNormal), ...patch}
     }));
-    setConfirmedLedIds(prev=>prev.filter(id=>id!==selectedLedMarker.id));
     setLedDiagnosis(null);
   };
   const confirmSelectedLed=()=>{
     if(!selectedLedMarker) return;
-    setConfirmedLedIds(prev=>prev.includes(selectedLedMarker.id)?prev:[...prev,selectedLedMarker.id]);
     setSelectedLedId(null);
     setLedDiagnosis(null);
   };
   const confirmSelectedLedAsNormal=()=>{
     if(!selectedLedMarker) return;
     setObservedLedStates(prev=>({...prev,[selectedLedMarker.id]:{...selectedLedNormal}}));
-    setConfirmedLedIds(prev=>prev.includes(selectedLedMarker.id)?prev:[...prev,selectedLedMarker.id]);
     setSelectedLedId(null);
     setLedDiagnosis(null);
   };
   const resetAllLeds=()=>{
     setObservedLedStates(defaultVp8002LedStates());
-    setConfirmedLedIds([]);
     setSelectedLedId(null);
     setLedDiagnosis(null);
   };
   const generateLedDiagnosis=()=>{
-    if(!allLedsConfirmed){
-      notify(`Confira os ${VP8002_LED_MARKERS.length-confirmedLedCount} LED(s) restantes antes do diagnóstico.`,'error');
+    if(!ledDivergenceCount){
+      notify('Altere pelo menos um LED que esteja diferente do padrão para gerar o diagnóstico.','error');
       return;
     }
     setLedDiagnosis({...buildVp8002Diagnosis(observedLedStates),generatedAt:new Date().toISOString()});
@@ -4727,15 +4721,15 @@ function SuporteTecnico({data}){
       <div className="ledSimulatorHead">
         <div><span className="eyebrow">Simulador visual</span><h2><Cpu size={20}/> LEDs da VP8002</h2></div>
         <div className="ledSimulatorHeadActions">
-          <span className={`ledProgressPill ${allLedsConfirmed?'complete':''}`}><CheckCircle2 size={16}/><b>{confirmedLedCount}/{VP8002_LED_MARKERS.length}</b> conferidos</span>
-          <button type="button" className="iconBtn" onClick={resetAllLeds} title="Reiniciar conferência" aria-label="Reiniciar conferência"><RefreshCw size={18}/></button>
+          <span className={`ledProgressPill ${ledDivergenceCount?'has-changes':'complete'}`}>{ledDivergenceCount?<AlertTriangle size={16}/>:<CheckCircle2 size={16}/>}<b>{ledDivergenceCount}</b> {ledDivergenceCount===1?'LED alterado':'LEDs alterados'}</span>
+          <button type="button" className="iconBtn" onClick={resetAllLeds} title="Restaurar padrão normal" aria-label="Restaurar todos os LEDs ao padrão normal"><RefreshCw size={18}/></button>
           <button type="button" className="iconBtn ledFullscreenButton" onClick={toggleLedFullscreen} title={ledFullscreen?'Sair da tela cheia':'Abrir em tela cheia'} aria-label={ledFullscreen?'Sair da tela cheia':'Abrir simulador em tela cheia'}>{ledFullscreen?<Minimize2 size={19}/>:<Maximize2 size={19}/>}</button>
         </div>
       </div>
       <div className="ledSimulatorWorkspace">
         <div className="ledSimulatorGuide">
-          <div><Target size={18}/><span><b>Toque em cada LED</b><small>Informe como ele está na VP8002 física e confirme.</small></span></div>
-          <div className="ledProgressTrack" aria-label={`${confirmedLedCount} de ${VP8002_LED_MARKERS.length} LEDs conferidos`}><span style={{width:`${Math.round((confirmedLedCount/VP8002_LED_MARKERS.length)*100)}%`}}/></div>
+          <div><Target size={18}/><span><b>Toque somente nos LEDs diferentes</b><small>Altere a cor ou o comportamento observado na VP8002 física.</small></span></div>
+          <div className="ledDefaultStateHint"><CheckCircle2 size={17}/><span>Os demais LEDs já estão no padrão normal.</span></div>
         </div>
         <div className="ledDeviceViewport">
           <button type="button" className="ledMobileLandscapeCallout" onClick={toggleLedFullscreen}>
@@ -4748,17 +4742,16 @@ function SuporteTecnico({data}){
             markers={VP8002_LED_MARKERS}
             stateById={simulatedLedStates}
             activeIds={selectedLedId?[selectedLedId]:[]}
-            confirmedIds={confirmedLedIds}
             onMarkerClick={selectLedMarker}
             renderMarkerEditor={(marker,state)=><LedInlineEditor marker={marker} state={state}/>}
           />
         </div>
         <div className="ledSimulatorFooter">
           <div className="ledFooterStatus">
-            {allLedsConfirmed?<CheckCircle2 size={19}/>:<Info size={19}/>}
-            <span><b>{allLedsConfirmed?'Conferência concluída':`${VP8002_LED_MARKERS.length-confirmedLedCount} LED(s) pendente(s)`}</b><small>{allLedsConfirmed?'O diagnóstico já pode ser gerado.':'Os estados iniciais seguem o padrão normal do manual.'}</small></span>
+            {ledDivergenceCount?<AlertTriangle size={19}/>:<Info size={19}/>}
+            <span><b>{ledDivergenceCount?`${ledDivergenceCount} ${ledDivergenceCount===1?'LED diferente':'LEDs diferentes'}`:'Nenhuma diferença informada'}</b><small>{ledDivergenceCount?'O diagnóstico considerará somente os LEDs alterados.':'Toque apenas nos LEDs que não correspondem ao desenho inicial.'}</small></span>
           </div>
-          <button type="button" className="btn primary ledDiagnosisButton" disabled={!allLedsConfirmed} onClick={generateLedDiagnosis}><Stethoscope size={18}/> Gerar diagnóstico</button>
+          <button type="button" className="btn primary ledDiagnosisButton" disabled={!ledDivergenceCount} onClick={generateLedDiagnosis}><Stethoscope size={18}/> Gerar diagnóstico</button>
         </div>
         <p className="sourceText">{SOURCES.vp8002}</p>
       </div>

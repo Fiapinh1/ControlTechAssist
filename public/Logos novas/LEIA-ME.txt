@@ -1,0 +1,8 @@
+Control Tech Assist — pacote de ícones
+PNG quadrado, fundo branco, preservando o desenho aprovado.
+16–48 px: favicon e ícones pequenos.
+180 px: Apple touch icon.
+192 e 512 px: PWA / manifesto web.
+512 px: arte para ícone da Play Store.
+1024 px: arte base de alta resolução para iOS.
+Não inclui configuração de ícones adaptativos Android nem integração ao código.

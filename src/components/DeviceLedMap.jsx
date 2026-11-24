@@ -6,13 +6,11 @@ export default function DeviceLedMap({
   markers = [],
   stateById = {},
   activeIds = [],
-  confirmedIds = [],
   onMarkerClick,
   renderMarkerEditor,
   className = ''
 }) {
   const activeSet = new Set(Array.isArray(activeIds) ? activeIds : [activeIds].filter(Boolean));
-  const confirmedSet = new Set(Array.isArray(confirmedIds) ? confirmedIds : [confirmedIds].filter(Boolean));
   const colorMap = {
     verde: '#22c55e',
     azul: '#2563eb',
@@ -33,7 +31,6 @@ export default function DeviceLedMap({
       <div className="deviceLedMapLayer" aria-label="Mapa de LEDs do equipamento">
         {markers.map(marker => {
           const active = activeSet.has(marker.id);
-          const confirmed = confirmedSet.has(marker.id);
           const state = stateById[marker.id] || marker.state || {};
           const color = ledColor(state.color);
           const mode = modeClass(state.mode);
@@ -42,7 +39,6 @@ export default function DeviceLedMap({
           const classes = [
             'deviceLedMarker',
             active ? 'active' : '',
-            confirmed ? 'confirmed' : 'pending',
             state.different ? 'different' : '',
             `mode-${mode}`
           ].filter(Boolean).join(' ');
@@ -53,8 +49,8 @@ export default function DeviceLedMap({
                 className={classes}
                 data-led-id={marker.id}
                 style={{ left: `${marker.x}%`, top: `${marker.y}%`, '--led-color': color }}
-                title={`${marker.label} - ${confirmed ? 'conferido' : 'pendente de conferencia'}`}
-                aria-label={`LED ${marker.label}, ${confirmed ? 'conferido' : 'pendente de conferencia'}`}
+                title={`${marker.label} - ${state.different ? 'diferente do padrão' : 'padrão normal'}`}
+                aria-label={`LED ${marker.label}, ${state.different ? 'diferente do padrão' : 'padrão normal'}`}
                 aria-pressed={active}
                 onClick={() => onMarkerClick?.(marker)}
               >
